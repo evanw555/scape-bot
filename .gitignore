@@ -1,0 +1,4 @@
+node_modules/
+ignore/
+
+config/auth.json
