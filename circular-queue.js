@@ -14,6 +14,10 @@ class CircularQueue {
         return false;
     }
 
+    addAll(values) {
+        values.forEach(this.add.bind(this));
+    }
+
     remove(value) {
         if (!this._set.has(value)) {
             return false;
@@ -35,6 +39,12 @@ class CircularQueue {
         }
 
         return true;
+    }
+
+    clear() {
+        this._set.clear();
+        this._list = [];
+        this._index = 0;
     }
 
     getNext() {
@@ -59,6 +69,10 @@ class CircularQueue {
         const array = Array.from(this._set);
         array.sort();
         return array;
+    }
+
+    toString() {
+        return JSON.stringify(this.toSortedArray());
     }
 };
 

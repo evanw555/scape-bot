@@ -1,3 +1,5 @@
+const config = require('./config/config.json');
+
 class CapacityLog {
     constructor(capacity) {
         this._capacity = capacity;
@@ -13,7 +15,7 @@ class CapacityLog {
     }
 
     toLogArray() {
-        return this._list.map(entry => `[${entry.date.toLocaleTimeString()}] ${entry.value}`);
+        return this._list.map(entry => `[${entry.date.toLocaleString("en-US", {timeZone: config.timeZone})}] ${entry.value}`);
     }
 };
 

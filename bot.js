@@ -1,21 +1,38 @@
 const Discord = require('discord.js');
 const osrs = require('osrs-json-api');
+const fs = require('fs');
 
 const CircularQueue = require('./circular-queue');
 const CapacityLog = require('./capacity-log');
+const Storage = require('./storage');
 
 const auth = require('./config/auth.json');
 const config = require('./config/config.json');
 const thumbnails = require('./static/thumbnails.json');
 
 const log = new CapacityLog(config.logCapacity);
+const storage = new Storage('./data/');
+
+const baseThumbnailUrl = 'https://raw.githubusercontent.com/evanw555/scape-bot/master/static/thumbnails/';
+
+const savePlayers = () => {
+    storage.write('players', players.toString()).catch((err) => {
+        log.push(`Unable to save players "${player}": ${err.toString()}`);
+    });
+};
+
+const saveChannel = () => {
+    storage.write('channel', trackingChannel.id).catch((err) => {
+        log.push(`Unable to save tracking channel: ${err.toString()}`);
+    });
+};
 
 const sendUpdateMessage = (channel, text, skill, args) => {
     channel.send({
         embed: {
             description: text,
             thumbnail: (skill && thumbnails.hasOwnProperty(skill)) ? {
-                url: thumbnails.base + thumbnails[skill]
+                url: `${baseThumbnailUrl}${skill}.png`
             } : undefined,
             color: 6316287,
             title: args && args.title,
@@ -115,7 +132,15 @@ const updatePlayer = (player) => {
     });
 };
 
-const players = new CircularQueue();
+const updatePlayers = (players) => {
+    if (players) {
+        players.forEach((player) => {
+            updatePlayer(player);
+        });
+    }
+};
+
+let players = new CircularQueue();
 const levels = {};
 const lastUpdate = {};
 
@@ -135,7 +160,6 @@ const commands = {
                 .join('\n');
             msg.channel.send(`\`\`\`asciidoc\n${innerText}\`\`\``);
         },
-        usage: '',
         text: 'Shows help'
     },
     track: {
@@ -151,9 +175,9 @@ const commands = {
                 players.add(player);
                 updatePlayer(player);
                 msg.channel.send(`Now tracking player **${player}**`);
+                savePlayers();
             }
         },
-        usage: '',
         text: 'Tracks a player and gives updates when they level up'
     },
     remove: {
@@ -168,12 +192,20 @@ const commands = {
                 delete levels[player];
                 delete lastUpdate[player];
                 msg.channel.send(`No longer tracking player **${player}**`);
+                savePlayers();
             } else {
                 msg.channel.send('That player is not currently being tracked');
             }
         },
-        usage: '',
         text: 'Stops tracking a player'
+    },
+    clear: {
+        fn: (msg) => {
+            players.clear();
+            msg.channel.send('No longer tracking any players');
+            savePlayers();
+        },
+        text: 'Stops tracking all players'
     },
     list: {
         fn: (msg) => {
@@ -183,7 +215,6 @@ const commands = {
                 msg.channel.send(`Currently tracking players **${players.toSortedArray().join('**, **')}**`)
             }
         },
-        usage: '',
         text: 'Lists all the players currently being tracked'
     },
     details: {
@@ -192,7 +223,7 @@ const commands = {
                 msg.channel.send('Currently not tracking any players');
             } else {
                 const sortedPlayers = players.toSortedArray();
-                msg.channel.send(`${sortedPlayers.map(player => `**${player}**: last updated **${lastUpdate[player] && lastUpdate[player].toLocaleTimeString()}**`).join('\n')}`)
+                msg.channel.send(`${sortedPlayers.map(player => `**${player}**: last updated **${lastUpdate[player] && lastUpdate[player].toLocaleTimeString("en-US", {timeZone: config.timeZone})}**`).join('\n')}`)
             }
         },
         text: 'Show details of when each tracked player was last updated'
@@ -215,8 +246,11 @@ const commands = {
                     return;
                 }
                 const skills = Object.keys(currentLevels);
+                const baseLevel = Math.min(...Object.values(currentLevels));
+                const totalLevel = Object.values(currentLevels).reduce((x,y) => { return x + y; });
                 skills.sort();
-                sendUpdateMessage(msg.channel, skills.map(skill => `**${currentLevels[skill]}** ${skill}`).join('\n'), 'overall', {
+                const messageText = `${skills.map(skill => `**${currentLevels[skill]}** ${skill}`).join('\n')}\n\nTotal **${totalLevel}**\nBase **${baseLevel}**`;
+                sendUpdateMessage(msg.channel, messageText, 'overall', {
                     title: player,
                     url: `https://secure.runescape.com/m=hiscore_oldschool/hiscorepersonal.ws?user1=${encodeURI(player)}`
                 });
@@ -227,9 +261,9 @@ const commands = {
     channel: {
         fn: (msg) => {
             trackingChannel = msg.channel;
-            msg.channel.send('Player experience updates will now be sent to this channel');
+            trackingChannel.send('Player experience updates will now be sent to this channel');
+            saveChannel();
         },
-        usage: '',
         text: 'All player updates will be sent to the channel where this command is issued'
     },
     hey: {
@@ -253,11 +287,44 @@ const commands = {
 };
 
 // Initialize Discord Bot
-var client = new Discord.Client();
+var client = new Discord.Client({
+    messageCacheMaxSize: 20,
+    messageCacheLifetime: 300,
+    messageSweepInterval: 300
+});
 
-client.on('ready', () => {
+client.on('ready', async () => {
     log.push(`Logged in as: ${client.user.tag}`);
     log.push(`Config=${JSON.stringify(config)}`);
+    const guild = client.guilds.first();
+    const owner = guild.members.get(guild.ownerID);
+    trackingChannel = await owner.createDM();
+    Promise.all([
+        storage.readJson('players'),
+        storage.read('channel')
+    ]).then(([savedPlayers, savedChannelId]) => {
+        // Add saved players to queue
+        players.addAll(savedPlayers);
+        updatePlayers(savedPlayers);
+        log.push(`Loaded up players ${players.toString()}`);
+        // Attempt to set saved channel as tracking channel
+        const channels = client.channels;
+        if (channels.has(savedChannelId)) {
+            trackingChannel = channels.get(savedChannelId);
+            log.push(`Loaded up tracking channel "${savedChannelId}"`);
+        } else {
+            log.push(`Invalid tracking channel "${savedChannelId}", defaulting to guild owner's DM channel`);
+        }
+        // Send greeting message to the tracking channel
+        const baseText = 'ScapeBot online, currently';
+        if (players.isEmpty()) {
+            trackingChannel.send(`${baseText} not tracking any players`);
+        } else {
+            trackingChannel.send(`${baseText} tracking players **${players.toSortedArray().join('**, **')}**`);
+        }
+    }).catch((err) => {
+        log.push(`Failed to load players or tracking channel: ${err.toString()}`);
+    });
 });
 
 client.on('message', (msg) => {
@@ -278,6 +345,8 @@ client.on('message', (msg) => {
             } catch (err) {
                 log.push(`Uncaught error while trying to execute command "${msg.content}": ${err.toString()}`);
             }
+        } else if (!command) {
+            msg.channel.send(`What\'s up <@${msg.author.id}>`);
         } else {
             msg.channel.send(`**${command}** is not a valid command, use **help** to see a list of commands`);
         }
@@ -287,10 +356,10 @@ client.on('message', (msg) => {
 // Login and start the update interval
 client.login(auth.token);
 client.setInterval(() => {
-        const nextPlayer = players.getNext();
-        if (nextPlayer) {
-            updatePlayer(nextPlayer);
-        } else {
-            // No players being tracked
-        }
-    }, config.refreshInterval);
+    const nextPlayer = players.getNext();
+    if (nextPlayer) {
+        updatePlayer(nextPlayer);
+    } else {
+        // No players being tracked
+    }
+}, config.refreshInterval);

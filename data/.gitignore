@@ -1,0 +1,3 @@
+# This directory should be checked in as an empty directory
+*
+!.gitignore
