@@ -1,10 +1,13 @@
 {
     "name": "scape-bot",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "A Discord bot for tracking experience gains and skilling tasks.",
     "main": "bot.js",
     "author": "Evan Williams",
     "repository": "https://github.com/evanw555/scape-bot.git",
+    "engines": {
+        "node": ">=10.0.0"
+    },
     "dependencies": {
         "discord.io": "https://github.com/woor/discord.io/tarball/gateway_v6",
         "discord.js": "^11.4.2",
