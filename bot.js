@@ -13,6 +13,7 @@ const constants = require('./static/constants.json');
 const validSkills = new Set(constants.skills);
 const log = new CapacityLog(config.logCapacity);
 const storage = new Storage('./data/');
+const ownerIds = new Set();
 
 Array.prototype.toSortedSkills = function () {
     const skillSubset = new Set(this);
@@ -157,6 +158,16 @@ const getHelpText = (hidden) => {
         .map(key => `${key.padEnd(maxLengthKey)} :: ${commands[key].text}`)
         .join('\n');
     return `\`\`\`asciidoc\n${innerText}\`\`\``;
+};
+
+const sendRestartMessage = () => {
+    // Send greeting message to the tracking channel
+    const baseText = 'ScapeBot online, currently';
+    if (players.isEmpty()) {
+        trackingChannel.send(`${baseText} not tracking any players`);
+    } else {
+        trackingChannel.send(`${baseText} tracking players **${players.toSortedArray().join('**, **')}**`);
+    }
 };
 
 let players = new CircularQueue();
@@ -329,6 +340,19 @@ const commands = {
         },
         hidden: true,
         text: 'Spoof an update notification using a raw JSON skills diff'
+    },
+    kill: {
+        fn: (msg) => {
+            if (ownerIds.has(msg.author.id)) {
+                msg.channel.send('Killing self...').then(() => {
+                    process.exit(1);
+                });
+            } else {
+                msg.channel.send('You can\'t do that');
+            }
+        },
+        hidden: true,
+        text: 'Kills the bot'
     }
 };
 
@@ -344,6 +368,7 @@ client.on('ready', async () => {
     log.push(`Config=${JSON.stringify(config)}`);
     const guild = client.guilds.first();
     const owner = guild.members.get(guild.ownerID);
+    ownerIds.add(guild.ownerID);
     const ownerDmChannel = await owner.createDM();
     trackingChannel = ownerDmChannel;
     Promise.all([
@@ -362,16 +387,10 @@ client.on('ready', async () => {
         } else {
             log.push(`Invalid tracking channel "${savedChannelId}", defaulting to guild owner's DM channel`);
         }
+        sendRestartMessage();
     }).catch((err) => {
         log.push(`Failed to load players or tracking channel: ${err.toString()}`);
-    }).finally(() => {
-        // Send greeting message to the tracking channel
-        const baseText = 'ScapeBot online, currently';
-        if (players.isEmpty()) {
-            trackingChannel.send(`${baseText} not tracking any players`);
-        } else {
-            trackingChannel.send(`${baseText} tracking players **${players.toSortedArray().join('**, **')}**`);
-        }
+        sendRestartMessage();
     });
 });
 
