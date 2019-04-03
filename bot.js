@@ -8,12 +8,16 @@ const Storage = require('./storage');
 
 const auth = require('./config/auth.json');
 const config = require('./config/config.json');
-const thumbnails = require('./static/thumbnails.json');
+const constants = require('./static/constants.json');
 
+const validSkills = new Set(constants.skills);
 const log = new CapacityLog(config.logCapacity);
 const storage = new Storage('./data/');
 
-const baseThumbnailUrl = 'https://raw.githubusercontent.com/evanw555/scape-bot/master/static/thumbnails/';
+Array.prototype.toSortedSkills = function () {
+    const skillSubset = new Set(this);
+    return constants.skills.filter(skill => skillSubset.has(skill));
+};
 
 const savePlayers = () => {
     storage.write('players', players.toString()).catch((err) => {
@@ -31,8 +35,8 @@ const sendUpdateMessage = (channel, text, skill, args) => {
     channel.send({
         embed: {
             description: text,
-            thumbnail: (skill && thumbnails.hasOwnProperty(skill)) ? {
-                url: `${baseThumbnailUrl}${skill}.png`
+            thumbnail: (skill && validSkills.has(skill)) ? {
+                url: `${constants.baseThumbnailUrl}${skill}.png`
             } : undefined,
             color: 6316287,
             title: args && args.title,
@@ -83,7 +87,7 @@ const parsePlayerPayload = (payload) => {
     return result;
 };
 
-const updatePlayer = (player) => {
+const updatePlayer = (player, spoofedDiff) => {
     // Retrieve the player's hiscores data
     osrs.hiscores.getPlayer(player).then((value) => {
         // Parse the player's hiscores data into levels
@@ -99,7 +103,7 @@ const updatePlayer = (player) => {
             // Compute diff for each level
             let diff;
             try {
-                diff = computeDiff(levels[player], newLevels);
+                diff = spoofedDiff || computeDiff(levels[player], newLevels);
             } catch (err) {
                 log.push(`Failed to compute level diff for player ${player}: ${err.toString()}`);
                 return;
@@ -110,14 +114,14 @@ const updatePlayer = (player) => {
             // Send a message showing all the levels gained
             switch (Object.keys(diff).length) {
                 case 0:
-                    return;
+                    break;
                 case 1:
                     const skill = Object.keys(diff)[0];
                     const levelsGained = diff[skill];
                     sendUpdateMessage(trackingChannel, `**${player}** has gained ${levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`} in **${skill}** and is now level **${newLevels[skill]}**`, skill);
                     break;
                 default:
-                    const text = Object.keys(diff).map((skill) => {
+                    const text = Object.keys(diff).toSortedSkills().map((skill) => {
                         const levelsGained = diff[skill];
                         return `${levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`} in **${skill}** and is now level **${newLevels[skill]}**`;
                     }).join('\n');
@@ -125,8 +129,10 @@ const updatePlayer = (player) => {
                     break;
             }
         }
-        levels[player] = newLevels;
-        lastUpdate[player] = new Date();
+        if (!spoofedDiff) {
+            levels[player] = newLevels;
+            lastUpdate[player] = new Date();
+        }
     }).catch((err) => {
         log.push(`Error while fetching player hiscores for ${player}: ${err.toString()}`);
     });
@@ -140,6 +146,19 @@ const updatePlayers = (players) => {
     }
 };
 
+const getHelpText = (hidden) => {
+    const commandKeys = Object.keys(commands)
+        .filter(key => !!commands[key].hidden === !!hidden);
+    commandKeys.sort();
+    const maxLengthKey = Math.max(...commandKeys.map((key) => {
+        return key.length;
+    }));
+    const innerText = commandKeys
+        .map(key => `${key.padEnd(maxLengthKey)} :: ${commands[key].text}`)
+        .join('\n');
+    return `\`\`\`asciidoc\n${innerText}\`\`\``;
+};
+
 let players = new CircularQueue();
 const levels = {};
 const lastUpdate = {};
@@ -149,16 +168,7 @@ let trackingChannel = null;
 const commands = {
     help: {
         fn: (msg) => {
-            const commandKeys = Object.keys(commands);
-            commandKeys.sort();
-            const maxLengthKey = Math.max(...commandKeys.map((key) => {
-                return key.length;
-            }));
-            const innerText = commandKeys
-                .filter(key => !commands[key].hidden)
-                .map(key => `${key.padEnd(maxLengthKey)} :: ${commands[key].text}`)
-                .join('\n');
-            msg.channel.send(`\`\`\`asciidoc\n${innerText}\`\`\``);
+            msg.channel.send(getHelpText(false));
         },
         text: 'Shows help'
     },
@@ -217,17 +227,6 @@ const commands = {
         },
         text: 'Lists all the players currently being tracked'
     },
-    details: {
-        fn: (msg) => {
-            if (players.isEmpty()) {
-                msg.channel.send('Currently not tracking any players');
-            } else {
-                const sortedPlayers = players.toSortedArray();
-                msg.channel.send(`${sortedPlayers.map(player => `**${player}**: last updated **${lastUpdate[player] && lastUpdate[player].toLocaleTimeString("en-US", {timeZone: config.timeZone})}**`).join('\n')}`)
-            }
-        },
-        text: 'Show details of when each tracked player was last updated'
-    },
     check: {
         fn: (msg, rawArgs) => {
             const player = rawArgs;
@@ -245,14 +244,13 @@ const commands = {
                     log.push(`Failed to parse hiscores payload for player ${player}: ${err.toString()}`);
                     return;
                 }
-                const skills = Object.keys(currentLevels);
+                const skills = Object.keys(currentLevels).toSortedSkills();
                 const baseLevel = Math.min(...Object.values(currentLevels));
                 const totalLevel = Object.values(currentLevels).reduce((x,y) => { return x + y; });
-                skills.sort();
                 const messageText = `${skills.map(skill => `**${currentLevels[skill]}** ${skill}`).join('\n')}\n\nTotal **${totalLevel}**\nBase **${baseLevel}**`;
                 sendUpdateMessage(msg.channel, messageText, 'overall', {
                     title: player,
-                    url: `https://secure.runescape.com/m=hiscore_oldschool/hiscorepersonal.ws?user1=${encodeURI(player)}`
+                    url: `${constants.hiScoresUrlTemplate}${encodeURI(player)}`
                 });
             });
         },
@@ -266,23 +264,71 @@ const commands = {
         },
         text: 'All player updates will be sent to the channel where this command is issued'
     },
+    hiddenhelp: {
+        fn: (msg) => {
+            msg.channel.send(getHelpText(true));
+        },
+        hidden: true,
+        text: 'Shows help for hidden commands'
+    },
+    details: {
+        fn: (msg) => {
+            if (players.isEmpty()) {
+                msg.channel.send('Currently not tracking any players');
+            } else {
+                const sortedPlayers = players.toSortedArray();
+                msg.channel.send(`${sortedPlayers.map(player => `**${player}**: last updated **${lastUpdate[player] && lastUpdate[player].toLocaleTimeString("en-US", {timeZone: config.timeZone})}**`).join('\n')}`)
+            }
+        },
+        text: 'Show details of when each tracked player was last updated'
+    },
     hey: {
         fn: (msg) => {
             msg.channel.send('Sup');
         },
-        hidden: true
+        hidden: true,
+        text: 'Hey'
     },
     sup: {
         fn: (msg) => {
             msg.channel.send('Hey');
         },
-        hidden: true
+        hidden: true,
+        text: 'Sup'
     },
     log: {
         fn: (msg) => {
             msg.channel.send(`\`\`\`${log.toLogArray().join('\n')}\`\`\``);
         },
-        hidden: true
+        hidden: true,
+        text: 'Prints the bot\'s log'
+    },
+    thumbnail: {
+        fn: (msg, rawArgs, skill) => {
+            if (validSkills.has(skill)) {
+                sendUpdateMessage(msg.channel, 'Here is the thumbnail', skill, {
+                    title: skill
+                });
+            } else {
+                msg.channel.send(`**${skill || '[none]'}** is not a valid skill`);
+            }
+        },
+        hidden: true,
+        text: 'Displays a skill\'s thumbnail'
+    },
+    spoofupdate: {
+        fn: (msg, rawArgs) => {
+            let spoofedDiff;
+            try {
+                spoofedDiff = JSON.parse(rawArgs);
+            } catch (err) {
+                msg.channel.send(`\`${err.toString()}\``);
+                return;
+            }
+            updatePlayer('zezima', spoofedDiff);
+        },
+        hidden: true,
+        text: 'Spoof an update notification using a raw JSON skills diff'
     }
 };
 
@@ -298,7 +344,8 @@ client.on('ready', async () => {
     log.push(`Config=${JSON.stringify(config)}`);
     const guild = client.guilds.first();
     const owner = guild.members.get(guild.ownerID);
-    trackingChannel = await owner.createDM();
+    const ownerDmChannel = await owner.createDM();
+    trackingChannel = ownerDmChannel;
     Promise.all([
         storage.readJson('players'),
         storage.read('channel')
@@ -315,6 +362,9 @@ client.on('ready', async () => {
         } else {
             log.push(`Invalid tracking channel "${savedChannelId}", defaulting to guild owner's DM channel`);
         }
+    }).catch((err) => {
+        log.push(`Failed to load players or tracking channel: ${err.toString()}`);
+    }).finally(() => {
         // Send greeting message to the tracking channel
         const baseText = 'ScapeBot online, currently';
         if (players.isEmpty()) {
@@ -322,8 +372,6 @@ client.on('ready', async () => {
         } else {
             trackingChannel.send(`${baseText} tracking players **${players.toSortedArray().join('**, **')}**`);
         }
-    }).catch((err) => {
-        log.push(`Failed to load players or tracking channel: ${err.toString()}`);
     });
 });
 

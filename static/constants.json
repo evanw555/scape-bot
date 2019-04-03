@@ -1,0 +1,30 @@
+{
+    "skills": [
+            "overall",
+            "attack",
+            "defence",
+            "strength",
+            "hitpoints",
+            "ranged",
+            "prayer",
+            "magic",
+            "cooking",
+            "woodcutting",
+            "fletching",
+            "fishing",
+            "firemaking",
+            "crafting",
+            "smithing",
+            "mining",
+            "herblore",
+            "agility",
+            "thieving",
+            "slayer",
+            "farming",
+            "runecraft",
+            "hunter",
+            "construction"
+    ],
+    "baseThumbnailUrl": "https://raw.githubusercontent.com/evanw555/scape-bot/master/static/thumbnails/",
+    "hiScoresUrlTemplate": "https://secure.runescape.com/m=hiscore_oldschool/hiscorepersonal.ws?user1="
+}
