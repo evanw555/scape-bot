@@ -11,7 +11,7 @@ const config = require('./config/config.json');
 const constants = require('./static/constants.json');
 
 const validSkills = new Set(constants.skills);
-const log = new CapacityLog(config.logCapacity);
+const log = new CapacityLog(config.logCapacity, config.logMaxEntryLength);
 const storage = new Storage('./data/');
 const ownerIds = new Set();
 
@@ -64,8 +64,8 @@ const computeDiff = (before, after) => {
     skills.forEach((skill) => {
         if (before[skill] !== after[skill]) {
             const levelDiff = after[skill] - before[skill];
-            if (typeof levelDiff !== 'number' || isNaN(levelDiff)) {
-                throw new Error(`Invalid ${skill} level diff, ${after[skill]} minus ${before[skill]} is ${levelDiff}`);
+            if (typeof levelDiff !== 'number' || isNaN(levelDiff) || levelDiff < 0) {
+                throw new Error(`Invalid ${skill} level diff, "${after[skill]}" minus "${before[skill]}" is "${levelDiff}"`);
             }
             diff[skill] = levelDiff;
         }
