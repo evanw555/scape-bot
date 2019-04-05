@@ -185,7 +185,7 @@ const commands = {
     },
     track: {
         fn: (msg, rawArgs) => {
-            const player = rawArgs;
+            const player = rawArgs && rawArgs.toLowerCase();
             if (!player || !player.trim()) {
                 msg.channel.send('Invalid username');
                 return;
@@ -203,7 +203,7 @@ const commands = {
     },
     remove: {
         fn: (msg, rawArgs) => {
-            const player = rawArgs;
+            const player = rawArgs && rawArgs.toLowerCase();
             if (!player || !player.trim()) {
                 msg.channel.send('Invalid username');
                 return;
@@ -240,7 +240,7 @@ const commands = {
     },
     check: {
         fn: (msg, rawArgs) => {
-            const player = rawArgs;
+            const player = rawArgs && rawArgs.toLowerCase();
             if (!player || !player.trim()) {
                 msg.channel.send('Invalid username');
                 return;
