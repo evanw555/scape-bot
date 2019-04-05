@@ -79,8 +79,8 @@ const parsePlayerPayload = (payload) => {
         if (skill !== 'overall') {
             const rawLevel = payload.skills[skill].level;
             const level = parseInt(rawLevel);
-            if (typeof level !== 'number' || isNaN(level)) {
-                throw new Error(`Invalid ${skill} level, ${rawLevel} parsed to ${level}`);
+            if (typeof level !== 'number' || isNaN(level) || level < 1) {
+                throw new Error(`Invalid ${skill} level, "${rawLevel}" parsed to ${level}.\nPayload: ${JSON.stringify(payload)}`);
             }
             result[skill] = level;
         }
