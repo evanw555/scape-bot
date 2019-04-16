@@ -37,7 +37,7 @@ const sendUpdateMessage = (channel, text, skill, args) => {
         embed: {
             description: text,
             thumbnail: (skill && validSkills.has(skill)) ? {
-                url: `${constants.baseThumbnailUrl}${skill}.png`
+                url: `${constants.baseThumbnailUrl}${(args && args.is99) ? constants.level99Path : ''}${skill}${constants.imageFileExtension}`
             } : undefined,
             color: 6316287,
             title: args && args.title,
@@ -104,7 +104,14 @@ const updatePlayer = (player, spoofedDiff) => {
             // Compute diff for each level
             let diff;
             try {
-                diff = spoofedDiff || computeDiff(levels[player], newLevels);
+                if (spoofedDiff) {
+                    diff = spoofedDiff;
+                    Object.keys(diff).forEach((skill) => {
+                        newLevels[skill] += diff[skill];
+                    });
+                } else {
+                    diff = computeDiff(levels[player], newLevels);
+                }
             } catch (err) {
                 log.push(`Failed to compute level diff for player ${player}: ${err.toString()}`);
                 return;
@@ -112,6 +119,22 @@ const updatePlayer = (player, spoofedDiff) => {
             if (!diff) {
                 return;
             }
+            // Send a message for any skill that is now 99 and remove it from the diff
+            Object.keys(diff).toSortedSkills().forEach((skill) => {
+                const newLevel = newLevels[skill];
+                if (newLevel === 99) {
+                    const levelsGained = diff[skill];
+                    sendUpdateMessage(trackingChannel,
+                        `**${player}** has gained `
+                            + (levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`)
+                            + ` in **${skill}** and is now level **99**\n\n`
+                            + `@everyone congrats **${player}**!`,
+                        skill, {
+                            is99: true
+                        });
+                    delete diff[skill];
+                }
+            });
             // Send a message showing all the levels gained
             switch (Object.keys(diff).length) {
                 case 0:
@@ -119,7 +142,11 @@ const updatePlayer = (player, spoofedDiff) => {
                 case 1:
                     const skill = Object.keys(diff)[0];
                     const levelsGained = diff[skill];
-                    sendUpdateMessage(trackingChannel, `**${player}** has gained ${levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`} in **${skill}** and is now level **${newLevels[skill]}**`, skill);
+                    sendUpdateMessage(trackingChannel,
+                        `**${player}** has gained `
+                            + (levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`)
+                            + ` in **${skill}** and is now level **${newLevels[skill]}**`,
+                        skill);
                     break;
                 default:
                     const text = Object.keys(diff).toSortedSkills().map((skill) => {
@@ -130,6 +157,7 @@ const updatePlayer = (player, spoofedDiff) => {
                     break;
             }
         }
+        // If not spoofing the diff, update player's levels
         if (!spoofedDiff) {
             levels[player] = newLevels;
             lastUpdate[player] = new Date();
@@ -327,19 +355,35 @@ const commands = {
         hidden: true,
         text: 'Displays a skill\'s thumbnail'
     },
+    thumbnail99: {
+        fn: (msg, rawArgs, skill) => {
+            if (validSkills.has(skill)) {
+                sendUpdateMessage(msg.channel, 'Here is the level 99 thumbnail', skill, {
+                    title: skill,
+                    is99: true
+                });
+            } else {
+                msg.channel.send(`**${skill || '[none]'}** is not a valid skill`);
+            }
+        },
+        hidden: true,
+        text: 'Displays a skill\'s level 99 thumbnail'
+    },
     spoofupdate: {
         fn: (msg, rawArgs) => {
-            let spoofedDiff;
+            let spoofedDiff, player;
             try {
-                spoofedDiff = JSON.parse(rawArgs);
+                const inputData = JSON.parse(rawArgs);
+                spoofedDiff = inputData.diff;
+                player = inputData.player || 'zezima';
             } catch (err) {
                 msg.channel.send(`\`${err.toString()}\``);
                 return;
             }
-            updatePlayer('zezima', spoofedDiff);
+            updatePlayer(player, spoofedDiff);
         },
         hidden: true,
-        text: 'Spoof an update notification using a raw JSON skills diff'
+        text: 'Spoof an update notification using a raw JSON object {player, diff}'
     },
     kill: {
         fn: (msg) => {
