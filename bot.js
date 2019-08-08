@@ -188,13 +188,13 @@ const getHelpText = (hidden) => {
     return `\`\`\`asciidoc\n${innerText}\`\`\``;
 };
 
-const sendRestartMessage = () => {
-    // Send greeting message to the tracking channel
-    const baseText = 'ScapeBot online, currently';
+const sendRestartMessage = (channel) => {
+    // Send greeting message to some channel
+    const baseText = `ScapeBot online in channel **${trackingChannel && trackingChannel.name}**, currently`;
     if (players.isEmpty()) {
-        trackingChannel.send(`${baseText} not tracking any players`);
+        channel.send(`${baseText} not tracking any players`);
     } else {
-        trackingChannel.send(`${baseText} tracking players **${players.toSortedArray().join('**, **')}**`);
+        channel.send(`${baseText} tracking players **${players.toSortedArray().join('**, **')}**`);
     }
 };
 
@@ -427,14 +427,14 @@ client.on('ready', async () => {
         const channels = client.channels;
         if (channels.has(savedChannelId)) {
             trackingChannel = channels.get(savedChannelId);
-            log.push(`Loaded up tracking channel "${savedChannelId}"`);
+            log.push(`Loaded up tracking channel "${trackingChannel.name}" with ID "${savedChannelId}"`);
         } else {
-            log.push(`Invalid tracking channel "${savedChannelId}", defaulting to guild owner's DM channel`);
+            log.push(`Invalid tracking channel ID "${savedChannelId}", defaulting to guild owner's DM channel`);
         }
-        sendRestartMessage();
+        sendRestartMessage(ownerDmChannel);
     }).catch((err) => {
         log.push(`Failed to load players or tracking channel: ${err.toString()}`);
-        sendRestartMessage();
+        sendRestartMessage(ownerDmChannel);
     });
 });
 
