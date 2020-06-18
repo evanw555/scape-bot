@@ -54,7 +54,7 @@ const parseCommand = (text) => {
         text,
         command: args[0],
         args: args.splice(1),
-        rawArgs: text.replace(/<@\d+>/g, '').trim().replace(new RegExp(`^${args[0]}`, 'g'), '').trim()
+        rawArgs: text.replace(/<@!?\d+>/g, '').trim().replace(new RegExp(`^${args[0]}`, 'g'), '').trim()
     };
 };
 
@@ -291,6 +291,9 @@ const commands = {
                     title: player,
                     url: `${constants.hiScoresUrlTemplate}${encodeURI(player)}`
                 });
+            }).catch((err) => {
+                log.push(`Error while fetching hiscores (check) for player ${player}: ${err.toString()}`);
+                msg.channel.send(`Couldn\'t fetch hiscores for player **${player}** :pensive:\n\`${err.toString()}\``);
             });
         },
         text: 'Show the current levels for some player'
