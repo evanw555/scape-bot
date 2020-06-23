@@ -1,4 +1,5 @@
 node_modules/
 ignore/
+.vscode/
 
 config/auth.json
