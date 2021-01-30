@@ -11,7 +11,7 @@
     "dependencies": {
         "discord.io": "https://github.com/woor/discord.io/tarball/gateway_v6",
         "discord.js": "^11.4.2",
-        "osrs-json-api": "^1.4.1",
+        "osrs-json-api": "^1.4.2",
         "winston": "^3.1.0",
         "ws": ">=3.3.1"
     },

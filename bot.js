@@ -181,9 +181,9 @@ const updateLevels = (player, newLevels, spoofedDiff) => {
                 break;
             }
             default: {
-                const text = Object.keys(diff).toSortedSkills().map((sk) => {
-                    const levelsGained = diff[sk];
-                    return `${levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`} in **${sk}** and is now level **${newLevels[sk]}**`;
+                const text = Object.keys(diff).toSortedSkills().map((skill) => {
+                    const levelsGained = diff[skill];
+                    return `${levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`} in **${skill}** and is now level **${newLevels[skill]}**`;
                 }).join('\n');
                 sendUpdateMessage(trackingChannel, `**${player}** has gained...\n${text}`, 'overall');
                 break;
@@ -205,10 +205,10 @@ const updateKillCounts = (player, killCounts, spoofedDiff) => {
         try {
             if (spoofedDiff) {
                 diff = {};
-                Object.keys(spoofedDiff).forEach((boss) => {
-                    if (BossUtility.isValidBoss(boss)) {
-                        diff[boss] = spoofedDiff[boss];
-                        killCounts[boss] += diff[boss];
+                Object.keys(spoofedDiff).forEach((bossID) => {
+                    if (BossUtility.isValidBoss(bossID)) {
+                        diff[bossID] = spoofedDiff[bossID];
+                        killCounts[bossID] += diff[bossID];
                     }
                 });
             } else {
@@ -235,23 +235,30 @@ const updateKillCounts = (player, killCounts, spoofedDiff) => {
             case 0:
                 break;
             case 1: {
-                const boss = Object.keys(diff)[0];
-                const killCountIncrease = diff[boss];
-                const bossName = BossUtility.getBossName(boss);
-                sendUpdateMessage(trackingChannel,
-                    `**${player}** ${dopeKillVerb} **${bossName}** `
+                const bossID = Object.keys(diff)[0];
+                const killCountIncrease = diff[bossID];
+                const bossName = BossUtility.getBossName(bossID);
+                const text = killCounts[bossID] === 1
+                    ? `**${player}** has slain **${bossName}** for the first time!`
+                    : `**${player}** ${dopeKillVerb} **${bossName}** `
                         + (killCountIncrease === 1 ? 'again' : `**${killCountIncrease}** more times`)
-                        + ` and is now at **${killCounts[boss]}** kills.`,
-                    boss);
+                        + ` and is now at **${killCounts[bossID]}** kills.`;
+                    
+                sendUpdateMessage(trackingChannel, text, bossID);
+                    
                 break;
             }
             default: {
-                const text = Object.keys(diff).toSortedBosses().map((b) => {
-                    const killCountIncrease = diff[b];
-                    const bossName = BossUtility.getBossName(b);
-                    return `**${bossName}** ${killCountIncrease === 1 ? 'again' : `**${killCountIncrease}** more times`} and is now at **${killCounts[b]}**`;
+                const sortedBosses = Object.keys(diff).toSortedBosses();
+                const text = sortedBosses.map((bossID) => {
+                    const killCountIncrease = diff[bossID];
+                    const bossName = BossUtility.getBossName(bossID);
+                    return killCounts[bossID] === 1
+                        ? `**${bossName}** for the first time!`
+                        : `**${bossName}** ${killCountIncrease === 1 ? 'again' : `**${killCountIncrease}** more times`} and is now at **${killCounts[bossID]}**`;
                 }).join('\n');
-                sendUpdateMessage(trackingChannel, `**${player}** has killed...\n${text}`, 'bosses');
+                // 'bosses' is an invalid thumbnail name but not sure what to show here
+                sendUpdateMessage(trackingChannel, `**${player}** has killed...\n${text}`, sortedBosses[0]);
                 break;
             }
         }
@@ -518,7 +525,7 @@ const commands = {
             updatePlayer(player, spoofedDiff);
         },
         hidden: true,
-        text: 'Spoof an update notification using a raw JSON object {player, diff: {skills, bosses}}'
+        text: 'Spoof an update notification using a raw JSON object {player, diff: {skills|bosses}}'
     },
     kill: {
         fn: (msg) => {
@@ -573,7 +580,7 @@ client.on('ready', async () => {
     });
 });
 
-client.on('message', async (msg) => {
+client.on('message', (msg) => {
     if (msg.isMemberMentioned(client.user)) {
         // Parse command
         let parsedCommand;
