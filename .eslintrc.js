@@ -1,9 +1,11 @@
 module.exports = {
+    "extends": "eslint:recommended",
     "parserOptions": {
         "ecmaVersion": 2017
     },
     "env": {
-        "es6": true
+        "es6": true,
+        "node": true
     },
     "rules": {
         // add custom rules here
@@ -26,5 +28,6 @@ module.exports = {
         "no-console": 0,
         "no-loop-func": 0,
         "import/no-dynamic-require": 0,
+        "no-prototype-builtins": 0
     }
 };

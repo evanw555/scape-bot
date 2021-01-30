@@ -1,18 +1,17 @@
 const Discord = require('discord.js');
 const osrs = require('osrs-json-api');
-// const fs = require('fs');
 
 const CircularQueue = require('./circular-queue');
 const CapacityLog = require('./capacity-log');
 const Storage = require('./storage');
+const BossUtility = require('./boss-utility')
 
 const auth = require('./config/auth.json');
 const config = require('./config/config.json');
 const constants = require('./static/constants.json');
-// const { kill } = require('process');
 
 const validSkills = new Set(constants.skills);
-const validBosses = new Set(constants.bosses);
+
 const log = new CapacityLog(config.logCapacity, config.logMaxEntryLength);
 const storage = new Storage('./data/');
 const ownerIds = new Set();
@@ -22,11 +21,6 @@ Array.prototype.toSortedSkills = function () {
     return constants.skills.filter(skill => skillSubset.has(skill));
 };
 
-Array.prototype.toSortedBosses = function() {
-    const bossSubset = new Set(this);
-    return constants.bosses.filter(boss => bossSubset.has(boss));
-};
-
 const getThumbnail = (name, args) => {
     if (validSkills.has(name)) {
         const skill = name;
@@ -34,7 +28,7 @@ const getThumbnail = (name, args) => {
             url: `${constants.baseThumbnailUrl}${(args && args.is99) ? constants.level99Path : ''}${skill}${constants.imageFileExtension}`
         };
     } 
-    if (validBosses.has(name)) {
+    if (BossUtility.isValidBoss(name)) {
         const boss = name;
         const thumbnailBoss = boss.replace(/[^a-zA-Z ]/g, '').replace(/ /g,'_').toLowerCase();
         return {
@@ -46,7 +40,7 @@ const getThumbnail = (name, args) => {
 
 const savePlayers = () => {
     storage.write('players', players.toString()).catch((err) => {
-        log.push(`Unable to save players '${player}': ${err.toString()}`);
+        log.push(`Unable to save players '${players.toString()}': ${err.toString()}`);
     });
 };
 
@@ -116,17 +110,18 @@ const parsePlayerPayload = (payload) => {
             result.skills[skill] = level;
         }
     });
-    Object.keys(payload.bosses).forEach((boss) => {
-        const rawKillCount = payload.bosses[boss].score;
+    Object.keys(payload.bosses).forEach((bossName) => {
+        const bossID = BossUtility.sanitizeBossName(bossName);
+        const rawKillCount = payload.bosses[bossName].score;
         const killCount = parseInt(rawKillCount);
         if (typeof killCount !== 'number' || isNaN(killCount)) {
-            throw new Error(`Invalid ${boss} boss, '${rawKillCount}' parsed to ${killCount}.\nPayload: ${JSON.stringify(payload.bosses)}`);
+            throw new Error(`Invalid ${bossID} boss, '${rawKillCount}' parsed to ${killCount}.\nPayload: ${JSON.stringify(payload.bosses)}`);
         }
         if (killCount < 0) {
-            result.bosses[boss] = 0;
+            result.bosses[bossID] = 0;
             return;
         }
-        result.bosses[boss] = killCount;
+        result.bosses[bossID] = killCount;
     });
     return result;
 };
@@ -138,9 +133,12 @@ const updateLevels = (player, newLevels, spoofedDiff) => {
         let diff;
         try {
             if (spoofedDiff) {
-                diff = spoofedDiff;
-                Object.keys(diff).forEach((skill) => {
-                    newLevels[skill] += diff[skill];
+                diff = {};
+                Object.keys(spoofedDiff).forEach((skill) => {
+                    if (validSkills.has(skill)) {
+                        diff[skill] = spoofedDiff[skill];
+                        newLevels[skill] += diff[skill];
+                    }
                 });
             } else {
                 diff = computeDiff(levels[player], newLevels);
@@ -153,11 +151,10 @@ const updateLevels = (player, newLevels, spoofedDiff) => {
             return;
         }
         // Send a message for any skill that is now 99 and remove it from the diff
-        let levelsGained;
         Object.keys(diff).toSortedSkills().forEach((skill) => {
             const newLevel = newLevels[skill];
             if (newLevel === 99) {
-                levelsGained = diff[skill];
+                const levelsGained = diff[skill];
                 sendUpdateMessage(trackingChannel,
                     `**${player}** has gained `
                         + (levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`)
@@ -173,22 +170,24 @@ const updateLevels = (player, newLevels, spoofedDiff) => {
         switch (Object.keys(diff).length) {
             case 0:
                 break;
-            case 1:
+            case 1: {
                 const skill = Object.keys(diff)[0];
-                levelsGained = diff[skill];
+                const levelsGained = diff[skill];
                 sendUpdateMessage(trackingChannel,
                     `**${player}** has gained `
                         + (levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`)
                         + ` in **${skill}** and is now level **${newLevels[skill]}**`,
                     skill);
                 break;
-            default:
+            }
+            default: {
                 const text = Object.keys(diff).toSortedSkills().map((sk) => {
-                    levelsGained = diff[sk];
+                    const levelsGained = diff[sk];
                     return `${levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`} in **${sk}** and is now level **${newLevels[sk]}**`;
                 }).join('\n');
                 sendUpdateMessage(trackingChannel, `**${player}** has gained...\n${text}`, 'overall');
                 break;
+            }
         }
     }
     // If not spoofing the diff, update player's levels
@@ -205,9 +204,12 @@ const updateKillCounts = (player, killCounts, spoofedDiff) => {
         let diff;
         try {
             if (spoofedDiff) {
-                diff = spoofedDiff;
-                Object.keys(diff).forEach((boss) => {
-                    killCounts[boss] += diff[boss];
+                diff = {};
+                Object.keys(spoofedDiff).forEach((boss) => {
+                    if (BossUtility.isValidBoss(boss)) {
+                        diff[boss] = spoofedDiff[boss];
+                        killCounts[boss] += diff[boss];
+                    }
                 });
             } else {
                 diff = computeDiff(bosses[player], killCounts);
@@ -229,26 +231,29 @@ const updateKillCounts = (player, killCounts, spoofedDiff) => {
             'butchered'
         ];
         const dopeKillVerb = dopeKillVerbs[getRandomInt(dopeKillVerbs.length)];
-        let killCountIncrease;
         switch (Object.keys(diff).length) {
             case 0:
                 break;
-            case 1:
+            case 1: {
                 const boss = Object.keys(diff)[0];
-                killCountIncrease = diff[boss];
+                const killCountIncrease = diff[boss];
+                const bossName = BossUtility.getBossName(boss);
                 sendUpdateMessage(trackingChannel,
-                    `**${player}** ${dopeKillVerb} **${boss}** `
+                    `**${player}** ${dopeKillVerb} **${bossName}** `
                         + (killCountIncrease === 1 ? 'again' : `**${killCountIncrease}** more times`)
                         + ` and is now at **${killCounts[boss]}** kills.`,
-                    skill);
+                    boss);
                 break;
-            default:
+            }
+            default: {
                 const text = Object.keys(diff).toSortedBosses().map((b) => {
-                    killCountIncrease = diff[b];
-                    return `**${b}** ${killCountIncrease === 1 ? 'again' : `**${killCountIncrease}** more times`} and is now at **${killCounts[b]}**`;
+                    const killCountIncrease = diff[b];
+                    const bossName = BossUtility.getBossName(b);
+                    return `**${bossName}** ${killCountIncrease === 1 ? 'again' : `**${killCountIncrease}** more times`} and is now at **${killCounts[b]}**`;
                 }).join('\n');
-                sendUpdateMessage(trackingChannel, `**${player}** has killed...\n${text}`, 'overall');
+                sendUpdateMessage(trackingChannel, `**${player}** has killed...\n${text}`, 'bosses');
                 break;
+            }
         }
     }
     // If not spoofing the diff, update player's kill counts
@@ -416,7 +421,7 @@ const commands = {
                 });
             }).catch((err) => {
                 log.push(`Error while fetching hiscores (check) for player ${player}: ${err.toString()}`);
-                msg.channel.send(`Couldn\'t fetch hiscores for player **${player}** :pensive:\n\`${err.toString()}\``);
+                msg.channel.send(`Couldn't fetch hiscores for player **${player}** :pensive:\n\`${err.toString()}\``);
             });
         },
         text: 'Show the current levels for some player'
@@ -474,7 +479,7 @@ const commands = {
                 sendUpdateMessage(msg.channel, 'Here is the thumbnail', name, {
                     title: name
                 });
-            } else if (validBosses.has(name)) {
+            } else if (BossUtility.isValidBoss(name)) {
                 sendUpdateMessage(msg.channel, 'Here is the thumbnail', name, {
                     title: name
                 });
@@ -588,7 +593,7 @@ client.on('message', async (msg) => {
                 log.push(`Uncaught error while trying to execute command '${msg.content}': ${err.toString()}`);
             }
         } else if (!command) {
-            msg.channel.send(`What\'s up <@${msg.author.id}>`);
+            msg.channel.send(`What's up <@${msg.author.id}>`);
         } else {
             msg.channel.send(`**${command}** is not a valid command, use **help** to see a list of commands`);
         }
