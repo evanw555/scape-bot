@@ -4,7 +4,7 @@ const osrs = require('osrs-json-api');
 const CircularQueue = require('./circular-queue');
 const CapacityLog = require('./capacity-log');
 const Storage = require('./storage');
-const BossUtility = require('./boss-utility')
+const BossUtility = require('./boss-utility');
 
 const auth = require('./config/auth.json');
 const config = require('./config/config.json');
@@ -78,7 +78,7 @@ const parseCommand = (text) => {
 // expected output: 0,1,2
 const getRandomInt = (max) => {
     return Math.floor(Math.random() * Math.floor(max));
-}
+};
 
 const computeDiff = (before, after) => {
     const counts = Object.keys(before);
@@ -387,7 +387,7 @@ const commands = {
             if (players.isEmpty()) {
                 msg.channel.send('Currently not tracking any players');
             } else {
-                msg.channel.send(`Currently tracking players **${players.toSortedArray().join('**, **')}**`)
+                msg.channel.send(`Currently tracking players **${players.toSortedArray().join('**, **')}**`);
             }
         },
         text: 'Lists all the players currently being tracked'
@@ -491,7 +491,7 @@ const commands = {
                 msg.channel.send('Currently not tracking any players');
             } else {
                 const sortedPlayers = players.toSortedArray();
-                msg.channel.send(`${sortedPlayers.map(player => `**${player}**: last updated **${lastUpdate[player] && lastUpdate[player].toLocaleTimeString('en-US', {timeZone: config.timeZone})}**`).join('\n')}`)
+                msg.channel.send(`${sortedPlayers.map(player => `**${player}**: last updated **${lastUpdate[player] && lastUpdate[player].toLocaleTimeString('en-US', {timeZone: config.timeZone})}**`).join('\n')}`);
             }
         },
         text: 'Show details of when each tracked player was last updated'
@@ -634,7 +634,7 @@ client.on('message', (msg) => {
             parsedCommand = parseCommand(msg.content);
         } catch (err) {
             log.push(`Failed to parse command '${msg.content}': ${err.toString()}`);
-            return
+            return;
         }
         // Execute command
         const { command, args, rawArgs } = parsedCommand;
