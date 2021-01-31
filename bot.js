@@ -243,9 +243,7 @@ const updateKillCounts = (player, killCounts, spoofedDiff) => {
                     : `**${player}** ${dopeKillVerb} **${bossName}** `
                         + (killCountIncrease === 1 ? 'again' : `**${killCountIncrease}** more times`)
                         + ` and is now at **${killCounts[bossID]}** kills.`;
-                    
                 sendUpdateMessage(trackingChannel, text, bossID);
-                    
                 break;
             }
             default: {
@@ -257,7 +255,6 @@ const updateKillCounts = (player, killCounts, spoofedDiff) => {
                         ? `**${bossName}** for the first time!`
                         : `**${bossName}** ${killCountIncrease === 1 ? 'again' : `**${killCountIncrease}** more times`} and is now at **${killCounts[bossID]}**`;
                 }).join('\n');
-                // 'bosses' is an invalid thumbnail name but not sure what to show here
                 sendUpdateMessage(trackingChannel, `**${player}** has killed...\n${text}`, sortedBosses[0]);
                 break;
             }
@@ -464,7 +461,7 @@ const commands = {
                 const messageText = `**${player}** has killed **${bossName}** **${killCounts[bossID]}** times`;
                 sendUpdateMessage(msg.channel, messageText, bossID, {
                     title: bossName,
-                    url: `${constants.hiScoresUrlTemplate}${encodeURI(player)}`
+                    url: `${constants.osrsWikiBaseUrl}${bossName}`
                 });
             }).catch((err) => {
                 log.push(`Error while fetching hiscores (check) for player ${player}: ${err.toString()}`);
