@@ -312,12 +312,16 @@ const getHelpText = (hidden) => {
 };
 
 const sendRestartMessage = (channel) => {
-    // Send greeting message to some channel
-    const baseText = `ScapeBot online in channel **${trackingChannel && trackingChannel.name}**, currently`;
-    if (players.isEmpty()) {
-        channel.send(`${baseText} not tracking any players`);
+    if (channel) {
+        // Send greeting message to some channel
+        const baseText = `ScapeBot online in channel **${trackingChannel && trackingChannel.name}**, currently`;
+        if (players.isEmpty()) {
+            channel.send(`${baseText} not tracking any players`);
+        } else {
+            channel.send(`${baseText} tracking players **${players.toSortedArray().join('**, **')}**`);
+        }
     } else {
-        channel.send(`${baseText} tracking players **${players.toSortedArray().join('**, **')}**`);
+        log.push('Attempted to send a bot restart message, but the specified channel is undefined!');
     }
 };
 
@@ -590,9 +594,16 @@ client.on('ready', async () => {
     log.push(`Config=${JSON.stringify(config)}`);
     const guild = client.guilds.first();
     const owner = guild.members.get(guild.ownerID);
-    ownerIds.add(guild.ownerID);
-    const ownerDmChannel = await owner.createDM();
-    trackingChannel = ownerDmChannel;
+    // TODO: This isn't working for now, I think it's because of something called "Intents"
+    // May need to update discord.js...
+    let ownerDmChannel;
+    if (owner) {
+        ownerIds.add(guild.ownerID);
+        ownerDmChannel = await owner.createDM();
+        trackingChannel = ownerDmChannel;
+    } else {
+        log.push('Could not determine the guild\'s owner!');
+    }
     Promise.all([
         storage.readJson('players'),
         storage.read('channel')
@@ -606,8 +617,10 @@ client.on('ready', async () => {
         if (channels.has(savedChannelId)) {
             trackingChannel = channels.get(savedChannelId);
             log.push(`Loaded up tracking channel '${trackingChannel.name}' with ID '${savedChannelId}'`);
-        } else {
+        } else if (trackingChannel && trackingChannel === ownerDmChannel) {
             log.push(`Invalid tracking channel ID '${savedChannelId}', defaulting to guild owner's DM channel`);
+        } else {
+            log.push('Could determine neither the guild owner\'s DM channel nor the saved tracking channel. Please set it using commands.');
         }
         sendRestartMessage(ownerDmChannel);
     }).catch((err) => {
