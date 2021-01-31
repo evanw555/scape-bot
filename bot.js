@@ -433,6 +433,42 @@ const commands = {
         },
         text: 'Show the current levels for some player'
     },
+    kc: {
+        fn: (msg, rawArgs, player, boss) => {
+            if (!player || !player.trim() || !boss || !boss.trim()) {
+                msg.channel.send('`kc` command must look like `kc [player] [boss]`');
+                return;
+            }
+            if (!BossUtility.isValidBoss(boss)) {
+                msg.channel.send(`'${boss}' is not a valid boss`);
+                return;
+            }
+            // Retrieve the player's hiscores data
+            osrs.hiscores.getPlayer(player).then((value) => {
+                // Parse the player's hiscores data
+                let playerData;
+                try {
+                    playerData = parsePlayerPayload(value);
+                } catch (err) {
+                    log.push(`Failed to parse hiscores payload for player ${player}: ${err.toString()}`);
+                    return;
+                }
+                // Create boss message text
+                const killCounts = playerData.bosses;
+                const bossID = BossUtility.sanitizeBossName(boss);
+                const bossName = BossUtility.getBossName(bossID);
+                const messageText = `**${player}** has killed **${bossName}** **${killCounts[bossID]}** times`;
+                sendUpdateMessage(msg.channel, messageText, bossID, {
+                    title: bossName,
+                    url: `${constants.hiScoresUrlTemplate}${encodeURI(player)}`
+                });
+            }).catch((err) => {
+                log.push(`Error while fetching hiscores (check) for player ${player}: ${err.toString()}`);
+                msg.channel.send(`Couldn't fetch hiscores for player **${player}** :pensive:\n\`${err.toString()}\``);
+            });
+        },
+        text: 'Show kill count of a boss for some player'
+    },
     channel: {
         fn: (msg) => {
             trackingChannel = msg.channel;
