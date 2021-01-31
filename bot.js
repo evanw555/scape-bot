@@ -1,16 +1,17 @@
 const Discord = require('discord.js');
 const osrs = require('osrs-json-api');
-const fs = require('fs');
 
 const CircularQueue = require('./circular-queue');
 const CapacityLog = require('./capacity-log');
 const Storage = require('./storage');
+const BossUtility = require('./boss-utility')
 
 const auth = require('./config/auth.json');
 const config = require('./config/config.json');
 const constants = require('./static/constants.json');
 
 const validSkills = new Set(constants.skills);
+
 const log = new CapacityLog(config.logCapacity, config.logMaxEntryLength);
 const storage = new Storage('./data/');
 const ownerIds = new Set();
@@ -20,9 +21,26 @@ Array.prototype.toSortedSkills = function () {
     return constants.skills.filter(skill => skillSubset.has(skill));
 };
 
+const getThumbnail = (name, args) => {
+    if (validSkills.has(name)) {
+        const skill = name;
+        return {
+            url: `${constants.baseThumbnailUrl}${(args && args.is99) ? constants.level99Path : ''}${skill}${constants.imageFileExtension}`
+        };
+    } 
+    if (BossUtility.isValidBoss(name)) {
+        const boss = name;
+        const thumbnailBoss = boss.replace(/[^a-zA-Z ]/g, '').replace(/ /g,'_').toLowerCase();
+        return {
+            url: `${constants.baseThumbnailUrl}${thumbnailBoss}${constants.imageFileExtension}`
+        };
+    }
+    return;
+};
+
 const savePlayers = () => {
     storage.write('players', players.toString()).catch((err) => {
-        log.push(`Unable to save players "${player}": ${err.toString()}`);
+        log.push(`Unable to save players '${players.toString()}': ${err.toString()}`);
     });
 };
 
@@ -32,13 +50,11 @@ const saveChannel = () => {
     });
 };
 
-const sendUpdateMessage = (channel, text, skill, args) => {
+const sendUpdateMessage = (channel, text, name, args) => {
     channel.send({
         embed: {
             description: text,
-            thumbnail: (skill && validSkills.has(skill)) ? {
-                url: `${constants.baseThumbnailUrl}${(args && args.is99) ? constants.level99Path : ''}${skill}${constants.imageFileExtension}`
-            } : undefined,
+            thumbnail: getThumbnail(name, args),
             color: 6316287,
             title: args && args.title,
             url: args && args.url
@@ -58,110 +74,217 @@ const parseCommand = (text) => {
     };
 };
 
+// input: 3
+// expected output: 0,1,2
+const getRandomInt = (max) => {
+    return Math.floor(Math.random() * Math.floor(max));
+}
+
 const computeDiff = (before, after) => {
-    const skills = Object.keys(before);
+    const counts = Object.keys(before);
     const diff = {};
-    skills.forEach((skill) => {
-        if (before[skill] !== after[skill]) {
-            const levelDiff = after[skill] - before[skill];
-            if (typeof levelDiff !== 'number' || isNaN(levelDiff) || levelDiff < 0) {
-                throw new Error(`Invalid ${skill} level diff, "${after[skill]}" minus "${before[skill]}" is "${levelDiff}"`);
+    counts.forEach((kind) => {
+        if (before[kind] !== after[kind]) {
+            const thisDiff = after[kind] - before[kind];
+            if (typeof thisDiff !== 'number' || isNaN(thisDiff) || thisDiff < 0) {
+                throw new Error(`Invalid ${kind} diff, '${after[kind]}' minus '${before[kind]}' is '${thisDiff}'`);
             }
-            diff[skill] = levelDiff;
+            diff[kind] = thisDiff;
         }
     });
     return diff;
 };
 
 const parsePlayerPayload = (payload) => {
-    const result = {};
+    const result = {
+        skills: {},
+        bosses: {}
+    };
     Object.keys(payload.skills).forEach((skill) => {
         if (skill !== 'overall') {
             const rawLevel = payload.skills[skill].level;
             const level = parseInt(rawLevel);
             if (typeof level !== 'number' || isNaN(level) || level < 1) {
-                throw new Error(`Invalid ${skill} level, "${rawLevel}" parsed to ${level}.\nPayload: ${JSON.stringify(payload)}`);
+                throw new Error(`Invalid ${skill} level, '${rawLevel}' parsed to ${level}.\nPayload: ${JSON.stringify(payload.skills)}`);
             }
-            result[skill] = level;
+            result.skills[skill] = level;
         }
     });
+    Object.keys(payload.bosses).forEach((bossName) => {
+        const bossID = BossUtility.sanitizeBossName(bossName);
+        const rawKillCount = payload.bosses[bossName].score;
+        const killCount = parseInt(rawKillCount);
+        if (typeof killCount !== 'number' || isNaN(killCount)) {
+            throw new Error(`Invalid ${bossID} boss, '${rawKillCount}' parsed to ${killCount}.\nPayload: ${JSON.stringify(payload.bosses)}`);
+        }
+        if (killCount < 0) {
+            result.bosses[bossID] = 0;
+            return;
+        }
+        result.bosses[bossID] = killCount;
+    });
     return result;
+};
+
+const updateLevels = (player, newLevels, spoofedDiff) => {
+    // If channel is set and user already has levels tracked
+    if (trackingChannel && levels.hasOwnProperty(player)) {
+        // Compute diff for each level
+        let diff;
+        try {
+            if (spoofedDiff) {
+                diff = {};
+                Object.keys(spoofedDiff).forEach((skill) => {
+                    if (validSkills.has(skill)) {
+                        diff[skill] = spoofedDiff[skill];
+                        newLevels[skill] += diff[skill];
+                    }
+                });
+            } else {
+                diff = computeDiff(levels[player], newLevels);
+            }
+        } catch (err) {
+            log.push(`Failed to compute level diff for player ${player}: ${err.toString()}`);
+            return;
+        }
+        if (!diff) {
+            return;
+        }
+        // Send a message for any skill that is now 99 and remove it from the diff
+        Object.keys(diff).toSortedSkills().forEach((skill) => {
+            const newLevel = newLevels[skill];
+            if (newLevel === 99) {
+                const levelsGained = diff[skill];
+                sendUpdateMessage(trackingChannel,
+                    `**${player}** has gained `
+                        + (levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`)
+                        + ` in **${skill}** and is now level **99**\n\n`
+                        + `@everyone congrats **${player}**!`,
+                    skill, {
+                        is99: true
+                    });
+                delete diff[skill];
+            }
+        });
+        // Send a message showing all the levels gained
+        switch (Object.keys(diff).length) {
+            case 0:
+                break;
+            case 1: {
+                const skill = Object.keys(diff)[0];
+                const levelsGained = diff[skill];
+                sendUpdateMessage(trackingChannel,
+                    `**${player}** has gained `
+                        + (levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`)
+                        + ` in **${skill}** and is now level **${newLevels[skill]}**`,
+                    skill);
+                break;
+            }
+            default: {
+                const text = Object.keys(diff).toSortedSkills().map((skill) => {
+                    const levelsGained = diff[skill];
+                    return `${levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`} in **${skill}** and is now level **${newLevels[skill]}**`;
+                }).join('\n');
+                sendUpdateMessage(trackingChannel, `**${player}** has gained...\n${text}`, 'overall');
+                break;
+            }
+        }
+    }
+    // If not spoofing the diff, update player's levels
+    if (!spoofedDiff) {
+        levels[player] = newLevels;
+        lastUpdate[player] = new Date();
+    }
+};
+
+const updateKillCounts = (player, killCounts, spoofedDiff) => {
+    // If channel is set and user already has bosses tracked
+    if (trackingChannel && bosses.hasOwnProperty(player)) {
+        // Compute diff for each boss
+        let diff;
+        try {
+            if (spoofedDiff) {
+                diff = {};
+                Object.keys(spoofedDiff).forEach((bossID) => {
+                    if (BossUtility.isValidBoss(bossID)) {
+                        diff[bossID] = spoofedDiff[bossID];
+                        killCounts[bossID] += diff[bossID];
+                    }
+                });
+            } else {
+                diff = computeDiff(bosses[player], killCounts);
+            }
+        } catch (err) {
+            log.push(`Failed to compute boss KC diff for player ${player}: ${err.toString()}`);
+            return;
+        }
+        if (!diff) {
+            return;
+        }
+        // Send a message showing all the incremented boss KCs
+        const dopeKillVerbs = [
+            'has killed',
+            'killed',
+            'has slain',
+            'slew',
+            'slaughtered',
+            'butchered'
+        ];
+        const dopeKillVerb = dopeKillVerbs[getRandomInt(dopeKillVerbs.length)];
+        switch (Object.keys(diff).length) {
+            case 0:
+                break;
+            case 1: {
+                const bossID = Object.keys(diff)[0];
+                const killCountIncrease = diff[bossID];
+                const bossName = BossUtility.getBossName(bossID);
+                const text = killCounts[bossID] === 1
+                    ? `**${player}** has slain **${bossName}** for the first time!`
+                    : `**${player}** ${dopeKillVerb} **${bossName}** `
+                        + (killCountIncrease === 1 ? 'again' : `**${killCountIncrease}** more times`)
+                        + ` and is now at **${killCounts[bossID]}** kills.`;
+                    
+                sendUpdateMessage(trackingChannel, text, bossID);
+                    
+                break;
+            }
+            default: {
+                const sortedBosses = Object.keys(diff).toSortedBosses();
+                const text = sortedBosses.map((bossID) => {
+                    const killCountIncrease = diff[bossID];
+                    const bossName = BossUtility.getBossName(bossID);
+                    return killCounts[bossID] === 1
+                        ? `**${bossName}** for the first time!`
+                        : `**${bossName}** ${killCountIncrease === 1 ? 'again' : `**${killCountIncrease}** more times`} and is now at **${killCounts[bossID]}**`;
+                }).join('\n');
+                // 'bosses' is an invalid thumbnail name but not sure what to show here
+                sendUpdateMessage(trackingChannel, `**${player}** has killed...\n${text}`, sortedBosses[0]);
+                break;
+            }
+        }
+    }
+    // If not spoofing the diff, update player's kill counts
+    if (!spoofedDiff) {
+        bosses[player] = killCounts;
+        lastUpdate[player] = new Date();
+    }
 };
 
 const updatePlayer = (player, spoofedDiff) => {
     // Retrieve the player's hiscores data
     osrs.hiscores.getPlayer(player).then((value) => {
-        // Parse the player's hiscores data into levels
-        let newLevels;
+        // Parse the player's hiscores data
+        let playerData;
         try {
-            newLevels = parsePlayerPayload(value);
+            playerData = parsePlayerPayload(value);
         } catch (err) {
-            log.push(`Failed to parse hiscores payload for player ${player}: ${err.toString()}`);
+            log.push(`Failed to parse payload for player ${player}: ${err.toString()}`);
             return;
         }
-        // If channel is set and user already has levels tracked
-        if (trackingChannel && levels.hasOwnProperty(player)) {
-            // Compute diff for each level
-            let diff;
-            try {
-                if (spoofedDiff) {
-                    diff = spoofedDiff;
-                    Object.keys(diff).forEach((skill) => {
-                        newLevels[skill] += diff[skill];
-                    });
-                } else {
-                    diff = computeDiff(levels[player], newLevels);
-                }
-            } catch (err) {
-                log.push(`Failed to compute level diff for player ${player}: ${err.toString()}`);
-                return;
-            }
-            if (!diff) {
-                return;
-            }
-            // Send a message for any skill that is now 99 and remove it from the diff
-            Object.keys(diff).toSortedSkills().forEach((skill) => {
-                const newLevel = newLevels[skill];
-                if (newLevel === 99) {
-                    const levelsGained = diff[skill];
-                    sendUpdateMessage(trackingChannel,
-                        `**${player}** has gained `
-                            + (levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`)
-                            + ` in **${skill}** and is now level **99**\n\n`
-                            + `@everyone congrats **${player}**!`,
-                        skill, {
-                            is99: true
-                        });
-                    delete diff[skill];
-                }
-            });
-            // Send a message showing all the levels gained
-            switch (Object.keys(diff).length) {
-                case 0:
-                    break;
-                case 1:
-                    const skill = Object.keys(diff)[0];
-                    const levelsGained = diff[skill];
-                    sendUpdateMessage(trackingChannel,
-                        `**${player}** has gained `
-                            + (levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`)
-                            + ` in **${skill}** and is now level **${newLevels[skill]}**`,
-                        skill);
-                    break;
-                default:
-                    const text = Object.keys(diff).toSortedSkills().map((skill) => {
-                        const levelsGained = diff[skill];
-                        return `${levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`} in **${skill}** and is now level **${newLevels[skill]}**`;
-                    }).join('\n');
-                    sendUpdateMessage(trackingChannel, `**${player}** has gained...\n${text}`, 'overall');
-                    break;
-            }
-        }
-        // If not spoofing the diff, update player's levels
-        if (!spoofedDiff) {
-            levels[player] = newLevels;
-            lastUpdate[player] = new Date();
-        }
+
+        updateLevels(player, playerData.skills, spoofedDiff);
+        updateKillCounts(player, playerData.bosses, spoofedDiff);
+        
     }).catch((err) => {
         log.push(`Error while fetching player hiscores for ${player}: ${err.toString()}`);
     });
@@ -200,6 +323,7 @@ const sendRestartMessage = (channel) => {
 
 let players = new CircularQueue();
 const levels = {};
+const bosses = {};
 const lastUpdate = {};
 
 let trackingChannel = null;
@@ -239,6 +363,7 @@ const commands = {
             if (players.contains(player)) {
                 players.remove(player);
                 delete levels[player];
+                delete bosses[player];
                 delete lastUpdate[player];
                 msg.channel.send(`No longer tracking player **${player}**`);
                 savePlayers();
@@ -275,28 +400,74 @@ const commands = {
             }
             // Retrieve the player's hiscores data
             osrs.hiscores.getPlayer(player).then((value) => {
-                // Parse the player's hiscores data into levels
-                let currentLevels;
+                // Parse the player's hiscores data
+                let playerData;
                 try {
-                    currentLevels = parsePlayerPayload(value);
+                    playerData = parsePlayerPayload(value);
                 } catch (err) {
                     log.push(`Failed to parse hiscores payload for player ${player}: ${err.toString()}`);
                     return;
                 }
+                let messageText = '';
+                // Create skills message text
+                const currentLevels = playerData.skills;
                 const skills = Object.keys(currentLevels).toSortedSkills();
                 const baseLevel = Math.min(...Object.values(currentLevels));
                 const totalLevel = Object.values(currentLevels).reduce((x,y) => { return x + y; });
-                const messageText = `${skills.map(skill => `**${currentLevels[skill]}** ${skill}`).join('\n')}\n\nTotal **${totalLevel}**\nBase **${baseLevel}**`;
+                messageText += `${skills.map(skill => `**${currentLevels[skill]}** ${skill}`).join('\n')}\n\nTotal **${totalLevel}**\nBase **${baseLevel}**`;
+                // Create bosses message text
+                const killCounts = playerData.bosses;
+                const kcBosses = Object.keys(killCounts).toSortedBosses().filter(boss => killCounts[boss]);
+                if (kcBosses.length) {
+                    messageText += '\n\n';
+                }
+                messageText += `${kcBosses.map(boss => `**${killCounts[boss]}** ${boss}`).join('\n')}`;
                 sendUpdateMessage(msg.channel, messageText, 'overall', {
                     title: player,
                     url: `${constants.hiScoresUrlTemplate}${encodeURI(player)}`
                 });
             }).catch((err) => {
                 log.push(`Error while fetching hiscores (check) for player ${player}: ${err.toString()}`);
-                msg.channel.send(`Couldn\'t fetch hiscores for player **${player}** :pensive:\n\`${err.toString()}\``);
+                msg.channel.send(`Couldn't fetch hiscores for player **${player}** :pensive:\n\`${err.toString()}\``);
             });
         },
         text: 'Show the current levels for some player'
+    },
+    kc: {
+        fn: (msg, rawArgs, player, boss) => {
+            if (!player || !player.trim() || !boss || !boss.trim()) {
+                msg.channel.send('`kc` command must look like `kc [player] [boss]`');
+                return;
+            }
+            if (!BossUtility.isValidBoss(boss)) {
+                msg.channel.send(`'${boss}' is not a valid boss`);
+                return;
+            }
+            // Retrieve the player's hiscores data
+            osrs.hiscores.getPlayer(player).then((value) => {
+                // Parse the player's hiscores data
+                let playerData;
+                try {
+                    playerData = parsePlayerPayload(value);
+                } catch (err) {
+                    log.push(`Failed to parse hiscores payload for player ${player}: ${err.toString()}`);
+                    return;
+                }
+                // Create boss message text
+                const killCounts = playerData.bosses;
+                const bossID = BossUtility.sanitizeBossName(boss);
+                const bossName = BossUtility.getBossName(bossID);
+                const messageText = `**${player}** has killed **${bossName}** **${killCounts[bossID]}** times`;
+                sendUpdateMessage(msg.channel, messageText, bossID, {
+                    title: bossName,
+                    url: `${constants.hiScoresUrlTemplate}${encodeURI(player)}`
+                });
+            }).catch((err) => {
+                log.push(`Error while fetching hiscores (check) for player ${player}: ${err.toString()}`);
+                msg.channel.send(`Couldn't fetch hiscores for player **${player}** :pensive:\n\`${err.toString()}\``);
+            });
+        },
+        text: 'Show kill count of a boss for some player'
     },
     channel: {
         fn: (msg) => {
@@ -319,7 +490,7 @@ const commands = {
                 msg.channel.send('Currently not tracking any players');
             } else {
                 const sortedPlayers = players.toSortedArray();
-                msg.channel.send(`${sortedPlayers.map(player => `**${player}**: last updated **${lastUpdate[player] && lastUpdate[player].toLocaleTimeString("en-US", {timeZone: config.timeZone})}**`).join('\n')}`)
+                msg.channel.send(`${sortedPlayers.map(player => `**${player}**: last updated **${lastUpdate[player] && lastUpdate[player].toLocaleTimeString('en-US', {timeZone: config.timeZone})}**`).join('\n')}`)
             }
         },
         text: 'Show details of when each tracked player was last updated'
@@ -346,17 +517,21 @@ const commands = {
         text: 'Prints the bot\'s log'
     },
     thumbnail: {
-        fn: (msg, rawArgs, skill) => {
-            if (validSkills.has(skill)) {
-                sendUpdateMessage(msg.channel, 'Here is the thumbnail', skill, {
-                    title: skill
+        fn: (msg, rawArgs, name) => {
+            if (validSkills.has(name)) {
+                sendUpdateMessage(msg.channel, 'Here is the thumbnail', name, {
+                    title: name
+                });
+            } else if (BossUtility.isValidBoss(name)) {
+                sendUpdateMessage(msg.channel, 'Here is the thumbnail', name, {
+                    title: name
                 });
             } else {
-                msg.channel.send(`**${skill || '[none]'}** is not a valid skill`);
+                msg.channel.send(`**${name || '[none]'}** does not have a thumbnail`);
             }
         },
         hidden: true,
-        text: 'Displays a skill\'s thumbnail'
+        text: 'Displays a skill or boss\' thumbnail'
     },
     thumbnail99: {
         fn: (msg, rawArgs, skill) => {
@@ -386,7 +561,7 @@ const commands = {
             updatePlayer(player, spoofedDiff);
         },
         hidden: true,
-        text: 'Spoof an update notification using a raw JSON object {player, diff}'
+        text: 'Spoof an update notification using a raw JSON object {player, diff: {skills|bosses}}'
     },
     kill: {
         fn: (msg) => {
@@ -430,9 +605,9 @@ client.on('ready', async () => {
         const channels = client.channels;
         if (channels.has(savedChannelId)) {
             trackingChannel = channels.get(savedChannelId);
-            log.push(`Loaded up tracking channel "${trackingChannel.name}" with ID "${savedChannelId}"`);
+            log.push(`Loaded up tracking channel '${trackingChannel.name}' with ID '${savedChannelId}'`);
         } else {
-            log.push(`Invalid tracking channel ID "${savedChannelId}", defaulting to guild owner's DM channel`);
+            log.push(`Invalid tracking channel ID '${savedChannelId}', defaulting to guild owner's DM channel`);
         }
         sendRestartMessage(ownerDmChannel);
     }).catch((err) => {
@@ -448,19 +623,20 @@ client.on('message', (msg) => {
         try {
             parsedCommand = parseCommand(msg.content);
         } catch (err) {
-            log.push(`Failed to parse command "${msg.content}": ${err.toString()}`);
+            log.push(`Failed to parse command '${msg.content}': ${err.toString()}`);
             return
         }
         // Execute command
         const { command, args, rawArgs } = parsedCommand;
         if (commands.hasOwnProperty(command)) {
             try {
-                const responseMessage = commands[command].fn(msg, rawArgs, ...args);
+                commands[command].fn(msg, rawArgs, ...args);
+                log.push(`Executed command '${command}' with args ${JSON.stringify(args)}`);
             } catch (err) {
-                log.push(`Uncaught error while trying to execute command "${msg.content}": ${err.toString()}`);
+                log.push(`Uncaught error while trying to execute command '${msg.content}': ${err.toString()}`);
             }
         } else if (!command) {
-            msg.channel.send(`What\'s up <@${msg.author.id}>`);
+            msg.channel.send(`What's up <@${msg.author.id}>`);
         } else {
             msg.channel.send(`**${command}** is not a valid command, use **help** to see a list of commands`);
         }
