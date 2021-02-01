@@ -17,6 +17,7 @@ module.exports = {
         "no-shadow": ["error", { "allow": ["err", "error", "res", "response", "body", "req", "result"] }],
         "quote-props": ["error", "consistent"],
         "arrow-parens": ["error", "as-needed", { "requireForBlockBody": true }],
+        "semi": ["error", "always"],
         "max-len": 0, // ["error", { "code": 80, ignoreUrls: true }] disabled for now, but probably a good idea to enforce
         "linebreak-style": 0, // to disable a rule, set the value to 0
         "no-param-reassign": 0,

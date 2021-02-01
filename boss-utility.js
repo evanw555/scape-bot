@@ -35,7 +35,7 @@ function sanitizeBossName(bossName) {
  */
 function getBossName(bossID) {
     const bossName = constants.bosses.find(b => sanitizeBossName(b) === bossID);
-    return bossName
+    return bossName;
 }
 
 /**

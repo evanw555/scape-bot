@@ -4,7 +4,7 @@ const osrs = require('osrs-json-api');
 const CircularQueue = require('./circular-queue');
 const CapacityLog = require('./capacity-log');
 const Storage = require('./storage');
-const BossUtility = require('./boss-utility')
+const BossUtility = require('./boss-utility');
 
 const auth = require('./config/auth.json');
 const config = require('./config/config.json');
@@ -62,10 +62,111 @@ const sendUpdateMessage = (channel, text, name, args) => {
     });
 };
 
-const parseCommand = (text) => {
-    const args = text.toLowerCase().split(' ').filter((arg) => {
+/**
+ * Searches string of text submitted to bot for 
+ * spaces and quotes to tokenize arguments. Supports
+ * single- and double-quotes, and tick marks.
+ * 
+ * text = '@ScapeBot kc "big belly" "the corrupted gauntlet"'; // text submitted to bot
+ * args = extractArgs(text); // tokenizes arguments from text and removes mention
+ * console.log(args); // ['kc', 'big belly', 'the corrupted gauntlet']
+ * 
+ * @param {string} text string of text sent to bot
+ * @returns {string[]} array of arguments tokenized by quote and/or space
+ */
+const extractArgs = (text) => {
+    // eslint-disable-next-line quotes
+    const SINGLE_QUOTE_CHAR = `'`;
+    const DOUBLE_QUOTE_CHAR = '"';
+    const TICK_CHAR = '`';
+    const SPACE_CHAR = ' ';
+    const args = [];
+    // remove start/end, extra whitespace
+    const chars = text.trim().replace(/\s+/g, ' ').toLowerCase().split('');
+    let i = 0;
+    while (i < chars.length) {
+        const c = chars[i];
+        if (i === 0 && c !== SPACE_CHAR) {
+            // find first space (cannot be first character)
+            const j = chars.indexOf(SPACE_CHAR);
+            // if no space, assume no arguments and break
+            if (j === -1) {
+                // first token is characters before end
+                const firstToken = chars.slice(i).join('');
+                args.push(firstToken);
+                break;
+            // otherwise, find first token and continue
+            } else {
+                // first token is characters before first space
+                const firstToken = chars.slice(i, j).join('');
+                args.push(firstToken);
+                i = j;
+            }
+        } else if (c === SPACE_CHAR) {
+            // find index of first char after space
+            const tokenStart = i + 1;
+            // increment i and step forward if next char is quote
+            if (
+                chars[tokenStart] === SINGLE_QUOTE_CHAR
+                || chars[tokenStart] === DOUBLE_QUOTE_CHAR
+                || chars[tokenStart] === TICK_CHAR
+            ) {
+                i = tokenStart;
+            // otherwise, find token after space
+            } else {
+                // find index of next space
+                const j = chars.indexOf(c, tokenStart);
+                if (j === -1) {
+                    // if no space, end of text
+                    const token = chars.slice(tokenStart).join('');
+                    args.push(token);
+                    break;
+                } else {
+                    // otherwise, token is chars up to next space 
+                    const token = chars.slice(tokenStart, j).join('');
+                    args.push(token);
+                    i = j;   
+                }                
+            }
+        } else if (
+            c === SINGLE_QUOTE_CHAR
+            || c === DOUBLE_QUOTE_CHAR
+            || c === TICK_CHAR
+        ) {
+            // find index of first char after quote
+            const tokenStart = i + 1;
+            // find index of next quote
+            const j = chars.indexOf(c, tokenStart);
+            if (j === -1) {
+                // if no quote, end of text
+                const token = chars.slice(tokenStart).join('');
+                args.push(token);
+                break;
+            } else {
+                // otherwise, token is chars up to next quote 
+                let token = chars.slice(tokenStart, j).join('');
+                // trim token b/c above regex does not remove
+                // start/end space in quoted text
+                token = token.trim();
+                args.push(token);
+                i = j;   
+            }       
+        } else {
+            i += 1;
+        }
+        // ugly check to prevent infinite loops
+        if (i === -1) {
+            break;
+        }
+    }
+    // remove bot mention from args
+    return args.filter((arg) => {
         return arg && arg.indexOf('@') === -1;
     });
+};
+
+const parseCommand = (text) => {
+    const args = extractArgs(text);
     return {
         text,
         command: args[0],
@@ -78,7 +179,7 @@ const parseCommand = (text) => {
 // expected output: 0,1,2
 const getRandomInt = (max) => {
     return Math.floor(Math.random() * Math.floor(max));
-}
+};
 
 const computeDiff = (before, after) => {
     const counts = Object.keys(before);
@@ -243,9 +344,7 @@ const updateKillCounts = (player, killCounts, spoofedDiff) => {
                     : `**${player}** ${dopeKillVerb} **${bossName}** `
                         + (killCountIncrease === 1 ? 'again' : `**${killCountIncrease}** more times`)
                         + ` and is now at **${killCounts[bossID]}** kills.`;
-                    
                 sendUpdateMessage(trackingChannel, text, bossID);
-                    
                 break;
             }
             default: {
@@ -257,7 +356,6 @@ const updateKillCounts = (player, killCounts, spoofedDiff) => {
                         ? `**${bossName}** for the first time!`
                         : `**${bossName}** ${killCountIncrease === 1 ? 'again' : `**${killCountIncrease}** more times`} and is now at **${killCounts[bossID]}**`;
                 }).join('\n');
-                // 'bosses' is an invalid thumbnail name but not sure what to show here
                 sendUpdateMessage(trackingChannel, `**${player}** has killed...\n${text}`, sortedBosses[0]);
                 break;
             }
@@ -390,7 +488,7 @@ const commands = {
             if (players.isEmpty()) {
                 msg.channel.send('Currently not tracking any players');
             } else {
-                msg.channel.send(`Currently tracking players **${players.toSortedArray().join('**, **')}**`)
+                msg.channel.send(`Currently tracking players **${players.toSortedArray().join('**, **')}**`);
             }
         },
         text: 'Lists all the players currently being tracked'
@@ -464,7 +562,7 @@ const commands = {
                 const messageText = `**${player}** has killed **${bossName}** **${killCounts[bossID]}** times`;
                 sendUpdateMessage(msg.channel, messageText, bossID, {
                     title: bossName,
-                    url: `${constants.hiScoresUrlTemplate}${encodeURI(player)}`
+                    url: `${constants.osrsWikiBaseUrl}${encodeURIComponent(bossName)}`
                 });
             }).catch((err) => {
                 log.push(`Error while fetching hiscores (check) for player ${player}: ${err.toString()}`);
@@ -494,7 +592,7 @@ const commands = {
                 msg.channel.send('Currently not tracking any players');
             } else {
                 const sortedPlayers = players.toSortedArray();
-                msg.channel.send(`${sortedPlayers.map(player => `**${player}**: last updated **${lastUpdate[player] && lastUpdate[player].toLocaleTimeString('en-US', {timeZone: config.timeZone})}**`).join('\n')}`)
+                msg.channel.send(`${sortedPlayers.map(player => `**${player}**: last updated **${lastUpdate[player] && lastUpdate[player].toLocaleTimeString('en-US', {timeZone: config.timeZone})}**`).join('\n')}`);
             }
         },
         text: 'Show details of when each tracked player was last updated'
@@ -637,7 +735,7 @@ client.on('message', (msg) => {
             parsedCommand = parseCommand(msg.content);
         } catch (err) {
             log.push(`Failed to parse command '${msg.content}': ${err.toString()}`);
-            return
+            return;
         }
         // Execute command
         const { command, args, rawArgs } = parsedCommand;
