@@ -62,6 +62,18 @@ const sendUpdateMessage = (channel, text, name, args) => {
     });
 };
 
+/**
+ * Searches string of text submitted to bot for 
+ * spaces and quotes to tokenize arguments. Supports
+ * single- and double-quotes, and tick marks.
+ * 
+ * text = '@ScapeBot kc "big belly" "the corrupted gauntlet"'; // text submitted to bot
+ * args = extractArgs(text); // tokenizes arguments from text and removes mention
+ * console.log(args); // ['kc', 'big belly', 'the corrupted gauntlet']
+ * 
+ * @param {string} text string of text sent to bot
+ * @returns {string[]} array of arguments tokenized by quote and/or space
+ */
 const extractArgs = (text) => {
     // eslint-disable-next-line quotes
     const SINGLE_QUOTE_CHAR = `'`;
