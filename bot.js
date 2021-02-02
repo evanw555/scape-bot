@@ -30,7 +30,7 @@ const getThumbnail = (name, args) => {
     } 
     if (BossUtility.isValidBoss(name)) {
         const boss = name;
-        const thumbnailBoss = boss.replace(/[^a-zA-Z ]/g, '').replace(/ /g,'_').toLowerCase();
+        const thumbnailBoss = BossUtility.createBossID(boss);
         return {
             url: `${constants.baseThumbnailUrl}${thumbnailBoss}${constants.imageFileExtension}`
         };
@@ -212,7 +212,7 @@ const parsePlayerPayload = (payload) => {
         }
     });
     Object.keys(payload.bosses).forEach((bossName) => {
-        const bossID = BossUtility.sanitizeBossName(bossName);
+        const bossID = BossUtility.createBossID(bossName);
         const rawKillCount = payload.bosses[bossName].score;
         const killCount = parseInt(rawKillCount);
         if (typeof killCount !== 'number' || isNaN(killCount)) {
@@ -523,7 +523,7 @@ const commands = {
                 if (kcBosses.length) {
                     messageText += '\n\n';
                 }
-                messageText += `${kcBosses.map(boss => `**${killCounts[boss]}** ${boss}`).join('\n')}`;
+                messageText += `${kcBosses.map(boss => `**${killCounts[boss]}** ${BossUtility.getBossName(boss)}`).join('\n')}`;
                 sendUpdateMessage(msg.channel, messageText, 'overall', {
                     title: player,
                     url: `${constants.hiScoresUrlTemplate}${encodeURI(player)}`
@@ -557,7 +557,7 @@ const commands = {
                 }
                 // Create boss message text
                 const killCounts = playerData.bosses;
-                const bossID = BossUtility.sanitizeBossName(boss);
+                const bossID = BossUtility.createBossID(boss);
                 const bossName = BossUtility.getBossName(bossID);
                 const messageText = `**${player}** has killed **${bossName}** **${killCounts[bossID]}** times`;
                 sendUpdateMessage(msg.channel, messageText, bossID, {

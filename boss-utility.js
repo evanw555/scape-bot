@@ -10,45 +10,44 @@ const constants = require('./static/constants.json');
   * @typedef {string} BossID
   */
 
-const validBossNames = new Set(constants.bosses);
-const validBossIDs = new Set(constants.bosses.map(b => sanitizeBossName(b)));
+const validBossIDs = new Set(constants.bosses.map(b => createBossID(b)));
+
+/**
+ * Removes special chars, replaces spaces with underscores,
+ * and returns lowercase of boss
+ * @param {string} boss
+ * @returns {BossID}
+ */
+function createBossID(boss) {
+    let bossID = boss.replace(/[^a-zA-Z ]/g, '').replace(/ /g,'_').toLowerCase();
+    return bossID;
+}
 
 Array.prototype.toSortedBosses = function() {
     const bossSubset = new Set(this);
     return [...validBossIDs].filter(bossID => bossSubset.has(bossID));
 };
 
-/**
- * Returns lowercase of boss name
- * @param {BossName} bossName
- * @returns {BossID}
- */
-function sanitizeBossName(bossName) {
-    const bossID = bossName.toLowerCase();
-    return bossID;
-}
-
-/**
- * Gets boss name from ID
- * @param {BossID} bossID
- * @returns {BossName}
- */
-function getBossName(bossID) {
-    const bossName = constants.bosses.find(b => sanitizeBossName(b) === bossID);
-    return bossName;
-}
-
-/**
- * Checks that boss is valid
- * @param {BossID|BossName} boss
- * @returns {boolean}
- */
-function isValidBoss(boss) {
-    return validBossNames.has(boss) || validBossIDs.has(boss);
-}
-
-module.exports = {
-    sanitizeBossName,
-    getBossName,
-    isValidBoss
+const BossUtility = {
+    createBossID,
+    /**
+     * Gets boss name from boss
+     * @param {string} boss
+     * @returns {BossName}
+     */
+    getBossName(boss) {
+        const bossName = constants.bosses.find(b => BossUtility.createBossID(b) === BossUtility.createBossID(boss));
+        return bossName;
+    },
+    /**
+     * Checks that boss is valid
+     * @param {BossID|BossName|string} boss
+     * @returns {boolean}
+     */
+    isValidBoss(boss) {
+        const bossID = BossUtility.createBossID(boss);
+        return validBossIDs.has(bossID);
+    }
 };
+
+module.exports = BossUtility;
