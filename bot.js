@@ -343,7 +343,7 @@ const updateKillCounts = (player, killCounts, spoofedDiff) => {
                     ? `**${player}** has slain **${bossName}** for the first time!`
                     : `**${player}** ${dopeKillVerb} **${bossName}** `
                         + (killCountIncrease === 1 ? 'again' : `**${killCountIncrease}** more times`)
-                        + ` and is now at **${killCounts[bossID]}** kills.`;
+                        + ` and is now at **${killCounts[bossID]}** kills`;
                 sendUpdateMessage(trackingChannel, text, bossID);
                 break;
             }
