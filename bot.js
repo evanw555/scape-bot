@@ -55,7 +55,7 @@ const sendUpdateMessage = (channel, text, name, args) => {
         embed: {
             description: text,
             thumbnail: getThumbnail(name, args),
-            color: 6316287,
+            color: (args && args.color) || 6316287,
             title: args && args.title,
             url: args && args.url
         }
@@ -344,7 +344,7 @@ const updateKillCounts = (player, killCounts, spoofedDiff) => {
                     : `**${player}** ${dopeKillVerb} **${bossName}** `
                         + (killCountIncrease === 1 ? 'again' : `**${killCountIncrease}** more times`)
                         + ` and is now at **${killCounts[bossID]}** kills`;
-                sendUpdateMessage(trackingChannel, text, bossID);
+                sendUpdateMessage(trackingChannel, text, bossID, {color: 10363483});
                 break;
             }
             default: {
@@ -356,7 +356,7 @@ const updateKillCounts = (player, killCounts, spoofedDiff) => {
                         ? `**${bossName}** for the first time!`
                         : `**${bossName}** ${killCountIncrease === 1 ? 'again' : `**${killCountIncrease}** more times`} and is now at **${killCounts[bossID]}**`;
                 }).join('\n');
-                sendUpdateMessage(trackingChannel, `**${player}** has killed...\n${text}`, sortedBosses[0]);
+                sendUpdateMessage(trackingChannel, `**${player}** has killed...\n${text}`, sortedBosses[0], {color: 10363483});
                 break;
             }
         }
@@ -562,7 +562,8 @@ const commands = {
                 const messageText = `**${player}** has killed **${bossName}** **${killCounts[bossID]}** times`;
                 sendUpdateMessage(msg.channel, messageText, bossID, {
                     title: bossName,
-                    url: `${constants.osrsWikiBaseUrl}${encodeURIComponent(bossName)}`
+                    url: `${constants.osrsWikiBaseUrl}${encodeURIComponent(bossName)}`,
+                    color: 10363483
                 });
             }).catch((err) => {
                 log.push(`Error while fetching hiscores (check) for player ${player}: ${err.toString()}`);
