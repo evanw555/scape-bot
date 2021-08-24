@@ -1,5 +1,6 @@
-const Discord = require('discord.js');
+const { Client, Intents, Options } = require('discord.js');
 const osrs = require('osrs-json-api');
+const { exec } = require('child_process');
 
 const CircularQueue = require('./circular-queue');
 const CapacityLog = require('./capacity-log');
@@ -52,13 +53,13 @@ const saveChannel = () => {
 
 const sendUpdateMessage = (channel, text, name, args) => {
     channel.send({
-        embed: {
+        embeds: [ {
             description: text,
             thumbnail: getThumbnail(name, args),
             color: (args && args.color) || 6316287,
             title: args && args.title,
             url: args && args.url
-        }
+        } ]
     });
 };
 
@@ -412,7 +413,7 @@ const getHelpText = (hidden) => {
 const sendRestartMessage = (channel) => {
     if (channel) {
         // Send greeting message to some channel
-        const baseText = `ScapeBot online in channel **${trackingChannel && trackingChannel.name}**, currently`;
+        const baseText = `ScapeBot online in channel **${trackingChannel}**, currently`;
         if (players.isEmpty()) {
             channel.send(`${baseText} not tracking any players`);
         } else {
@@ -650,7 +651,7 @@ const commands = {
         hidden: true,
         text: 'Displays a skill\'s level 99 thumbnail'
     },
-    spoofupdate: {
+    spoofverbose: {
         fn: (msg, rawArgs) => {
             let spoofedDiff, player;
             try {
@@ -666,10 +667,55 @@ const commands = {
         hidden: true,
         text: 'Spoof an update notification using a raw JSON object {player, diff: {skills|bosses}}'
     },
+    spoof: {
+        fn: (msg, rawArgs, player) => {
+            if (player) {
+                const possibleKeys = constants.bosses
+                    .map(boss => BossUtility.sanitizeBossName(boss))
+                    .concat(constants.skills)
+                    .concat(constants.skills) // Add it again to make it more likely (there are too many bosses)
+                    .filter(skill => skill != 'overall');
+                const numUpdates = Math.floor(Math.random() * 5) + 1;
+                const spoofedDiff = {};
+                for (let i = 0; i < numUpdates; i++) {
+                    const randomKey = possibleKeys[Math.floor(Math.random() * possibleKeys.length)];
+                    spoofedDiff[randomKey] = Math.floor(Math.random() * 3) + 1;
+                }
+                updatePlayer(player, spoofedDiff);
+            } else {
+                msg.channel.send('Usage: spoof PLAYER');
+            }
+        },
+        hidden: true,
+        text: 'Spoof an update notification for some player with random skill/boss updates'
+    },
+    uptime: {
+        fn: (msg) => {
+            exec('uptime --pretty', (error, stdout, stderr) => {
+                if (error) {
+                    msg.channel.send(`\`\`\`\n${error.message}\n\`\`\``);
+                    return;
+                } else if (stderr) {
+                    msg.channel.send(`\`\`\`\n${stderr}\n\`\`\``);
+                    return;
+                } else {
+                    msg.channel.send(`\`${stdout}\``);
+                }
+            });
+        },
+        hidden: true,
+        text: 'Show the uptime of the host (not the bot)'
+    },
     kill: {
         fn: (msg) => {
             if (ownerIds.has(msg.author.id)) {
-                msg.channel.send('Killing self...').then(() => {
+                const phrases = [
+                    'Killing self',
+                    'Yes, your majesty',
+                    'As you wish'
+                ];
+                const phrase = phrases[Math.floor(Math.random() * phrases.length)];
+                msg.channel.send(`${phrase}... 💀`).then(() => {
                     process.exit(1);
                 });
             } else {
@@ -682,54 +728,76 @@ const commands = {
 };
 
 // Initialize Discord Bot
-var client = new Discord.Client({
-    messageCacheMaxSize: 20,
-    messageCacheLifetime: 300,
-    messageSweepInterval: 300
+var client = new Client({
+    intents: [
+        Intents.FLAGS.GUILDS,
+        Intents.FLAGS.GUILD_MESSAGES,
+        Intents.FLAGS.DIRECT_MESSAGES
+    ],
+    makeCache: Options.cacheWithLimits({
+        MessageManager: {
+            maxSize: 10,
+            sweepInterval: 300
+        }
+    })
 });
 
 client.on('ready', async () => {
     log.push(`Logged in as: ${client.user.tag}`);
     log.push(`Config=${JSON.stringify(config)}`);
-    const guild = client.guilds.first();
-    const owner = guild.members.get(guild.ownerID);
-    // TODO: This isn't working for now, I think it's because of something called "Intents"
-    // May need to update discord.js...
+
+    await client.guilds.fetch();
+    const guild = client.guilds.cache.first();
+    log.push(`Operating in guild: ${guild}`);
+
+    const owner = await guild.fetchOwner();
+
     let ownerDmChannel;
     if (owner) {
-        ownerIds.add(guild.ownerID);
+        ownerIds.add(owner.id);
         ownerDmChannel = await owner.createDM();
         trackingChannel = ownerDmChannel;
+        log.push(`Determined guild owner: ${owner.displayName}`);
     } else {
         log.push('Could not determine the guild\'s owner!');
     }
     Promise.all([
         storage.readJson('players'),
         storage.read('channel')
-    ]).then(([savedPlayers, savedChannelId]) => {
+    ]).then(async ([savedPlayers, savedChannelId]) => {
         // Add saved players to queue
         players.addAll(savedPlayers);
         updatePlayers(savedPlayers);
         log.push(`Loaded up players ${players.toString()}`);
         // Attempt to set saved channel as tracking channel
-        const channels = client.channels;
-        if (channels.has(savedChannelId)) {
-            trackingChannel = channels.get(savedChannelId);
-            log.push(`Loaded up tracking channel '${trackingChannel.name}' with ID '${savedChannelId}'`);
+        const savedChannel = await client.channels.fetch(savedChannelId);
+        if (savedChannel) {
+            trackingChannel = savedChannel;
+            log.push(`Loaded up tracking channel '${trackingChannel.name || trackingChannel}' of type '${trackingChannel.type}' with ID '${savedChannelId}'`);
         } else if (trackingChannel && trackingChannel === ownerDmChannel) {
             log.push(`Invalid tracking channel ID '${savedChannelId}', defaulting to guild owner's DM channel`);
         } else {
             log.push('Could determine neither the guild owner\'s DM channel nor the saved tracking channel. Please set it using commands.');
         }
-        sendRestartMessage(ownerDmChannel);
     }).catch((err) => {
         log.push(`Failed to load players or tracking channel: ${err.toString()}`);
+    }).finally(() => {
+        // Regardless of whether loading the players/channel was successful, start the update loop
+        setInterval(() => {
+            const nextPlayer = players.getNext();
+            if (nextPlayer) {
+                updatePlayer(nextPlayer);
+            } else {
+                // No players being tracked
+            }
+        }, config.refreshInterval);
+
         sendRestartMessage(ownerDmChannel);
     });
 });
 
-client.on('message', (msg) => {
-    if (msg.isMemberMentioned(client.user)) {
+client.on('messageCreate', (msg) => {
+    if (msg.mentions.has(client.user)) {
         // Parse command
         let parsedCommand;
         try {
@@ -755,13 +823,5 @@ client.on('message', (msg) => {
     }
 });
 
-// Login and start the update interval
+// Login!!!
 client.login(auth.token);
-client.setInterval(() => {
-    const nextPlayer = players.getNext();
-    if (nextPlayer) {
-        updatePlayer(nextPlayer);
-    } else {
-        // No players being tracked
-    }
-}, config.refreshInterval);

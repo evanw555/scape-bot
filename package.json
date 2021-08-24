@@ -6,11 +6,11 @@
     "author": "Evan Williams",
     "repository": "https://github.com/evanw555/scape-bot.git",
     "engines": {
-        "node": ">=10.0.0"
+        "node": ">=16.6.0"
     },
     "dependencies": {
         "discord.io": "https://github.com/woor/discord.io/tarball/gateway_v6",
-        "discord.js": "^11.4.2",
+        "discord.js": "13.0.*",
         "osrs-json-api": "https://github.com/davidvorona/osrs-json-api.git",
         "winston": "^3.1.0",
         "ws": ">=7.4.6"
