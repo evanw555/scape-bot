@@ -798,6 +798,10 @@ client.on('ready', async () => {
 
 client.on('messageCreate', (msg) => {
     if (msg.mentions.has(client.user)) {
+        if (msg.author.bot) {
+            msg.channel.send(`<@${msg.author.id}> botting lvl?`);
+            return;
+        }
         // Parse command
         let parsedCommand;
         try {
