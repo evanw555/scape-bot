@@ -1,4 +1,4 @@
-const constants = require('./static/constants.json');
+const constants = require('../static/constants.json');
 
 /**
  * Boss name with capitalization

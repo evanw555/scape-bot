@@ -1,5 +1,6 @@
 module.exports = {
-    "extends": "eslint:recommended",
+    "root": true,
+    "parser": "@typescript-eslint/parser",
     "parserOptions": {
         "ecmaVersion": 2017
     },
@@ -7,6 +8,13 @@ module.exports = {
         "es6": true,
         "node": true
     },
+    "plugins": [
+        "@typescript-eslint",
+    ],
+    "extends": [
+        "eslint:recommended",
+        "plugin:@typescript-eslint/recommended",
+    ],
     "rules": {
         // add custom rules here
         // https://eslint.org/docs/rules/
@@ -29,6 +37,9 @@ module.exports = {
         "no-console": 0,
         "no-loop-func": 0,
         "import/no-dynamic-require": 0,
-        "no-prototype-builtins": 0
+        "no-prototype-builtins": 0,
+        "@typescript-eslint/semi": ["error", "always"],
+        "@typescript-eslint/quotes": ["error", "double"],
+        "@typescript-eslint/indent": ["error", 4, { "MemberExpression": 1, "SwitchCase": 0 }]
     }
 };

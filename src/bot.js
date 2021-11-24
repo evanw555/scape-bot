@@ -7,9 +7,9 @@ const CapacityLog = require('./capacity-log');
 const Storage = require('./storage');
 const BossUtility = require('./boss-utility');
 
-const auth = require('./config/auth.json');
-const config = require('./config/config.json');
-const constants = require('./static/constants.json');
+const auth = require('../config/auth.json');
+const config = require('../config/config.json');
+const constants = require('../static/constants.json');
 
 const validSkills = new Set(constants.skills);
 

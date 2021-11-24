@@ -1,11 +1,15 @@
-class CircularQueue {
+class CircularQueue<T> {
+    readonly _set: Set<T>;
+    _list: T[];
+    _index: number; 
+
     constructor() {
-        this._set = new Set();
+        this._set = new Set<T>();
         this._list = []
         this._index = 0;
     }
 
-    add(value) {
+    add(value: T) {
         if (!this._set.has(value)) {
             this._set.add(value);
             this._list.push(value);
@@ -14,11 +18,11 @@ class CircularQueue {
         return false;
     }
 
-    addAll(values) {
+    addAll(values: T[]) {
         values.forEach(this.add.bind(this));
     }
 
-    remove(value) {
+    remove(value: T) {
         if (!this._set.has(value)) {
             return false;
         }

@@ -7,4 +7,3 @@ sudo ln -s `which nodejs` /usr/bin/node
 
 npm install
 
-sudo npm install forever -g
