@@ -4,7 +4,7 @@ const { exec } = require('child_process');
 
 const CircularQueue = require('./circular-queue');
 const CapacityLog = require('./capacity-log');
-const Storage = require('./storage');
+const Storage = require('./file-storage');
 const BossUtility = require('./boss-utility');
 
 const auth = require('../config/auth.json');
