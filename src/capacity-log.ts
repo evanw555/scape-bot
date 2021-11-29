@@ -1,4 +1,5 @@
-const config = require('../config/config.json');
+import { loadJson } from './load-json.js';
+const config = loadJson('config/config.json');
 
 interface LogEntry {
     date: Date;
@@ -36,9 +37,9 @@ class CapacityLog {
      * @param maxChars max characters to serialize per log entry
      * @returns serialized log entries
      */
-    toLogArray(maxChars: number): string[] {
+    toLogArray(maxChars?: number): string[] {
         return this._list.map(entry => `[${entry.date.toLocaleString("en-US", {timeZone: config.timeZone})}] ${entry.value}`);
     }
 };
 
-module.exports = CapacityLog;
+export default CapacityLog;

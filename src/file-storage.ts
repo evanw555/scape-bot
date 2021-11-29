@@ -1,4 +1,4 @@
-const fs = require('fs');
+import fs from 'fs';
 
 class FileStorage {
     readonly _basePath: string;
@@ -19,8 +19,16 @@ class FileStorage {
         });
     }
 
+    readSync(id: string): string {
+        return fs.readFileSync(this._basePath + id, this._ENCODING);
+    }
+
     async readJson(id: string): Promise<any> {
         return JSON.parse(await this.read(id));
+    }
+
+    readJsonSync(id: string): any {
+        return JSON.parse(this.readSync(id));
     }
 
     async write(id: string, value: any): Promise<void> {
@@ -35,4 +43,4 @@ class FileStorage {
     }
 }
 
-module.exports = FileStorage;
+export default FileStorage;

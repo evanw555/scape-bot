@@ -5,6 +5,7 @@
     "main": "bot.js",
     "author": "Evan Williams",
     "repository": "https://github.com/evanw555/scape-bot.git",
+    "type": "module",
     "engines": {
         "node": ">=16.6.0"
     },
@@ -18,7 +19,7 @@
     "devDependencies": {
         "@typescript-eslint/eslint-plugin": "^4.15.2",
         "@typescript-eslint/parser": "^4.15.2",
-        "eslint": "^8.3.0",
+        "eslint": "^7.0.0",
         "typescript": "^4.5.2"
     }
 }

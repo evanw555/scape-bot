@@ -1,4 +1,5 @@
-const constants = require('../static/constants.json');
+import { loadJson } from './load-json.js';
+const constants = loadJson('static/constants.json');
 
 /**
  * Boss name with capitalization
@@ -10,10 +11,10 @@ const constants = require('../static/constants.json');
   * @typedef {string} BossID
   */
 
-const validBossNames = new Set(constants.bosses);
-const validBossIDs = new Set(constants.bosses.map(b => sanitizeBossName(b)));
+const validBossNames: Set<string> = new Set<string>(constants.bosses);
+const validBossIDs: Set<string> = new Set<string>(constants.bosses.map(b => sanitizeBossName(b)));
 
-Array.prototype.toSortedBosses = function() {
+export function toSortedBosses(bosses: string[]): string[] {
     const bossSubset = new Set(this);
     return [...validBossIDs].filter(bossID => bossSubset.has(bossID));
 };
@@ -23,7 +24,7 @@ Array.prototype.toSortedBosses = function() {
  * @param {BossName} bossName
  * @returns {BossID}
  */
-function sanitizeBossName(bossName) {
+ export function sanitizeBossName(bossName: string): string {
     const bossID = bossName.toLowerCase();
     return bossID;
 }
@@ -33,7 +34,7 @@ function sanitizeBossName(bossName) {
  * @param {BossID} bossID
  * @returns {BossName}
  */
-function getBossName(bossID) {
+ export function getBossName(bossID: string): string {
     const bossName = constants.bosses.find(b => sanitizeBossName(b) === bossID);
     return bossName;
 }
@@ -43,12 +44,6 @@ function getBossName(bossID) {
  * @param {BossID|BossName} boss
  * @returns {boolean}
  */
-function isValidBoss(boss) {
+export function isValidBoss(boss: string): boolean {
     return validBossNames.has(boss) || validBossIDs.has(boss);
 }
-
-module.exports = {
-    sanitizeBossName,
-    getBossName,
-    isValidBoss
-};

@@ -80,4 +80,4 @@ class CircularQueue<T> {
     }
 };
 
-module.exports = CircularQueue;
+export default CircularQueue;
