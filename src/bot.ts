@@ -1,4 +1,4 @@
-import { Client, Intents, Options } from 'discord.js';
+import { Client, Intents, Options, TextBasedChannels } from 'discord.js';
 
 import commands from './commands.js';
 
@@ -189,10 +189,10 @@ client.on('ready', async () => {
         updatePlayers(savedPlayers);
         log.push(`Loaded up players ${state._players.toString()}`);
         // Attempt to set saved channel as tracking channel
-        const savedChannel = await client.channels.fetch(savedChannelId);
+        const savedChannel: TextBasedChannels = (await client.channels.fetch(savedChannelId)) as TextBasedChannels;
         if (savedChannel) {
             state.setTrackingChannel(savedChannel);
-            log.push(`Loaded up tracking channel '${savedChannel.name || savedChannel}' of type '${savedChannel.type}' with ID '${savedChannelId}'`);
+            log.push(`Loaded up tracking channel '${savedChannel}' of type '${savedChannel.type}' with ID '${savedChannelId}'`);
         } else if (ownerDmChannel) {
             state.setTrackingChannel(ownerDmChannel);
             log.push(`Invalid tracking channel ID '${savedChannelId}', defaulting to guild owner's DM channel`);
