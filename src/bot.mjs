@@ -176,7 +176,6 @@ client.on('ready', async () => {
     if (owner) {
         state.addOwnerId(owner.id);
         ownerDmChannel = await owner.createDM();
-        state.setTrackingChannel(ownerDmChannel);
         log.push(`Determined guild owner: ${owner.displayName}`);
     } else {
         log.push('Could not determine the guild\'s owner!');
@@ -194,7 +193,8 @@ client.on('ready', async () => {
         if (savedChannel) {
             state.setTrackingChannel(savedChannel);
             log.push(`Loaded up tracking channel '${savedChannel.name || savedChannel}' of type '${savedChannel.type}' with ID '${savedChannelId}'`);
-        } else if (state.hasTrackingChannel() && state.getTrackingChannel() === ownerDmChannel) {
+        } else if (ownerDmChannel) {
+            state.setTrackingChannel(ownerDmChannel);
             log.push(`Invalid tracking channel ID '${savedChannelId}', defaulting to guild owner's DM channel`);
         } else {
             log.push('Could determine neither the guild owner\'s DM channel nor the saved tracking channel. Please set it using commands.');
