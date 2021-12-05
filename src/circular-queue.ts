@@ -9,7 +9,7 @@ class CircularQueue<T> {
         this._index = 0;
     }
 
-    add(value: T) {
+    add(value: T): boolean {
         if (!this._set.has(value)) {
             this._set.add(value);
             this._list.push(value);
@@ -18,11 +18,11 @@ class CircularQueue<T> {
         return false;
     }
 
-    addAll(values: T[]) {
+    addAll(values: T[]): void {
         values.forEach(this.add.bind(this));
     }
 
-    remove(value: T) {
+    remove(value: T): boolean {
         if (!this._set.has(value)) {
             return false;
         }
@@ -45,13 +45,13 @@ class CircularQueue<T> {
         return true;
     }
 
-    clear() {
+    clear(): void {
         this._set.clear();
         this._list = [];
         this._index = 0;
     }
 
-    getNext() {
+    getNext(): T {
         if (this._list.length === 0) {
             return undefined;
         }
@@ -61,21 +61,21 @@ class CircularQueue<T> {
         return value;
     }
 
-    contains(value) {
+    contains(value: T): boolean {
         return this._set.has(value);
     }
 
-    isEmpty() {
+    isEmpty(): boolean {
         return this._list.length === 0;
     }
 
-    toSortedArray() {
+    toSortedArray(): T[] {
         const array = Array.from(this._set);
         array.sort();
         return array;
     }
 
-    toString() {
+    toString(): string {
         return JSON.stringify(this.toSortedArray());
     }
 };

@@ -3,12 +3,13 @@ import log from "./log.js";
 
 import Storage from './file-storage.js';
 import CircularQueue from './circular-queue.js';
+import { SerializedState } from "./types";
 
 class State {
 
     readonly _players: CircularQueue<string>;
-    readonly _levels: Record<string, any>;
-    readonly _bosses: Record<string, any>;
+    readonly _levels: Record<string, Record<string, number>>;
+    readonly _bosses: Record<string, Record<string, number>>;
     readonly _lastUpdate: Record<string, Date>;
     readonly _ownerIds: Set<string>;
 
@@ -76,6 +77,18 @@ class State {
         return this._ownerIds.has(ownerId);
     }
 
+    setLevels(levels: Record<string, Record<string, number>>): void {
+        Object.entries(levels).forEach(([player, value]) => {
+            this._levels[player] = value;
+        });
+    }
+
+    setBosses(bosses: Record<string, Record<string, number>>): void {
+        Object.entries(bosses).forEach(([player, value]) => {
+            this._bosses[player] = value;
+        });
+    }
+
     _savePlayers(): void {
         this._storage.write('players', this._players.toString()).catch((err) => {
             log.push(`Unable to save players '${this._players.toString()}': ${err.toString()}`);
@@ -86,6 +99,15 @@ class State {
         this._storage.write('channel', this._trackingChannel.id).catch((err) => {
             log.push(`Unable to save tracking channel: ${err.toString()}`);
         });
+    }
+
+    serialize(): SerializedState {
+        return {
+            players: this._players.toSortedArray(),
+            trackingChannelId: this._trackingChannel.id,
+            levels: this._levels,
+            bosses: this._bosses
+        };
     }
 }
 

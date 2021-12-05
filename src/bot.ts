@@ -1,4 +1,5 @@
 import { Client, Intents, Options, TextBasedChannels } from 'discord.js';
+import { SerializedState } from './types.js';
 
 import commands from './commands.js';
 
@@ -146,6 +147,20 @@ const sendRestartMessage = (channel) => {
     }
 };
 
+// TODO: use this instead of loading players/channel individually!
+const deserializeState = async (input: SerializedState): Promise<void> => {
+    state._players.addAll(input.players);
+
+    if (input.trackingChannelId) {
+        const trackingChannel: TextBasedChannels = (await client.channels.fetch(input.trackingChannelId)) as TextBasedChannels;
+        if (trackingChannel) {
+            state.setTrackingChannel(trackingChannel);
+        }
+    }
+
+    state.setLevels(input.levels);
+    state.setBosses(input.bosses);
+}
 
 // Initialize Discord Bot
 var client = new Client({
@@ -210,6 +225,8 @@ client.on('ready', async () => {
             } else {
                 // No players being tracked
             }
+            // TODO: do this somewhere else!
+            state._storage.write('state.json', JSON.stringify(state.serialize(), null, 2));
         }, config.refreshInterval);
 
         sendRestartMessage(ownerDmChannel);
