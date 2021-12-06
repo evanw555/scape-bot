@@ -158,8 +158,13 @@ const deserializeState = async (serializedState: SerializedState): Promise<void>
         }
     }
 
-    state.setLevels(serializedState.levels);
-    state.setBosses(serializedState.bosses);
+    if (serializedState.levels) {
+        state.setLevels(serializedState.levels);
+    }
+
+    if (serializedState.bosses) {
+        state.setBosses(serializedState.bosses);
+    }
 
     // Now that the state has been loaded, mark it as valid
     state.setValid(true);
