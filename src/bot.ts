@@ -234,11 +234,11 @@ client.on('ready', async () => {
         const nextPlayer = state._players.getNext();
         if (nextPlayer) {
             updatePlayer(nextPlayer);
+            // TODO: do this somewhere else!
+            dumpState();
         } else {
             // No players being tracked
         }
-        // TODO: do this somewhere else!
-        dumpState();
     }, config.refreshInterval);
 
     sendRestartMessage(ownerDmChannel);

@@ -1,5 +1,5 @@
 {
-    "refreshInterval": 15000,
+    "refreshInterval": 3000,
     "logCapacity": 15,
     "logMaxEntryLength": 120,
     "timeZone": "America/Los_Angeles"

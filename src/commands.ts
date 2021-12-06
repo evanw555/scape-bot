@@ -9,7 +9,7 @@ import { exec } from 'child_process';
 import { toSortedBosses, sanitizeBossName, getBossName, isValidBoss } from './boss-utility.js';
 
 import { loadJson } from './load-json.js';
-import { Command } from './types.js';
+import { Command, SerializedState } from './types.js';
 import { Message } from 'discord.js';
 const config = loadJson('config/config.json');
 const constants = loadJson('static/constants.json');
@@ -303,7 +303,9 @@ const commands: Record<string, Command> = {
         fn: (msg) => {
             const phrases = [
                 'Killing self',
-                'Yes, your majesty',
+                'Dying',
+                'Dead',
+                'I will die',
                 'As you wish'
             ];
             const phrase = phrases[Math.floor(Math.random() * phrases.length)];
@@ -317,7 +319,10 @@ const commands: Record<string, Command> = {
     },
     state: {
         fn: (msg: Message) => {
-            msg.reply(`\`\`\`${JSON.stringify(state.serialize(), null, 2)}\`\`\``);
+            const truncatedState: any = state.serialize();
+            truncatedState.levels = `Map with ${Object.keys(truncatedState.levels).length} entries, truncated to save space.`;
+            truncatedState.bosses = `Map with ${Object.keys(truncatedState.bosses).length} entries, truncated to save space.`;
+            msg.reply(`\`\`\`${JSON.stringify(truncatedState, null, 2)}\`\`\``);
         },
         hidden: true,
         text: 'Prints the bot\'s state',
