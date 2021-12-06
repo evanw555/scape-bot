@@ -9,17 +9,12 @@ import { exec } from 'child_process';
 import { toSortedBosses, sanitizeBossName, getBossName, isValidBoss } from './boss-utility.js';
 
 import { loadJson } from './load-json.js';
+import { Command } from './types.js';
+import { Message } from 'discord.js';
 const config = loadJson('config/config.json');
 const constants = loadJson('static/constants.json');
 
 const validSkills = new Set(constants.skills);
-
-
-interface Command {
-    fn: (msg: /*Message*/ any, rawArgs: string, ...args: string[]) => void
-    text: string
-    hidden?: boolean
-}
 
 const getHelpText = (hidden?: boolean) => {
     const commandKeys = Object.keys(commands)
@@ -175,14 +170,16 @@ const commands: Record<string, Command> = {
             state.setTrackingChannel(msg.channel);
             msg.channel.send('Player experience updates will now be sent to this channel');
         },
-        text: 'All player updates will be sent to the channel where this command is issued'
+        text: 'All player updates will be sent to the channel where this command is issued',
+        privileged: true
     },
     hiddenhelp: {
         fn: (msg) => {
             msg.channel.send(getHelpText(true));
         },
         hidden: true,
-        text: 'Shows help for hidden commands'
+        text: 'Shows help for hidden commands',
+        privileged: true
     },
     details: {
         fn: (msg) => {
@@ -304,22 +301,27 @@ const commands: Record<string, Command> = {
     },
     kill: {
         fn: (msg) => {
-            if (state.isOwner(msg.author.id)) {
-                const phrases = [
-                    'Killing self',
-                    'Yes, your majesty',
-                    'As you wish'
-                ];
-                const phrase = phrases[Math.floor(Math.random() * phrases.length)];
-                msg.channel.send(`${phrase}... 💀`).then(() => {
-                    process.exit(1);
-                });
-            } else {
-                msg.channel.send('You can\'t do that');
-            }
+            const phrases = [
+                'Killing self',
+                'Yes, your majesty',
+                'As you wish'
+            ];
+            const phrase = phrases[Math.floor(Math.random() * phrases.length)];
+            msg.channel.send(`${phrase}... 💀`).then(() => {
+                process.exit(1);
+            });
         },
         hidden: true,
-        text: 'Kills the bot'
+        text: 'Kills the bot',
+        privileged: true
+    },
+    state: {
+        fn: (msg: Message) => {
+            msg.reply(`\`\`\`${JSON.stringify(state.serialize(), null, 2)}\`\`\``);
+        },
+        hidden: true,
+        text: 'Prints the bot\'s state',
+        privileged: true
     }
 };
 

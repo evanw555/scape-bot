@@ -1,5 +1,5 @@
 import { Client, Intents, Options, TextBasedChannels } from 'discord.js';
-import { SerializedState } from './types.js';
+import { Command, SerializedState } from './types.js';
 
 import commands from './commands.js';
 
@@ -148,19 +148,28 @@ const sendRestartMessage = (channel) => {
 };
 
 // TODO: use this instead of loading players/channel individually!
-const deserializeState = async (input: SerializedState): Promise<void> => {
-    state._players.addAll(input.players);
+const deserializeState = async (serializedState: SerializedState): Promise<void> => {
+    state._players.addAll(serializedState.players);
 
-    if (input.trackingChannelId) {
-        const trackingChannel: TextBasedChannels = (await client.channels.fetch(input.trackingChannelId)) as TextBasedChannels;
+    if (serializedState.trackingChannelId) {
+        const trackingChannel: TextBasedChannels = (await client.channels.fetch(serializedState.trackingChannelId)) as TextBasedChannels;
         if (trackingChannel) {
             state.setTrackingChannel(trackingChannel);
         }
     }
 
-    state.setLevels(input.levels);
-    state.setBosses(input.bosses);
+    state.setLevels(serializedState.levels);
+    state.setBosses(serializedState.bosses);
+
+    // Now that the state has been loaded, mark it as valid
+    state.setValid(true);
 }
+
+const dumpState = async (): Promise<void> => {
+    if (state.isValid()) {
+        return state._storage.write('state.json', JSON.stringify(state.serialize(), null, 2));
+    }
+};
 
 // Initialize Discord Bot
 var client = new Client({
@@ -195,42 +204,44 @@ client.on('ready', async () => {
     } else {
         log.push('Could not determine the guild\'s owner!');
     }
-    Promise.all([
-        state._storage.readJson('players'),
-        state._storage.read('channel')
-    ]).then(async ([savedPlayers, savedChannelId]) => {
-        // Add saved players to queue
-        state._players.addAll(savedPlayers);
-        updatePlayers(savedPlayers);
-        log.push(`Loaded up players ${state._players.toString()}`);
-        // Attempt to set saved channel as tracking channel
-        const savedChannel: TextBasedChannels = (await client.channels.fetch(savedChannelId)) as TextBasedChannels;
-        if (savedChannel) {
-            state.setTrackingChannel(savedChannel);
-            log.push(`Loaded up tracking channel '${savedChannel}' of type '${savedChannel.type}' with ID '${savedChannelId}'`);
-        } else if (ownerDmChannel) {
-            state.setTrackingChannel(ownerDmChannel);
-            log.push(`Invalid tracking channel ID '${savedChannelId}', defaulting to guild owner's DM channel`);
-        } else {
-            log.push('Could determine neither the guild owner\'s DM channel nor the saved tracking channel. Please set it using commands.');
-        }
-    }).catch((err) => {
-        log.push(`Failed to load players or tracking channel: ${err.toString()}`);
-    }).finally(() => {
-        // Regardless of whether loading the players/channel was successful, start the update loop
-        setInterval(() => {
-            const nextPlayer = state._players.getNext();
-            if (nextPlayer) {
-                updatePlayer(nextPlayer);
-            } else {
-                // No players being tracked
-            }
-            // TODO: do this somewhere else!
-            state._storage.write('state.json', JSON.stringify(state.serialize(), null, 2));
-        }, config.refreshInterval);
 
-        sendRestartMessage(ownerDmChannel);
-    });
+    // Read the serialized state from disk
+    let serializedState: SerializedState;
+    try {
+        serializedState = await state._storage.readJson('state.json');
+    } catch (err) {
+        log.push('Failed to read the state from disk!');
+    }
+
+    // Deserialize it and load it into the state object
+    if (serializedState) {
+        await deserializeState(serializedState);
+    }
+
+    // Default the tracking channel to the owner's DM if necessary...
+    if (state.hasTrackingChannel()) {
+        const trackingChannel: TextBasedChannels = state.getTrackingChannel();
+        log.push(`Loaded up tracking channel '${trackingChannel}' of type '${trackingChannel.type}' with ID '${trackingChannel.id}'`);
+    } else if (ownerDmChannel) {
+        state.setTrackingChannel(ownerDmChannel);
+        log.push(`Invalid tracking channel ID '${serializedState?.trackingChannelId || "N/A"}', defaulting to guild owner's DM channel`);
+    } else {
+        log.push('Could determine neither the guild owner\'s DM channel nor the saved tracking channel. Please set it using commands.');
+    }
+
+    // Regardless of whether loading the players/channel was successful, start the update loop
+    setInterval(() => {
+        const nextPlayer = state._players.getNext();
+        if (nextPlayer) {
+            updatePlayer(nextPlayer);
+        } else {
+            // No players being tracked
+        }
+        // TODO: do this somewhere else!
+        dumpState();
+    }, config.refreshInterval);
+
+    sendRestartMessage(ownerDmChannel);
 });
 
 client.on('messageCreate', (msg) => {
@@ -250,11 +261,16 @@ client.on('messageCreate', (msg) => {
         // Execute command
         const { command, args, rawArgs } = parsedCommand;
         if (commands.hasOwnProperty(command)) {
-            try {
-                commands[command].fn(msg, rawArgs, ...args);
-                log.push(`Executed command '${command}' with args ${JSON.stringify(args)}`);
-            } catch (err) {
-                log.push(`Uncaught error while trying to execute command '${msg.content}': ${err.toString()}`);
+            const commandInfo: Command = commands[command];
+            if (commandInfo.privileged && !state.isOwner(msg.author.id)) {
+                msg.channel.send('You can\'t do that');
+            } else {
+                try {
+                    commandInfo.fn(msg, rawArgs, ...args);
+                    log.push(`Executed command '${command}' with args ${JSON.stringify(args)}`);
+                } catch (err) {
+                    log.push(`Uncaught error while trying to execute command '${msg.content}': ${err.toString()}`);
+                }
             }
         } else if (!command) {
             msg.channel.send(`What's up <@${msg.author.id}>`);

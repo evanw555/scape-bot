@@ -7,6 +7,8 @@ import { SerializedState } from "./types";
 
 class State {
 
+    private _isValid: boolean;
+
     readonly _players: CircularQueue<string>;
     readonly _levels: Record<string, Record<string, number>>;
     readonly _bosses: Record<string, Record<string, number>>;
@@ -18,11 +20,20 @@ class State {
     _trackingChannel?: TextBasedChannels;
 
     constructor() {
+        this._isValid = false;
         this._players = new CircularQueue<string>();
         this._levels = {};
         this._bosses = {};
         this._lastUpdate = {};
         this._ownerIds = new Set<string>();
+    }
+
+    isValid(): boolean {
+        return this._isValid;
+    }
+
+    setValid(isValid: boolean): void {
+        this._isValid = isValid;
     }
 
     isTrackingPlayer(player: string): boolean {
