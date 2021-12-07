@@ -15,7 +15,7 @@ const validBossNames: Set<string> = new Set<string>(constants.bosses);
 const validBossIDs: Set<string> = new Set<string>(constants.bosses.map(b => sanitizeBossName(b)));
 
 export function toSortedBosses(bosses: string[]): string[] {
-    const bossSubset = new Set(this);
+    const bossSubset = new Set(bosses);
     return [...validBossIDs].filter(bossID => bossSubset.has(bossID));
 };
 
