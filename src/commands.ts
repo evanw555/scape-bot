@@ -9,7 +9,7 @@ import { exec } from 'child_process';
 import { toSortedBosses, sanitizeBossName, getBossName, isValidBoss } from './boss-utility.js';
 
 import { loadJson } from './load-json.js';
-import { Command, SerializedState } from './types.js';
+import { Command } from './types.js';
 import { Message } from 'discord.js';
 const config = loadJson('config/config.json');
 const constants = loadJson('static/constants.json');

@@ -5,6 +5,8 @@ import osrs from 'osrs-json-api';
 import { isValidBoss, sanitizeBossName, toSortedBosses, getBossName } from './boss-utility.js';
 
 import { loadJson } from './load-json.js';
+import { TextBasedChannels } from "discord.js";
+import { PlayerPayload } from "./types.js";
 const constants = loadJson('static/constants.json');
 
 const validSkills = new Set(constants.skills);
@@ -59,9 +61,9 @@ export function computeDiff(before, after) {
     return diff;
 };
 
-export function updatePlayer(player, spoofedDiff?) {
+export function updatePlayer(player: string, spoofedDiff?: Record<string, number>): void {
     // Retrieve the player's hiscores data
-    osrs.hiscores.getPlayer(player).then((value) => {
+    osrs.hiscores.getPlayer(player).then((value: PlayerPayload) => {
         // Parse the player's hiscores data
         let playerData;
         try {
@@ -80,25 +82,25 @@ export function updatePlayer(player, spoofedDiff?) {
 };
 
 
-export function parsePlayerPayload(payload) {
+export function parsePlayerPayload(payload: PlayerPayload) {
     const result = {
         skills: {},
         bosses: {}
     };
-    Object.keys(payload.skills).forEach((skill) => {
+    Object.keys(payload.skills).forEach((skill: string) => {
         if (skill !== 'overall') {
-            const rawLevel = payload.skills[skill].level;
-            const level = parseInt(rawLevel);
+            const rawLevel: string = payload.skills[skill].level;
+            const level: number = parseInt(rawLevel);
             if (typeof level !== 'number' || isNaN(level) || level < 1) {
                 throw new Error(`Invalid ${skill} level, '${rawLevel}' parsed to ${level}.\nPayload: ${JSON.stringify(payload.skills)}`);
             }
             result.skills[skill] = level;
         }
     });
-    Object.keys(payload.bosses).forEach((bossName) => {
-        const bossID = sanitizeBossName(bossName);
-        const rawKillCount = payload.bosses[bossName].score;
-        const killCount = parseInt(rawKillCount);
+    Object.keys(payload.bosses).forEach((bossName: string) => {
+        const bossID: string = sanitizeBossName(bossName);
+        const rawKillCount: string = payload.bosses[bossName].score;
+        const killCount: number = parseInt(rawKillCount);
         if (typeof killCount !== 'number' || isNaN(killCount)) {
             throw new Error(`Invalid ${bossID} boss, '${rawKillCount}' parsed to ${killCount}.\nPayload: ${JSON.stringify(payload.bosses)}`);
         }
@@ -115,12 +117,6 @@ export function toSortedSkills(skills: string[]): string[] {
     const skillSubset = new Set(skills);
     return constants.skills.filter(skill => skillSubset.has(skill));
 }
-
-// Array.prototype.toSortedSkills = function () {
-//     const skillSubset = new Set(this);
-//     return constants.skills.filter(skill => skillSubset.has(skill));
-// };
-
 
 export function updateLevels(player, newLevels, spoofedDiff?) {
     // If channel is set and user already has levels tracked
@@ -260,5 +256,27 @@ export function updateKillCounts(player, killCounts, spoofedDiff?) {
     if (!spoofedDiff) {
         state._bosses[player] = killCounts;
         state._lastUpdate[player] = new Date();
+    }
+};
+
+export function updatePlayers(players: string[]): void {
+    if (players) {
+        players.forEach((player) => {
+            updatePlayer(player);
+        });
+    }
+};
+
+export function sendRestartMessage(channel: TextBasedChannels): void {
+    if (channel) {
+        // Send greeting message to some channel
+        const baseText: string = `ScapeBot online in channel **${state.getTrackingChannel()}**, currently`;
+        if (state.isTrackingAnyPlayers()) {
+            channel.send(`${baseText} tracking players **${state.getAllTrackedPlayers().join('**, **')}**`);
+        } else {
+            channel.send(`${baseText} not tracking any players`);
+        }
+    } else {
+        log.push('Attempted to send a bot restart message, but the specified channel is undefined!');
     }
 };

@@ -1,21 +1,14 @@
 import { TextBasedChannels } from "../node_modules/discord.js/typings/index";
-import log from "./log.js";
-
-import Storage from './file-storage.js';
-import CircularQueue from './circular-queue.js';
 import { SerializedState } from "./types";
+import CircularQueue from './circular-queue.js';
 
 class State {
-
     private _isValid: boolean;
-
-    readonly _players: CircularQueue<string>;
+    private readonly _players: CircularQueue<string>;
     readonly _levels: Record<string, Record<string, number>>;
     readonly _bosses: Record<string, Record<string, number>>;
     readonly _lastUpdate: Record<string, Date>;
     readonly _ownerIds: Set<string>;
-
-    readonly _storage: Storage = new Storage('./data/');
 
     _trackingChannel?: TextBasedChannels;
 
@@ -46,7 +39,6 @@ class State {
 
     addTrackedPlayer(player: string): void {
         this._players.add(player);
-        this._savePlayers();
     }
 
     removeTrackedPlayer(player: string): void {
@@ -54,11 +46,14 @@ class State {
         delete this._levels[player];
         delete this._bosses[player];
         delete this._lastUpdate[player];
-        this._savePlayers();
     }
 
     getAllTrackedPlayers(): string[] {
         return this._players.toSortedArray();
+    }
+
+    getTrackedPlayers(): CircularQueue<string> {
+        return this._players;
     }
 
     clearAllTrackedPlayers(): void {
@@ -73,7 +68,6 @@ class State {
 
     setTrackingChannel(channel: TextBasedChannels): void {
         this._trackingChannel = channel;
-        this._saveChannel();
     }
 
     hasTrackingChannel(): boolean {
@@ -97,18 +91,6 @@ class State {
     setBosses(bosses: Record<string, Record<string, number>>): void {
         Object.entries(bosses).forEach(([player, value]) => {
             this._bosses[player] = value;
-        });
-    }
-
-    _savePlayers(): void {
-        this._storage.write('players', this._players.toString()).catch((err) => {
-            log.push(`Unable to save players '${this._players.toString()}': ${err.toString()}`);
-        });
-    }
-
-    _saveChannel(): void {
-        this._storage.write('channel', this._trackingChannel.id).catch((err) => {
-            log.push(`Unable to save tracking channel: ${err.toString()}`);
         });
     }
 
