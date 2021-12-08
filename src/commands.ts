@@ -318,11 +318,32 @@ const commands: Record<string, Command> = {
         privileged: true
     },
     state: {
-        fn: (msg: Message) => {
-            const truncatedState: any = state.serialize();
-            truncatedState.levels = `Map with ${Object.keys(truncatedState.levels).length} entries, truncated to save space.`;
-            truncatedState.bosses = `Map with ${Object.keys(truncatedState.bosses).length} entries, truncated to save space.`;
-            msg.reply(`\`\`\`${JSON.stringify(truncatedState, null, 2)}\`\`\``);
+        fn: (msg: Message, rawArgs: string) => {
+            let selectedState: any = state.serialize();
+            // We have to use rawArgs because the args are made lower-case...
+            const selector: string = rawArgs.trim();
+            if (selector) {
+                // If a selector was specified, select a specific part of the state
+                const selectors: string[] = selector.split('.');
+                for (var s of selectors) {
+                    if (selectedState.hasOwnProperty(s)) {
+                        selectedState = selectedState[s];
+                    } else {
+                        msg.reply(`\`${selector}\` is not a valid state selector! (failed at \`${s}\`)`);
+                        return;
+                    }
+                }
+            } else {
+                // In case we're looking at the root state, truncate the large objects
+                // TODO: we could make this more general
+                selectedState.levels = `Map with ${Object.keys(selectedState.levels).length} entries, truncated to save space.`;
+                selectedState.bosses = `Map with ${Object.keys(selectedState.bosses).length} entries, truncated to save space.`;
+            }
+            // Reply to the user with the state (or with an error message)
+            msg.reply(`\`\`\`${JSON.stringify(selectedState, null, 2)}\`\`\``)
+                .catch((reason) => {
+                    msg.reply(`Could not serialize state:\n\`\`\`${reason.toString()}\`\`\``);
+                });
         },
         hidden: true,
         text: 'Prints the bot\'s state',
