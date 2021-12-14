@@ -22,6 +22,12 @@ const deserializeState = async (serializedState: SerializedState): Promise<void>
 
     state.getTrackedPlayers().addAll(serializedState.players);
 
+    if (serializedState.playersOffHiScores) {
+        serializedState.playersOffHiScores.forEach((player) => {
+            state.removePlayerFromHiScores(player);
+        });
+    }
+
     if (serializedState.trackingChannelId) {
         const trackingChannel: TextBasedChannels = (await client.channels.fetch(serializedState.trackingChannelId)) as TextBasedChannels;
         if (trackingChannel) {

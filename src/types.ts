@@ -3,6 +3,7 @@ import { Message } from "discord.js";
 export interface SerializedState {
     timestamp: string,
     players: string[],
+    playersOffHiScores: string[],
     trackingChannelId?: string,
     levels: Record<string, Record<string, number>>,
     bosses: Record<string, Record<string, number>>
@@ -23,13 +24,15 @@ export interface ParsedCommand {
 }
 
 export interface SkillPayload {
-    level: any
-    // TODO: add other properties that we may want to use
+    level: string,
+    xp: string,
+    rank: string
 }
 
 export interface BossPayload {
-    score: any
-    // TODO: add other properties that we may want to use
+    score: string,
+    xp: string,
+    rank: string
 }
 
 export interface PlayerPayload {

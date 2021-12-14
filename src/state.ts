@@ -6,6 +6,7 @@ class State {
     private _isValid: boolean;
     private _timestamp?: Date;
     private readonly _players: CircularQueue<string>;
+    private readonly _playersOffHiScores: Set<string>;
     private readonly _levels: Record<string, Record<string, number>>;
     private readonly _bosses: Record<string, Record<string, number>>;
     readonly _lastUpdate: Record<string, Date>;
@@ -16,6 +17,7 @@ class State {
     constructor() {
         this._isValid = false;
         this._players = new CircularQueue<string>();
+        this._playersOffHiScores = new Set<string>();
         this._levels = {};
         this._bosses = {};
         this._lastUpdate = {};
@@ -61,6 +63,18 @@ class State {
         this.getAllTrackedPlayers().forEach((player: string) => {
             this.removeTrackedPlayer(player);
         });
+    }
+
+    addPlayerToHiScores(player: string): void {
+        this._playersOffHiScores.delete(player);
+    }
+
+    removePlayerFromHiScores(player: string): void {
+        this._playersOffHiScores.add(player);
+    }
+
+    isPlayerOnHiScores(player: string): boolean {
+        return !this._playersOffHiScores.has(player);
     }
 
     getTrackingChannel(): TextBasedChannels {
@@ -135,6 +149,7 @@ class State {
         return {
             timestamp: this._timestamp.toJSON(),
             players: this._players.toSortedArray(),
+            playersOffHiScores: Array.from(this._playersOffHiScores),
             trackingChannelId: this._trackingChannel.id,
             levels: this._levels,
             bosses: this._bosses

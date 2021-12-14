@@ -9,7 +9,8 @@ import { TextBasedChannels } from "discord.js";
 import { PlayerPayload } from "./types.js";
 const constants = loadJson('static/constants.json');
 
-const validSkills = new Set(constants.skills);
+const validSkills: Set<string> = new Set(constants.skills);
+const validMiscThumbnails: Set<string> = new Set(constants.miscThumbnails);
 
 export function getThumbnail(name, args) {
     if (validSkills.has(name)) {
@@ -23,6 +24,11 @@ export function getThumbnail(name, args) {
         const thumbnailBoss = boss.replace(/[^a-zA-Z ]/g, '').replace(/ /g,'_').toLowerCase();
         return {
             url: `${constants.baseThumbnailUrl}${thumbnailBoss}${constants.imageFileExtension}`
+        };
+    }
+    if (validMiscThumbnails.has(name)) {
+        return {
+            url: `${constants.baseThumbnailUrl}${constants.miscThumbnailPath}${name}${constants.imageFileExtension}`
         };
     }
     return;
@@ -46,7 +52,7 @@ export function getRandomInt(max) {
     return Math.floor(Math.random() * Math.floor(max));
 };
 
-export function computeDiff(before, after) {
+export function computeDiff(before: Record<string, number>, after: Record<string, number>): Record<string, number> {
     const counts = Object.keys(before);
     const diff = {};
     counts.forEach((kind) => {
@@ -64,26 +70,40 @@ export function computeDiff(before, after) {
 export function updatePlayer(player: string, spoofedDiff?: Record<string, number>): void {
     // Retrieve the player's hiscores data
     osrs.hiscores.getPlayer(player).then((value: PlayerPayload) => {
-        // Parse the player's hiscores data
-        let playerData;
-        try {
-            playerData = parsePlayerPayload(value);
-        } catch (err) {
-            log.push(`Failed to parse payload for player ${player}: ${err.toString()}`);
-            return;
-        }
+        // If player is off the hiscores for total level, ignore them completely until they're back on
+        if (value.skills.overall.rank === '-1') {
+            // If player was previously on the hiscores, take them off
+            if (state.isPlayerOnHiScores(player)) {
+                state.removePlayerFromHiScores(player);
+                sendUpdateMessage(state.getTrackingChannel(), `**${player}** has fallen off the hiscores`, 'unhappy', { color: 12919812 });
+            }
+        } else {
+            // If player was previously off the hiscores, add them back on!
+            if (!state.isPlayerOnHiScores(player)) {
+                state.addPlayerToHiScores(player);
+                sendUpdateMessage(state.getTrackingChannel(), `**${player}** has made it back onto the hiscores`, 'happy', { color: 16569404 });
+            }
+            // Parse the player's hiscores data
+            let playerData;
+            try {
+                playerData = parsePlayerPayload(value);
+            } catch (err) {
+                log.push(`Failed to parse payload for player ${player}: ${err.toString()}`);
+                return;
+            }
 
-        updateLevels(player, playerData.skills, spoofedDiff);
-        updateKillCounts(player, playerData.bosses, spoofedDiff);
-        
+            updateLevels(player, playerData.skills, spoofedDiff);
+            updateKillCounts(player, playerData.bosses, spoofedDiff);
+        }
     }).catch((err) => {
         log.push(`Error while fetching player hiscores for ${player}: ${err.toString()}`);
     });
 };
 
 
-export function parsePlayerPayload(payload: PlayerPayload) {
-    const result = {
+export function parsePlayerPayload(payload: PlayerPayload): Record<string, Record<string, number>> {
+    console.log(JSON.stringify(payload));
+    const result: Record<string, Record<string, number>> = {
         skills: {},
         bosses: {}
     };
@@ -122,7 +142,7 @@ export function updateLevels(player: string, newLevels: Record<string, number>, 
     // If channel is set and user already has levels tracked
     if (state.hasTrackingChannel() && state.hasLevels(player)) {
         // Compute diff for each level
-        let diff;
+        let diff: Record<string, number>;
         try {
             if (spoofedDiff) {
                 diff = {};
@@ -193,7 +213,7 @@ export function updateKillCounts(player, killCounts, spoofedDiff?) {
     // If channel is set and user already has bosses tracked
     if (state.getTrackingChannel() && state.hasBosses(player)) {
         // Compute diff for each boss
-        let diff;
+        let diff: Record<string, number>;
         try {
             if (spoofedDiff) {
                 diff = {};
