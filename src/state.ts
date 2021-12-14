@@ -4,9 +4,10 @@ import CircularQueue from './circular-queue.js';
 
 class State {
     private _isValid: boolean;
+    private _timestamp?: Date;
     private readonly _players: CircularQueue<string>;
-    readonly _levels: Record<string, Record<string, number>>;
-    readonly _bosses: Record<string, Record<string, number>>;
+    private readonly _levels: Record<string, Record<string, number>>;
+    private readonly _bosses: Record<string, Record<string, number>>;
     readonly _lastUpdate: Record<string, Date>;
     readonly _ownerIds: Set<string>;
 
@@ -82,20 +83,57 @@ class State {
         return this._ownerIds.has(ownerId);
     }
 
-    setLevels(levels: Record<string, Record<string, number>>): void {
+    setAllLevels(levels: Record<string, Record<string, number>>): void {
         Object.entries(levels).forEach(([player, value]) => {
-            this._levels[player] = value;
+            this.setLevels(player, value);
         });
     }
 
-    setBosses(bosses: Record<string, Record<string, number>>): void {
+    setAllBosses(bosses: Record<string, Record<string, number>>): void {
         Object.entries(bosses).forEach(([player, value]) => {
-            this._bosses[player] = value;
+            this.setBosses(player, value);
         });
+    }
+
+    hasLevels(player: string): boolean {
+        return this._levels[player] !== undefined;
+    }
+
+    getLevels(player: string): Record<string, number> {
+        return this._levels[player];
+    }
+
+    setLevels(player: string, levels: Record<string, number>): void {
+        this._levels[player] = levels;
+    }
+
+    hasBosses(player: string): boolean {
+        return this._bosses[player] !== undefined;
+    }
+
+    getBosses(player: string): Record<string, number> {
+        return this._bosses[player];
+    }
+
+    setBosses(player: string, bosses: Record<string, number>): void {
+        this._bosses[player] = bosses;
+    }
+
+    hasTimestamp(): boolean {
+        return this._timestamp !== undefined;
+    }
+
+    getTimestamp(): Date {
+        return this._timestamp;
+    }
+
+    setTimestamp(timestamp: Date): void {
+        this._timestamp = timestamp;
     }
 
     serialize(): SerializedState {
         return {
+            timestamp: this._timestamp.toJSON(),
             players: this._players.toSortedArray(),
             trackingChannelId: this._trackingChannel.id,
             levels: this._levels,

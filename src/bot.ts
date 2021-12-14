@@ -1,6 +1,6 @@
 import { Client, DMChannel, GuildMember, Intents, Options, TextBasedChannels } from 'discord.js';
 import { SerializedState } from './types.js';
-import { updatePlayer, sendRestartMessage } from './util.js';
+import { updatePlayer, sendRestartMessage, getDurationString } from './util.js';
 
 import { loadJson } from './load-json.js';
 const auth = loadJson('config/auth.json');
@@ -16,6 +16,10 @@ import CommandReader from './command-reader.js';
 const commandReader: CommandReader = new CommandReader();
 
 const deserializeState = async (serializedState: SerializedState): Promise<void> => {
+    if (serializedState.timestamp) {
+        state.setTimestamp(new Date(serializedState.timestamp));
+    }
+
     state.getTrackedPlayers().addAll(serializedState.players);
 
     if (serializedState.trackingChannelId) {
@@ -26,11 +30,11 @@ const deserializeState = async (serializedState: SerializedState): Promise<void>
     }
 
     if (serializedState.levels) {
-        state.setLevels(serializedState.levels);
+        state.setAllLevels(serializedState.levels);
     }
 
     if (serializedState.bosses) {
-        state.setBosses(serializedState.bosses);
+        state.setAllBosses(serializedState.bosses);
     }
 
     // Now that the state has been loaded, mark it as valid
@@ -39,6 +43,7 @@ const deserializeState = async (serializedState: SerializedState): Promise<void>
 
 const dumpState = async (): Promise<void> => {
     if (state.isValid()) {
+        state.setTimestamp(new Date());
         return storage.write('state.json', JSON.stringify(state.serialize(), null, 2));
     }
 };
@@ -88,8 +93,13 @@ client.on('ready', async () => {
     }
 
     // Deserialize it and load it into the state object
+    let downtimeMillis: number = 0;
     if (serializedState) {
         await deserializeState(serializedState);
+        // Compute timestamp if it's present (should only be missing the very first time)
+        if (state.hasTimestamp()) {
+            downtimeMillis = new Date().getTime() - state.getTimestamp().getTime();
+        }
     }
 
     // Default the tracking channel to the owner's DM if necessary...
@@ -116,7 +126,7 @@ client.on('ready', async () => {
     }, config.refreshInterval);
 
     // Notify the guild owner that the bot has restarted
-    sendRestartMessage(ownerDmChannel);
+    sendRestartMessage(ownerDmChannel, downtimeMillis);
 });
 
 client.on('messageCreate', (msg) => {

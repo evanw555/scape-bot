@@ -1,6 +1,7 @@
 import { Message } from "discord.js";
 
 export interface SerializedState {
+    timestamp: string,
     players: string[],
     trackingChannelId?: string,
     levels: Record<string, Record<string, number>>,

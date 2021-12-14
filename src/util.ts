@@ -118,9 +118,9 @@ export function toSortedSkills(skills: string[]): string[] {
     return constants.skills.filter(skill => skillSubset.has(skill));
 }
 
-export function updateLevels(player, newLevels, spoofedDiff?) {
+export function updateLevels(player: string, newLevels: Record<string, number>, spoofedDiff?: Record<string, number>): void {
     // If channel is set and user already has levels tracked
-    if (state.hasTrackingChannel() && state._levels.hasOwnProperty(player)) {
+    if (state.hasTrackingChannel() && state.hasLevels(player)) {
         // Compute diff for each level
         let diff;
         try {
@@ -133,7 +133,7 @@ export function updateLevels(player, newLevels, spoofedDiff?) {
                     }
                 });
             } else {
-                diff = computeDiff(state._levels[player], newLevels);
+                diff = computeDiff(state.getLevels(player), newLevels);
             }
         } catch (err) {
             log.push(`Failed to compute level diff for player ${player}: ${err.toString()}`);
@@ -184,14 +184,14 @@ export function updateLevels(player, newLevels, spoofedDiff?) {
     }
     // If not spoofing the diff, update player's levels
     if (!spoofedDiff) {
-        state._levels[player] = newLevels;
+        state.setLevels(player, newLevels);
         state._lastUpdate[player] = new Date();
     }
 };
 
 export function updateKillCounts(player, killCounts, spoofedDiff?) {
     // If channel is set and user already has bosses tracked
-    if (state.getTrackingChannel() && state._bosses.hasOwnProperty(player)) {
+    if (state.getTrackingChannel() && state.hasBosses(player)) {
         // Compute diff for each boss
         let diff;
         try {
@@ -204,7 +204,7 @@ export function updateKillCounts(player, killCounts, spoofedDiff?) {
                     }
                 });
             } else {
-                diff = computeDiff(state._bosses[player], killCounts);
+                diff = computeDiff(state.getBosses(player), killCounts);
             }
         } catch (err) {
             log.push(`Failed to compute boss KC diff for player ${player}: ${err.toString()}`);
@@ -254,7 +254,7 @@ export function updateKillCounts(player, killCounts, spoofedDiff?) {
     }
     // If not spoofing the diff, update player's kill counts
     if (!spoofedDiff) {
-        state._bosses[player] = killCounts;
+        state.setBosses(player, killCounts);
         state._lastUpdate[player] = new Date();
     }
 };
@@ -267,10 +267,10 @@ export function updatePlayers(players: string[]): void {
     }
 };
 
-export function sendRestartMessage(channel: TextBasedChannels): void {
+export function sendRestartMessage(channel: TextBasedChannels, downtimeMillis: number): void {
     if (channel) {
         // Send greeting message to some channel
-        const baseText: string = `ScapeBot online in channel **${state.getTrackingChannel()}**, currently`;
+        const baseText: string = `ScapeBot online after ${getDurationString(downtimeMillis)} of downtime. In channel **${state.getTrackingChannel()}**, currently`;
         if (state.isTrackingAnyPlayers()) {
             channel.send(`${baseText} tracking players **${state.getAllTrackedPlayers().join('**, **')}**`);
         } else {
@@ -280,3 +280,38 @@ export function sendRestartMessage(channel: TextBasedChannels): void {
         log.push('Attempted to send a bot restart message, but the specified channel is undefined!');
     }
 };
+
+export function getDurationString(milliseconds: number) {
+    if (milliseconds === 0) {
+        return 'no time at all';
+    }
+    if (milliseconds === 1) {
+        return '1 millisecond';
+    }
+    if (milliseconds < 1000) {
+        return `${milliseconds} milliseconds`;
+    }
+    const seconds = Math.floor(milliseconds / 1000);
+    if (seconds === 1) {
+        return '1 second';
+    }
+    if (seconds < 60) {
+        return `${seconds} seconds`;
+    }
+    const minutes = Math.floor(seconds / 60);
+    if (minutes === 1) {
+        return '1 minute';
+    }
+    if (minutes < 60) {
+        return `${minutes} minutes`;
+    }
+    const hours = Math.floor(minutes / 60);
+    if (hours === 1) {
+        return '1 hour';
+    }
+    if (hours < 48) {
+        return `${hours} hours`;
+    }
+    const days = Math.floor(hours / 24);
+    return `${days} days`;
+}
