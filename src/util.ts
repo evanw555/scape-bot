@@ -6,7 +6,7 @@ import { isValidBoss, sanitizeBossName, toSortedBosses, getBossName } from './bo
 
 import { loadJson } from './load-json.js';
 import { TextBasedChannels } from "discord.js";
-import { PlayerPayload } from "./types.js";
+import { PlayerPayload, SkillPayload } from "./types.js";
 const constants = loadJson('static/constants.json');
 
 const validSkills: Set<string> = new Set(constants.skills);
@@ -70,31 +70,32 @@ export function computeDiff(before: Record<string, number>, after: Record<string
 export function updatePlayer(player: string, spoofedDiff?: Record<string, number>): void {
     // Retrieve the player's hiscores data
     osrs.hiscores.getPlayer(player).then((value: PlayerPayload) => {
-        // If player is off the hiscores for total level, ignore them completely until they're back on
-        if (value.skills.overall.rank === '-1') {
+        // Check whether the player's overall hiscore state needs to be updated...
+        if (value.skills.overall.rank === '-1' && state.isPlayerOnHiScores(player)) {
             // If player was previously on the hiscores, take them off
-            if (state.isPlayerOnHiScores(player)) {
-                state.removePlayerFromHiScores(player);
-                sendUpdateMessage(state.getTrackingChannel(), `**${player}** has fallen off the hiscores`, 'unhappy', { color: 12919812 });
-            }
-        } else {
+            state.removePlayerFromHiScores(player);
+            sendUpdateMessage(state.getTrackingChannel(), `**${player}** has fallen off the hiscores`, 'unhappy', { color: 12919812 });
+        } else if (value.skills.overall.rank !== '-1' && !state.isPlayerOnHiScores(player)) {
             // If player was previously off the hiscores, add them back on!
-            if (!state.isPlayerOnHiScores(player)) {
-                state.addPlayerToHiScores(player);
-                sendUpdateMessage(state.getTrackingChannel(), `**${player}** has made it back onto the hiscores`, 'happy', { color: 16569404 });
-            }
-            // Parse the player's hiscores data
-            let playerData;
-            try {
-                playerData = parsePlayerPayload(value);
-            } catch (err) {
-                log.push(`Failed to parse payload for player ${player}: ${err.toString()}`);
-                return;
-            }
-
-            updateLevels(player, playerData.skills, spoofedDiff);
-            updateKillCounts(player, playerData.bosses, spoofedDiff);
+            state.addPlayerToHiScores(player);
+            sendUpdateMessage(state.getTrackingChannel(), `**${player}** has made it back onto the hiscores`, 'happy', { color: 16569404 });
         }
+
+        // Parse the player's hiscores data
+        let playerData: Record<string, Record<string, number>>;
+        try {
+            playerData = parsePlayerPayload(value);
+        } catch (err) {
+            log.push(`Failed to parse payload for player ${player}: ${err.toString()}`);
+            return;
+        }
+
+        // Attempt to patch over some of the missing skill data for this player (default to 1 if there's no pre-existing skill data)
+        // The purpose of doing this is to avoid negative skill diffs (caused by weird behavior of the "API")
+        const skills: Record<string, number> = patchMissingLevels(player, playerData.skills, 1);
+
+        updateLevels(player, skills, spoofedDiff);
+        updateKillCounts(player, playerData.bosses, spoofedDiff);
     }).catch((err) => {
         log.push(`Error while fetching player hiscores for ${player}: ${err.toString()}`);
     });
@@ -102,19 +103,25 @@ export function updatePlayer(player: string, spoofedDiff?: Record<string, number
 
 
 export function parsePlayerPayload(payload: PlayerPayload): Record<string, Record<string, number>> {
-    console.log(JSON.stringify(payload));
     const result: Record<string, Record<string, number>> = {
         skills: {},
         bosses: {}
     };
     Object.keys(payload.skills).forEach((skill: string) => {
         if (skill !== 'overall') {
-            const rawLevel: string = payload.skills[skill].level;
-            const level: number = parseInt(rawLevel);
-            if (typeof level !== 'number' || isNaN(level) || level < 1) {
-                throw new Error(`Invalid ${skill} level, '${rawLevel}' parsed to ${level}.\nPayload: ${JSON.stringify(payload.skills)}`);
+            const skillPayload: SkillPayload = payload.skills[skill];
+            if (skillPayload.level === '1' && skillPayload.xp === '-1') {
+                // If this skill is for some reason omitted from the payload (bad rank? inactivity? why?), then explicitly mark this using NaN
+                result.skills[skill] = NaN;
+            } else {
+                // Otherwise, parse the number as normal...
+                const rawLevel: string = skillPayload.level;
+                const level: number = parseInt(rawLevel);
+                if (typeof level !== 'number' || isNaN(level) || level < 1) {
+                    throw new Error(`Invalid ${skill} level, '${rawLevel}' parsed to ${level}.\nPayload: ${JSON.stringify(payload.skills)}`);
+                }
+                result.skills[skill] = level;
             }
-            result.skills[skill] = level;
         }
     });
     Object.keys(payload.bosses).forEach((bossName: string) => {
@@ -132,6 +139,22 @@ export function parsePlayerPayload(payload: PlayerPayload): Record<string, Recor
     });
     return result;
 };
+
+/**
+ * With a parsed skills payload as input, attempt to fill in missing levels (NaN) using pre-existing player skill information.
+ * If such pre-existing skill information does not exist, then fall back onto some arbitrary number.
+ */
+export function patchMissingLevels(player: string, levels: Record<string, number>, fallbackValue: number = NaN): Record<string, number> {
+    const result: Record<string, number> = {};
+    Object.keys(levels).forEach((skill) => {
+        if (isNaN(levels[skill])) {
+            result[skill] = state.hasLevels(player) ? state.getLevels(player)[skill] : fallbackValue;
+        } else {
+            result[skill] = levels[skill];
+        }
+    });
+    return result;
+}
 
 export function toSortedSkills(skills: string[]): string[] {
     const skillSubset = new Set(skills);

@@ -1,7 +1,7 @@
 // import { Message } from "../node_modules/discord.js/typings/index";
 import state from './state.js';
 import log from './log.js';
-import { updatePlayer, parsePlayerPayload, sendUpdateMessage, toSortedSkills } from './util.js';
+import { updatePlayer, parsePlayerPayload, sendUpdateMessage, toSortedSkills, patchMissingLevels } from './util.js';
 
 import osrs from 'osrs-json-api';
 
@@ -9,7 +9,7 @@ import { exec } from 'child_process';
 import { toSortedBosses, sanitizeBossName, getBossName, isValidBoss } from './boss-utility.js';
 
 import { loadJson } from './load-json.js';
-import { Command } from './types.js';
+import { Command, PlayerPayload } from './types.js';
 import { Message } from 'discord.js';
 const config = loadJson('config/config.json');
 const constants = loadJson('static/constants.json');
@@ -94,9 +94,9 @@ const commands: Record<string, Command> = {
                 return;
             }
             // Retrieve the player's hiscores data
-            osrs.hiscores.getPlayer(player).then((value) => {
+            osrs.hiscores.getPlayer(player).then((value: PlayerPayload) => {
                 // Parse the player's hiscores data
-                let playerData;
+                let playerData: Record<string, Record<string, number>>;
                 try {
                     playerData = parsePlayerPayload(value);
                 } catch (err) {
@@ -105,11 +105,12 @@ const commands: Record<string, Command> = {
                 }
                 let messageText = '';
                 // Create skills message text
-                const currentLevels: Record<string, number> = playerData.skills;
+                const currentLevels: Record<string, number> = patchMissingLevels(player, playerData.skills);
                 const skills = toSortedSkills(Object.keys(currentLevels));
-                const baseLevel = Math.min(...Object.values(currentLevels));
-                const totalLevel = Object.values(currentLevels).reduce((x: number, y: number) => { return x + y; });
-                messageText += `${skills.map(skill => `**${currentLevels[skill]}** ${skill}`).join('\n')}\n\nTotal **${totalLevel}**\nBase **${baseLevel}**`;
+                const baseLevel = Math.min(...Object.values(currentLevels).filter((x) => !isNaN(x)));
+                const totalLevel = Object.values(currentLevels).filter((x) => !isNaN(x)).reduce((x: number, y: number) => { return x + y; });
+                const totalLevelText = Object.values(currentLevels).some((x) => isNaN(x)) ? `${totalLevel} (?)` : totalLevel;
+                messageText += `${skills.map(skill => `**${isNaN(currentLevels[skill]) ? '?' : currentLevels[skill]}** ${skill}`).join('\n')}\n\nTotal **${totalLevelText}**\nBase **${baseLevel}**`;
                 // Create bosses message text
                 const killCounts = playerData.bosses;
                 const kcBosses = toSortedBosses(Object.keys(killCounts)).filter(boss => killCounts[boss]);
@@ -139,7 +140,7 @@ const commands: Record<string, Command> = {
                 return;
             }
             // Retrieve the player's hiscores data
-            osrs.hiscores.getPlayer(player).then((value) => {
+            osrs.hiscores.getPlayer(player).then((value: PlayerPayload) => {
                 // Parse the player's hiscores data
                 let playerData;
                 try {
