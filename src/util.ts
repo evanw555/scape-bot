@@ -5,7 +5,7 @@ import osrs from 'osrs-json-api';
 import { isValidBoss, sanitizeBossName, toSortedBosses, getBossName } from './boss-utility.js';
 
 import { loadJson } from './load-json.js';
-import { TextBasedChannels } from "discord.js";
+import { Message, TextBasedChannels } from "discord.js";
 import { PlayerPayload, SkillPayload } from "./types.js";
 const constants = loadJson('static/constants.json');
 
@@ -357,4 +357,17 @@ export function getDurationString(milliseconds: number) {
     }
     const days = Math.floor(hours / 24);
     return `${days} days`;
+}
+
+/**
+ * Reply to a Discord bot with a cute and funny message.
+ * @param msg Message sent by the Discord bot
+ */
+export function sendBottingMessage(msg: Message): void {
+    if (Math.random() < 0.25) {
+        msg.channel.send(`<@${msg.author.id}> botting lvl?`);
+    } else {
+        const replyText: string = `**<@${msg.author.id}>** has gained a level in **botting** and is now level **${state.getBotCounter(msg.author.id)}**`;
+        sendUpdateMessage(msg.channel, replyText, 'overall');
+    }
 }

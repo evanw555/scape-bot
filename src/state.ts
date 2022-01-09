@@ -1,4 +1,4 @@
-import { TextBasedChannels } from "../node_modules/discord.js/typings/index";
+import { Snowflake, TextBasedChannels } from "../node_modules/discord.js/typings/index";
 import { SerializedState } from "./types";
 import CircularQueue from './circular-queue.js';
 
@@ -9,6 +9,7 @@ class State {
     private readonly _playersOffHiScores: Set<string>;
     private readonly _levels: Record<string, Record<string, number>>;
     private readonly _bosses: Record<string, Record<string, number>>;
+    private readonly _botCounters: Record<Snowflake, number>;
     readonly _lastUpdate: Record<string, Date>;
     readonly _ownerIds: Set<string>;
 
@@ -20,6 +21,7 @@ class State {
         this._playersOffHiScores = new Set<string>();
         this._levels = {};
         this._bosses = {};
+        this._botCounters = {};
         this._lastUpdate = {};
         this._ownerIds = new Set<string>();
     }
@@ -133,6 +135,20 @@ class State {
         this._bosses[player] = bosses;
     }
 
+    getBotCounter(botId: Snowflake): number {
+        return this._botCounters[botId];
+    }
+
+    setBotCounters(botCounters: Record<Snowflake, number>): void {
+        Object.entries(botCounters).forEach(([botId, count]) => {
+            this._botCounters[botId] = count;
+        });
+    }
+
+    incrementBotCounter(botId: Snowflake, delta: number = 1): void {
+        this._botCounters[botId] = (this._botCounters[botId] ?? 0) + delta;
+    }
+
     hasTimestamp(): boolean {
         return this._timestamp !== undefined;
     }
@@ -152,7 +168,8 @@ class State {
             playersOffHiScores: Array.from(this._playersOffHiScores),
             trackingChannelId: this._trackingChannel.id,
             levels: this._levels,
-            bosses: this._bosses
+            bosses: this._bosses,
+            botCounters: this._botCounters
         };
     }
 }

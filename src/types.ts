@@ -1,4 +1,4 @@
-import { Message } from "discord.js";
+import { Message, Snowflake } from "discord.js";
 
 export interface SerializedState {
     timestamp: string,
@@ -6,7 +6,8 @@ export interface SerializedState {
     playersOffHiScores: string[],
     trackingChannelId?: string,
     levels: Record<string, Record<string, number>>,
-    bosses: Record<string, Record<string, number>>
+    bosses: Record<string, Record<string, number>>,
+    botCounters: Record<Snowflake, number>
 }
 
 export interface Command {

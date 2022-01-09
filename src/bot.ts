@@ -1,6 +1,6 @@
 import { Client, DMChannel, GuildMember, Intents, Options, TextBasedChannels } from 'discord.js';
 import { SerializedState } from './types.js';
-import { updatePlayer, sendRestartMessage, getDurationString } from './util.js';
+import { updatePlayer, sendRestartMessage, getDurationString, sendUpdateMessage, sendBottingMessage } from './util.js';
 
 import { loadJson } from './load-json.js';
 const auth = loadJson('config/auth.json');
@@ -41,6 +41,10 @@ const deserializeState = async (serializedState: SerializedState): Promise<void>
 
     if (serializedState.bosses) {
         state.setAllBosses(serializedState.bosses);
+    }
+
+    if (serializedState.botCounters) {
+        state.setBotCounters(serializedState.botCounters);
     }
 
     // Now that the state has been loaded, mark it as valid
@@ -140,7 +144,9 @@ client.on('messageCreate', (msg) => {
     if (msg.mentions.has(client.user)) {
         // If the message was sent by another bot, troll epic style 😈
         if (msg.author.bot) {
-            msg.channel.send(`<@${msg.author.id}> botting lvl?`);
+            state.incrementBotCounter(msg.author.id);
+            // Wait up to 1.5 seconds before sending the message to make it feel more organic
+            setTimeout(() => sendBottingMessage(msg), Math.random() * 1500);
             return;
         }
         // Else, process the command as normal
