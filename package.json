@@ -12,7 +12,7 @@
     "dependencies": {
         "discord.io": "https://github.com/woor/discord.io/tarball/gateway_v6",
         "discord.js": "13.0.*",
-        "osrs-json-api": "https://github.com/davidvorona/osrs-json-api.git",
+        "osrs-json-api": "1.4.6",
         "winston": "^3.1.0",
         "ws": ">=7.4.6"
     },
