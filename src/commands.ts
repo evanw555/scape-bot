@@ -1,7 +1,7 @@
 // import { Message } from "../node_modules/discord.js/typings/index";
 import state from './state.js';
 import log from './log.js';
-import { updatePlayer, parsePlayerPayload, sendUpdateMessage, toSortedSkills, patchMissingLevels } from './util.js';
+import { updatePlayer, parsePlayerPayload, sendUpdateMessage, toSortedSkills, patchMissingLevels, patchMissingBosses } from './util.js';
 
 import osrs from 'osrs-json-api';
 
@@ -150,7 +150,7 @@ const commands: Record<string, Command> = {
                     return;
                 }
                 // Create boss message text
-                const killCounts = playerData.bosses;
+                const killCounts: Record<string, number> = patchMissingBosses(player, playerData.bosses);
                 const bossID = sanitizeBossName(boss);
                 const bossName = getBossName(bossID);
                 const messageText = `**${player}** has killed **${bossName}** **${killCounts[bossID]}** times`;

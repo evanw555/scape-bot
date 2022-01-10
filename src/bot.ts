@@ -1,6 +1,6 @@
 import { Client, DMChannel, GuildMember, Intents, Options, TextBasedChannels } from 'discord.js';
 import { SerializedState } from './types.js';
-import { updatePlayer, sendRestartMessage, getDurationString, sendUpdateMessage, sendBottingMessage } from './util.js';
+import { updatePlayer, sendRestartMessage, sendUpdateMessage } from './util.js';
 
 import { loadJson } from './load-json.js';
 const auth = loadJson('config/auth.json');
@@ -146,7 +146,10 @@ client.on('messageCreate', (msg) => {
         if (msg.author.bot) {
             state.incrementBotCounter(msg.author.id);
             // Wait up to 1.5 seconds before sending the message to make it feel more organic
-            setTimeout(() => sendBottingMessage(msg), Math.random() * 1500);
+            setTimeout(() => {
+                const replyText: string = `**<@${msg.author.id}>** has gained a level in **botting** and is now level **${state.getBotCounter(msg.author.id)}**`;
+                sendUpdateMessage(msg.channel, replyText, 'overall');
+            }, Math.random() * 1500);
             return;
         }
         // Else, process the command as normal

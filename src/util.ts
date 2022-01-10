@@ -5,14 +5,14 @@ import osrs from 'osrs-json-api';
 import { isValidBoss, sanitizeBossName, toSortedBosses, getBossName } from './boss-utility.js';
 
 import { loadJson } from './load-json.js';
-import { Message, TextBasedChannels } from "discord.js";
-import { PlayerPayload, SkillPayload } from "./types.js";
+import { TextBasedChannels } from "discord.js";
+import { BossPayload, PlayerPayload, SkillPayload } from "./types.js";
 const constants = loadJson('static/constants.json');
 
 const validSkills: Set<string> = new Set(constants.skills);
 const validMiscThumbnails: Set<string> = new Set(constants.miscThumbnails);
 
-export function getThumbnail(name, args) {
+export function getThumbnail(name: string, args: Record<string, any>) {
     if (validSkills.has(name)) {
         const skill = name;
         return {
@@ -48,7 +48,7 @@ export function sendUpdateMessage(channel, text, name, args?) {
 
 // input: 3
 // expected output: 0,1,2
-export function getRandomInt(max) {
+export function getRandomInt(max: number): number {
     return Math.floor(Math.random() * Math.floor(max));
 };
 
@@ -90,12 +90,13 @@ export function updatePlayer(player: string, spoofedDiff?: Record<string, number
             return;
         }
 
-        // Attempt to patch over some of the missing skill data for this player (default to 1 if there's no pre-existing skill data)
-        // The purpose of doing this is to avoid negative skill diffs (caused by weird behavior of the "API")
+        // Attempt to patch over some of the missing data for this player (default to 1/0 if there's no pre-existing data)
+        // The purpose of doing this is to avoid negative skill/kc diffs (caused by weird behavior of the so-called "API")
         const skills: Record<string, number> = patchMissingLevels(player, playerData.skills, 1);
+        const bosses: Record<string, number> = patchMissingBosses(player, playerData.bosses, 0);
 
         updateLevels(player, skills, spoofedDiff);
-        updateKillCounts(player, playerData.bosses, spoofedDiff);
+        updateKillCounts(player, bosses, spoofedDiff);
     }).catch((err) => {
         log.push(`Error while fetching player hiscores for ${player}: ${err.toString()}`);
     });
@@ -125,17 +126,20 @@ export function parsePlayerPayload(payload: PlayerPayload): Record<string, Recor
         }
     });
     Object.keys(payload.bosses).forEach((bossName: string) => {
+        const bossPayload: BossPayload = payload.bosses[bossName];
         const bossID: string = sanitizeBossName(bossName);
-        const rawKillCount: string = payload.bosses[bossName].score;
-        const killCount: number = parseInt(rawKillCount);
-        if (typeof killCount !== 'number' || isNaN(killCount)) {
-            throw new Error(`Invalid ${bossID} boss, '${rawKillCount}' parsed to ${killCount}.\nPayload: ${JSON.stringify(payload.bosses)}`);
+        if (bossPayload.rank === '-1' && bossPayload.score === '-1') {
+            // If this boss is for some reason omitted for the payload, then explicitly mark this using NaN
+            result.bosses[bossID] = NaN;
+        } else {
+            // Otherwise, parse the number as normal...
+            const rawKillCount: string = bossPayload.score;
+            const killCount: number = parseInt(rawKillCount);
+            if (typeof killCount !== 'number' || isNaN(killCount)) {
+                throw new Error(`Invalid ${bossID} boss, '${rawKillCount}' parsed to ${killCount}.\nPayload: ${JSON.stringify(payload.bosses)}`);
+            }
+            result.bosses[bossID] = killCount;
         }
-        if (killCount < 0) {
-            result.bosses[bossID] = 0;
-            return;
-        }
-        result.bosses[bossID] = killCount;
     });
     return result;
 };
@@ -151,6 +155,22 @@ export function patchMissingLevels(player: string, levels: Record<string, number
             result[skill] = state.hasLevels(player) ? state.getLevels(player)[skill] : fallbackValue;
         } else {
             result[skill] = levels[skill];
+        }
+    });
+    return result;
+}
+
+/**
+ * With a parsed bosses payload as input, attempt to fill in missing killcounts (NaN) using pre-existing player kill count information.
+ * If such pre-existing boss information does not exist, then fall back onto some arbitrary number.
+ */
+ export function patchMissingBosses(player: string, bosses: Record<string, number>, fallbackValue: number = NaN): Record<string, number> {
+    const result: Record<string, number> = {};
+    Object.keys(bosses).forEach((bossId) => {
+        if (isNaN(bosses[bossId])) {
+            result[bossId] = state.hasBosses(player) ? state.getBosses(player)[bossId] : fallbackValue;
+        } else {
+            result[bossId] = bosses[bossId];
         }
     });
     return result;
@@ -357,17 +377,4 @@ export function getDurationString(milliseconds: number) {
     }
     const days = Math.floor(hours / 24);
     return `${days} days`;
-}
-
-/**
- * Reply to a Discord bot with a cute and funny message.
- * @param msg Message sent by the Discord bot
- */
-export function sendBottingMessage(msg: Message): void {
-    if (Math.random() < 0.25) {
-        msg.channel.send(`<@${msg.author.id}> botting lvl?`);
-    } else {
-        const replyText: string = `**<@${msg.author.id}>** has gained a level in **botting** and is now level **${state.getBotCounter(msg.author.id)}**`;
-        sendUpdateMessage(msg.channel, replyText, 'overall');
-    }
 }
