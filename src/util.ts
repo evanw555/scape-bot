@@ -53,11 +53,18 @@ export function getRandomInt(max: number): number {
 };
 
 export function computeDiff(before: Record<string, number>, after: Record<string, number>): Record<string, number> {
-    const counts = Object.keys(before);
+    // Construct the union of all keys from before and after objects (this is needed in the case of new keys)
+    const keyUnion: Set<string> = new Set();
+    Object.keys(before)
+        .concat(Object.keys(after))
+        .forEach(key => keyUnion.add(key));
+
+    // For each key, add the diff to the overall diff mapping
     const diff = {};
-    counts.forEach((kind) => {
+    keyUnion.forEach((kind) => {
         if (before[kind] !== after[kind]) {
-            const thisDiff = after[kind] - before[kind];
+            // TODO: the default isn't necessarily 0, it could be 1 for skills (but does that really matter?)
+            const thisDiff = (after[kind] ?? 0) - (before[kind] ?? 0);
             if (typeof thisDiff !== 'number' || isNaN(thisDiff) || thisDiff < 0) {
                 throw new Error(`Invalid ${kind} diff, '${after[kind]}' minus '${before[kind]}' is '${thisDiff}'`);
             }
