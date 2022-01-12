@@ -74,6 +74,22 @@ export function computeDiff(before: Record<string, number>, after: Record<string
     return diff;
 };
 
+/**
+ * Returns a new map including key-value pairs from the input map,
+ * but with entries omitted if their value matches the blacklisted value parameter.
+ * @param input input map
+ * @param blacklistedValue value used to determine which entries to omit
+ */
+export function filterValueFromMap<T>(input: Record<string, T>, blacklistedValue: T): Record<string, T> {
+    const output = {};
+    Object.keys(input).forEach((key) => {
+        if (input[key] !== blacklistedValue) {
+            output[key] = input[key];
+        }
+    });
+    return output;
+}
+
 export function updatePlayer(player: string, spoofedDiff?: Record<string, number>): void {
     // Retrieve the player's hiscores data
     osrs.hiscores.getPlayer(player).then((value: PlayerPayload) => {

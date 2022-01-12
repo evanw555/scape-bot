@@ -1,6 +1,7 @@
 import { Snowflake, TextBasedChannels } from "../node_modules/discord.js/typings/index";
 import { SerializedState } from "./types";
 import CircularQueue from './circular-queue.js';
+import { filterValueFromMap } from "./util.js";
 
 class State {
     private _isValid: boolean;
@@ -132,7 +133,8 @@ class State {
     }
 
     setBosses(player: string, bosses: Record<string, number>): void {
-        this._bosses[player] = bosses;
+        // Remove entries with zero kills to avoid bloating the state file
+        this._bosses[player] = filterValueFromMap(bosses, 0);
     }
 
     getBotCounter(botId: Snowflake): number {
