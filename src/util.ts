@@ -327,7 +327,7 @@ export function updateKillCounts(player, killCounts, spoofedDiff?) {
                     : `**${player}** ${dopeKillVerb} **${bossName}** `
                         + (killCountIncrease === 1 ? 'again' : `**${killCountIncrease}** more times`)
                         + ` and is now at **${killCounts[bossID]}** kills`;
-                sendUpdateMessage(state.getTrackingChannel(), text, getBossName(bossID), {color: 10363483});
+                sendUpdateMessage(state.getTrackingChannel(), text, bossName, {color: 10363483});
                 break;
             }
             default: {

@@ -117,7 +117,7 @@ const commands: Record<string, Command> = {
                 if (kcBosses.length) {
                     messageText += '\n\n';
                 }
-                messageText += `${kcBosses.map(boss => `**${killCounts[boss]}** ${constants.bossNamesMap[boss]}`).join('\n')}`;
+                messageText += `${kcBosses.map(boss => `**${killCounts[boss]}** ${getBossName(boss)}`).join('\n')}`;
                 sendUpdateMessage(msg.channel, messageText, 'overall', {
                     title: player,
                     url: `${constants.hiScoresUrlTemplate}${encodeURI(player)}`

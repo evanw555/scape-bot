@@ -79,7 +79,6 @@
         "happy",
         "unhappy"
     ],
-
     "baseThumbnailUrl": "https://raw.githubusercontent.com/evanw555/scape-bot/master/static/thumbnails/",
     "level99Path": "99/",
     "miscThumbnailPath": "misc/",

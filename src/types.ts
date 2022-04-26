@@ -37,8 +37,6 @@ export interface BossPayload {
 }
 
 export interface PlayerPayload {
-    main: {
-        skills: Record<string, SkillPayload>,
-        bosses: Record<string, BossPayload>
-    }
+    skills: Record<string, SkillPayload>,
+    bosses: Record<string, BossPayload>
 }

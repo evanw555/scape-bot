@@ -20,7 +20,9 @@ const deserializeState = async (serializedState: SerializedState): Promise<void>
         state.setTimestamp(new Date(serializedState.timestamp));
     }
 
-    state.getTrackedPlayers().addAll(serializedState.players);
+    if (serializedState.players) {
+        state.getTrackedPlayers().addAll(serializedState.players);
+    }
 
     if (serializedState.playersOffHiScores) {
         serializedState.playersOffHiScores.forEach((player) => {
