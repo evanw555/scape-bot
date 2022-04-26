@@ -1,18 +1,20 @@
 import { loadJson } from './load-json.js';
+import { camelize } from "./util.js";
+import { FORMATTED_BOSS_NAMES } from "osrs-json-hiscores";
 const constants = loadJson('static/constants.json');
 
 /**
- * Boss name with capitalization
+ * Boss name with capitalization and spacing
  * @typedef {string} BossName
  */
 
 /**
-  * Boss name in all lowercase
+  * Boss name in camelcase with only alphanumeric characters
   * @typedef {string} BossID
   */
 
-const validBossNames: Set<string> = new Set<string>(constants.bosses);
-const validBossIDs: Set<string> = new Set<string>(constants.bosses.map(b => sanitizeBossName(b)));
+const validBossNames = new Set(Object.values(FORMATTED_BOSS_NAMES));
+const validBossIDs = new Set(Object.keys(FORMATTED_BOSS_NAMES));
 
 export function toSortedBosses(bosses: string[]): string[] {
     const bossSubset = new Set(bosses);
@@ -20,23 +22,23 @@ export function toSortedBosses(bosses: string[]): string[] {
 };
 
 /**
- * Returns lowercase of boss name
+ * Converts boss name to camelcase and removes non-alphanumeric
+ * characters
  * @param {BossName} bossName
  * @returns {BossID}
  */
- export function sanitizeBossName(bossName: string): string {
-    const bossID = bossName.toLowerCase();
+export function sanitizeBossName(bossName: string): string {
+    const bossID = camelize(bossName).replace(/\W/g, '');
     return bossID;
 }
 
 /**
- * Gets boss name from ID
+ * Gets boss name from ID or returns string "Unknown"
  * @param {BossID} bossID
  * @returns {BossName}
  */
- export function getBossName(bossID: string): string {
-    const bossName = constants.bosses.find(b => sanitizeBossName(b) === bossID);
-    return bossName;
+export function getBossName(bossID: string): string {
+    return FORMATTED_BOSS_NAMES[bossID] ?? "Unknown";
 }
 
 /**

@@ -3,7 +3,7 @@ import state from './state.js';
 import log from './log.js';
 import { updatePlayer, parsePlayerPayload, sendUpdateMessage, toSortedSkills, patchMissingLevels, patchMissingBosses } from './util.js';
 
-import osrs from 'osrs-json-api';
+import hiscores, { FORMATTED_BOSS_NAMES, Player } from 'osrs-json-hiscores';
 
 import { exec } from 'child_process';
 import { toSortedBosses, sanitizeBossName, getBossName, isValidBoss } from './boss-utility.js';
@@ -94,7 +94,7 @@ const commands: Record<string, Command> = {
                 return;
             }
             // Retrieve the player's hiscores data
-            osrs.hiscores.getPlayer(player).then((value: PlayerPayload) => {
+            hiscores.getStats(player).then((value: Player) => {
                 // Parse the player's hiscores data
                 let playerData: Record<string, Record<string, number>>;
                 try {
@@ -117,7 +117,7 @@ const commands: Record<string, Command> = {
                 if (kcBosses.length) {
                     messageText += '\n\n';
                 }
-                messageText += `${kcBosses.map(boss => `**${killCounts[boss]}** ${boss}`).join('\n')}`;
+                messageText += `${kcBosses.map(boss => `**${killCounts[boss]}** ${getBossName(boss)}`).join('\n')}`;
                 sendUpdateMessage(msg.channel, messageText, 'overall', {
                     title: player,
                     url: `${constants.hiScoresUrlTemplate}${encodeURI(player)}`
@@ -140,7 +140,7 @@ const commands: Record<string, Command> = {
                 return;
             }
             // Retrieve the player's hiscores data
-            osrs.hiscores.getPlayer(player).then((value: PlayerPayload) => {
+            hiscores.getStats(player).then((value: Player) => {
                 // Parse the player's hiscores data
                 let playerData;
                 try {
@@ -264,8 +264,7 @@ const commands: Record<string, Command> = {
     spoof: {
         fn: (msg, rawArgs, player) => {
             if (player) {
-                const possibleKeys = constants.bosses
-                    .map(boss => sanitizeBossName(boss))
+                const possibleKeys = Object.keys(FORMATTED_BOSS_NAMES)
                     .concat(constants.skills)
                     .concat(constants.skills) // Add it again to make it more likely (there are too many bosses)
                     .filter(skill => skill != 'overall');
