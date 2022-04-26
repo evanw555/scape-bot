@@ -1,15 +1,15 @@
 // import { Message } from "../node_modules/discord.js/typings/index";
-import state from './state.js';
-import log from './log.js';
-import { updatePlayer, parsePlayerPayload, sendUpdateMessage, toSortedSkills, patchMissingLevels, patchMissingBosses } from './util.js';
+import state from './state';
+import log from './log';
+import { updatePlayer, parsePlayerPayload, sendUpdateMessage, toSortedSkills, patchMissingLevels, patchMissingBosses } from './util';
 
 import hiscores, { FORMATTED_BOSS_NAMES, Player } from 'osrs-json-hiscores';
 
 import { exec } from 'child_process';
-import { toSortedBosses, sanitizeBossName, getBossName, isValidBoss } from './boss-utility.js';
+import { toSortedBosses, sanitizeBossName, getBossName, isValidBoss } from './boss-utility';
 
-import { loadJson } from './load-json.js';
-import { Command, PlayerPayload } from './types.js';
+import { loadJson } from './load-json';
+import { Command } from './types';
 import { Message } from 'discord.js';
 const config = loadJson('config/config.json');
 const constants = loadJson('static/constants.json');

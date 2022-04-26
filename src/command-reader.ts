@@ -1,9 +1,9 @@
 import { Message } from 'discord.js';
-import { ParsedCommand, Command } from './types.js';
+import { ParsedCommand, Command } from './types';
 
-import commands from './commands.js';
-import log from './log.js';
-import state from './state.js';
+import commands from './commands';
+import log from './log';
+import state from './state';
 
 class CommandReader {
     constructor() {

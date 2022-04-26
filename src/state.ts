@@ -1,7 +1,7 @@
-import { Snowflake, TextBasedChannels } from "../node_modules/discord.js/typings/index";
+import { Snowflake, TextBasedChannel } from 'discord.js';
 import { SerializedState } from "./types";
-import CircularQueue from './circular-queue.js';
-import { filterValueFromMap } from "./util.js";
+import CircularQueue from './circular-queue';
+import { filterValueFromMap } from "./util";
 
 class State {
     private _isValid: boolean;
@@ -14,7 +14,7 @@ class State {
     readonly _lastUpdate: Record<string, Date>;
     readonly _ownerIds: Set<string>;
 
-    _trackingChannel?: TextBasedChannels;
+    _trackingChannel?: TextBasedChannel;
 
     constructor() {
         this._isValid = false;
@@ -80,11 +80,11 @@ class State {
         return !this._playersOffHiScores.has(player);
     }
 
-    getTrackingChannel(): TextBasedChannels {
+    getTrackingChannel(): TextBasedChannel {
         return this._trackingChannel;
     }
 
-    setTrackingChannel(channel: TextBasedChannels): void {
+    setTrackingChannel(channel: TextBasedChannel): void {
         this._trackingChannel = channel;
     }
 

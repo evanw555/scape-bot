@@ -1,18 +1,18 @@
-import { Client, DMChannel, GuildMember, Intents, Options, TextBasedChannels } from 'discord.js';
-import { SerializedState } from './types.js';
-import { updatePlayer, sendRestartMessage, sendUpdateMessage } from './util.js';
+import { Client, DMChannel, GuildMember, Intents, Options, TextBasedChannel } from 'discord.js';
+import { SerializedState } from './types';
+import { updatePlayer, sendRestartMessage, sendUpdateMessage } from './util';
 
-import { loadJson } from './load-json.js';
+import { loadJson } from './load-json';
 const auth = loadJson('config/auth.json');
 const config = loadJson('config/config.json');
 
-import log from './log.js';
-import state from './state.js';
+import log from './log';
+import state from './state';
 
-import FileStorage from './file-storage.js';
+import FileStorage from './file-storage';
 const storage: FileStorage = new FileStorage('./data/');
 
-import CommandReader from './command-reader.js';
+import CommandReader from './command-reader';
 const commandReader: CommandReader = new CommandReader();
 
 const deserializeState = async (serializedState: SerializedState): Promise<void> => {
@@ -31,7 +31,7 @@ const deserializeState = async (serializedState: SerializedState): Promise<void>
     }
 
     if (serializedState.trackingChannelId) {
-        const trackingChannel: TextBasedChannels = (await client.channels.fetch(serializedState.trackingChannelId)) as TextBasedChannels;
+        const trackingChannel: TextBasedChannel = (await client.channels.fetch(serializedState.trackingChannelId)) as TextBasedChannel;
         if (trackingChannel) {
             state.setTrackingChannel(trackingChannel);
         }
@@ -116,7 +116,7 @@ client.on('ready', async () => {
 
     // Default the tracking channel to the owner's DM if necessary...
     if (state.hasTrackingChannel()) {
-        const trackingChannel: TextBasedChannels = state.getTrackingChannel();
+        const trackingChannel: TextBasedChannel = state.getTrackingChannel();
         log.push(`Loaded up tracking channel '${trackingChannel}' of type '${trackingChannel.type}' with ID '${trackingChannel.id}'`);
     } else if (ownerDmChannel) {
         state.setTrackingChannel(ownerDmChannel);

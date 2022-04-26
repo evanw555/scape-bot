@@ -1,5 +1,5 @@
-import { loadJson } from './load-json.js';
-import { camelize } from "./util.js";
+import { loadJson } from './load-json';
+import { camelize } from "./util";
 import { FORMATTED_BOSS_NAMES } from "osrs-json-hiscores";
 const constants = loadJson('static/constants.json');
 

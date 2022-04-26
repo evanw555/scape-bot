@@ -1,12 +1,11 @@
-import log from "./log.js";
-import state from "./state.js";
+import log from "./log";
+import state from "./state";
 
 import hiscores, { Player, Skill, Activity, Bosses } from 'osrs-json-hiscores';
-import { isValidBoss, sanitizeBossName, toSortedBosses, getBossName } from './boss-utility.js';
+import { isValidBoss, sanitizeBossName, toSortedBosses, getBossName } from './boss-utility';
 
-import { loadJson } from './load-json.js';
-import { TextBasedChannels } from "discord.js";
-import { BossPayload, PlayerPayload, SkillPayload } from "./types.js";
+import { loadJson } from './load-json';
+import { TextBasedChannel } from "discord.js";
 const constants = loadJson('static/constants.json');
 
 const validSkills: Set<string> = new Set(constants.skills);
@@ -359,7 +358,7 @@ export function updatePlayers(players: string[]): void {
     }
 };
 
-export function sendRestartMessage(channel: TextBasedChannels, downtimeMillis: number): void {
+export function sendRestartMessage(channel: TextBasedChannel, downtimeMillis: number): void {
     if (channel) {
         // Send greeting message to some channel
         const baseText: string = `ScapeBot online after ${getDurationString(downtimeMillis)} of downtime. In channel **${state.getTrackingChannel()}**, currently`;

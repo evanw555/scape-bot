@@ -1,4 +1,4 @@
-import { loadJson } from './load-json.js';
+import { loadJson } from './load-json';
 const config = loadJson('config/config.json');
 
 interface LogEntry {
