@@ -327,7 +327,7 @@ export function updateKillCounts(player, killCounts, spoofedDiff?) {
                     : `**${player}** ${dopeKillVerb} **${bossName}** `
                         + (killCountIncrease === 1 ? 'again' : `**${killCountIncrease}** more times`)
                         + ` and is now at **${killCounts[bossID]}** kills`;
-                sendUpdateMessage(state.getTrackingChannel(), text, bossID, {color: 10363483});
+                sendUpdateMessage(state.getTrackingChannel(), text, getBossName(bossID), {color: 10363483});
                 break;
             }
             default: {
@@ -339,7 +339,7 @@ export function updateKillCounts(player, killCounts, spoofedDiff?) {
                         ? `**${bossName}** for the first time!`
                         : `**${bossName}** ${killCountIncrease === 1 ? 'again' : `**${killCountIncrease}** more times`} and is now at **${killCounts[bossID]}**`;
                 }).join('\n');
-                sendUpdateMessage(state.getTrackingChannel(), `**${player}** has killed...\n${text}`, sortedBosses[0], {color: 10363483});
+                sendUpdateMessage(state.getTrackingChannel(), `**${player}** has killed...\n${text}`, getBossName(sortedBosses[0]), {color: 10363483});
                 break;
             }
         }

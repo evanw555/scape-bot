@@ -32,13 +32,13 @@ export function toSortedBosses(bosses: string[]): string[] {
 }
 
 /**
- * Gets boss name from ID
+ * Gets boss name from ID or returns string "Unknown"
  * @param {BossID} bossID
  * @returns {BossName}
  */
  export function getBossName(bossID: string): string {
-    const bossName = Object.values(constants.bossNamesMap).find((b: string) => sanitizeBossName(b) === bossID) as string;
-    return bossName;
+    const bossName = Object.values(constants.bossNamesMap).find((b: string) => sanitizeBossName(b) === bossID);
+    return typeof bossName === "string" ? bossName : "Unknown";
 }
 
 /**
