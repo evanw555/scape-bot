@@ -5,7 +5,7 @@ class CircularQueue<T> {
 
     constructor() {
         this._set = new Set<T>();
-        this._list = []
+        this._list = [];
         this._index = 0;
     }
 
@@ -78,6 +78,6 @@ class CircularQueue<T> {
     toString(): string {
         return JSON.stringify(this.toSortedArray());
     }
-};
+}
 
 export default CircularQueue;

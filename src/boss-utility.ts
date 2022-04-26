@@ -1,7 +1,5 @@
-import { loadJson } from './load-json';
-import { camelize } from "./util";
-import { FORMATTED_BOSS_NAMES } from "osrs-json-hiscores";
-const constants = loadJson('static/constants.json');
+import { camelize } from './util';
+import { FORMATTED_BOSS_NAMES } from 'osrs-json-hiscores';
 
 /**
  * Boss name with capitalization and spacing
@@ -19,7 +17,7 @@ const validBossIDs = new Set(Object.keys(FORMATTED_BOSS_NAMES));
 export function toSortedBosses(bosses: string[]): string[] {
     const bossSubset = new Set(bosses);
     return [...validBossIDs].filter(bossID => bossSubset.has(bossID));
-};
+}
 
 /**
  * Converts boss name to camelcase and removes non-alphanumeric
@@ -33,12 +31,12 @@ export function sanitizeBossName(bossName: string): string {
 }
 
 /**
- * Gets boss name from ID or returns string "Unknown"
+ * Gets boss name from ID or returns string 'Unknown'
  * @param {BossID} bossID
  * @returns {BossName}
  */
 export function getBossName(bossID: string): string {
-    return FORMATTED_BOSS_NAMES[bossID] ?? "Unknown";
+    return FORMATTED_BOSS_NAMES[bossID] ?? 'Unknown';
 }
 
 /**

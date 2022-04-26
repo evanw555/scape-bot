@@ -1,4 +1,3 @@
-// import { Message } from "../node_modules/discord.js/typings/index";
 import state from './state';
 import log from './log';
 import { updatePlayer, parsePlayerPayload, sendUpdateMessage, toSortedSkills, patchMissingLevels, patchMissingBosses } from './util';
@@ -189,7 +188,7 @@ const commands: Record<string, Command> = {
                 msg.channel.send(`${sortedPlayers.map(player => `**${player}**: last updated **${state._lastUpdate[player] && state._lastUpdate[player].toLocaleTimeString('en-US', {timeZone: config.timeZone})}**`).join('\n')}`);
             } else {
                 msg.channel.send('Currently not tracking any players');
-                }
+            }
         },
         text: 'Show details of when each tracked player was last updated'
     },
@@ -325,8 +324,8 @@ const commands: Record<string, Command> = {
             if (selector) {
                 // If a selector was specified, select a specific part of the state
                 const selectors: string[] = selector.split('.');
-                for (var s of selectors) {
-                    if (selectedState.hasOwnProperty(s)) {
+                for (const s of selectors) {
+                    if (Object.prototype.hasOwnProperty.call(selectedState, s)) {
                         selectedState = selectedState[s];
                     } else {
                         msg.reply(`\`${selector}\` is not a valid state selector! (failed at \`${s}\`)`);

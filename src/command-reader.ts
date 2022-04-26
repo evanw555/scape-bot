@@ -6,10 +6,6 @@ import log from './log';
 import state from './state';
 
 class CommandReader {
-    constructor() {
-
-    }
-
     read(msg: Message): void {
         // Parse command
         let parsedCommand: ParsedCommand;
@@ -21,7 +17,7 @@ class CommandReader {
         }
         // Execute command
         const { command, args, rawArgs } = parsedCommand;
-        if (commands.hasOwnProperty(command)) {
+        if (Object.prototype.hasOwnProperty.call(commands, command)) {
             const commandInfo: Command = commands[command];
             if (commandInfo.privileged && !state.isOwner(msg.author.id)) {
                 msg.channel.send('You can\'t do that');
@@ -47,11 +43,11 @@ class CommandReader {
             command: args[0],
             args: args.splice(1),
             rawArgs: text.replace(/<@!?\d+>/g, '') // Remove user mentions from the text
-                         .trim()
-                         .replace(new RegExp(`^${args[0]}`, 'g'), '') // Remove the core command from the args string
-                         .trim()
+                .trim()
+                .replace(new RegExp(`^${args[0]}`, 'g'), '') // Remove the core command from the args string
+                .trim()
         };
-    };
+    }
 
     /**
      * Searches string of text submitted to bot for
@@ -66,7 +62,7 @@ class CommandReader {
      * @returns {string[]} array of arguments tokenized by quote and/or space
      */
     static extractArgs(text: string): string[] {
-        // eslint-disable-next-line quotes
+        // eslint-disable-next-line @typescript-eslint/quotes
         const SINGLE_QUOTE_CHAR = `'`;
         const DOUBLE_QUOTE_CHAR = '"';
         const TICK_CHAR = '`';
@@ -154,7 +150,7 @@ class CommandReader {
         return args.filter((arg) => {
             return arg && arg.indexOf('@') === -1;
         });
-    };
+    }
 }
 
 export default CommandReader;

@@ -51,7 +51,7 @@ const deserializeState = async (serializedState: SerializedState): Promise<void>
 
     // Now that the state has been loaded, mark it as valid
     state.setValid(true);
-}
+};
 
 const dumpState = async (): Promise<void> => {
     if (state.isValid()) {
@@ -61,7 +61,7 @@ const dumpState = async (): Promise<void> => {
 };
 
 // Initialize Discord Bot
-var client = new Client({
+const client = new Client({
     intents: [
         Intents.FLAGS.GUILDS,
         Intents.FLAGS.GUILD_MESSAGES,
@@ -105,7 +105,7 @@ client.on('ready', async () => {
     }
 
     // Deserialize it and load it into the state object
-    let downtimeMillis: number = 0;
+    let downtimeMillis = 0;
     if (serializedState) {
         await deserializeState(serializedState);
         // Compute timestamp if it's present (should only be missing the very first time)
@@ -120,7 +120,7 @@ client.on('ready', async () => {
         log.push(`Loaded up tracking channel '${trackingChannel}' of type '${trackingChannel.type}' with ID '${trackingChannel.id}'`);
     } else if (ownerDmChannel) {
         state.setTrackingChannel(ownerDmChannel);
-        log.push(`Invalid tracking channel ID '${serializedState?.trackingChannelId || "N/A"}', defaulting to guild owner's DM channel`);
+        log.push(`Invalid tracking channel ID '${serializedState?.trackingChannelId || 'N/A'}', defaulting to guild owner's DM channel`);
     } else {
         log.push('Could determine neither the guild owner\'s DM channel nor the saved tracking channel. Please set it using commands.');
     }
@@ -149,7 +149,7 @@ client.on('messageCreate', (msg) => {
             state.incrementBotCounter(msg.author.id);
             // Wait up to 1.5 seconds before sending the message to make it feel more organic
             setTimeout(() => {
-                const replyText: string = `**<@${msg.author.id}>** has gained a level in **botting** and is now level **${state.getBotCounter(msg.author.id)}**`;
+                const replyText = `**<@${msg.author.id}>** has gained a level in **botting** and is now level **${state.getBotCounter(msg.author.id)}**`;
                 sendUpdateMessage(msg.channel, replyText, 'overall');
             }, Math.random() * 1500);
             return;

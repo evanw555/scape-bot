@@ -1,7 +1,7 @@
 import { Snowflake, TextBasedChannel } from 'discord.js';
-import { SerializedState } from "./types";
+import { SerializedState } from './types';
 import CircularQueue from './circular-queue';
-import { filterValueFromMap } from "./util";
+import { filterValueFromMap } from './util';
 
 class State {
     private _isValid: boolean;
@@ -147,7 +147,7 @@ class State {
         });
     }
 
-    incrementBotCounter(botId: Snowflake, delta: number = 1): void {
+    incrementBotCounter(botId: Snowflake, delta = 1): void {
         this._botCounters[botId] = (this._botCounters[botId] ?? 0) + delta;
     }
 

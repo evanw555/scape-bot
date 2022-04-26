@@ -14,7 +14,7 @@ class CapacityLog {
     constructor(capacity: number, maxEntryLength: number) {
         this._capacity = capacity;
         this._maxEntryLength = maxEntryLength;
-        this._list = []
+        this._list = [];
     }
 
     /**
@@ -38,8 +38,8 @@ class CapacityLog {
      * @returns serialized log entries
      */
     toLogArray(maxChars?: number): string[] {
-        return this._list.map(entry => `[${entry.date.toLocaleString("en-US", {timeZone: config.timeZone})}] ${entry.value}`);
+        return this._list.map(entry => `[${entry.date.toLocaleString('en-US', {timeZone: config.timeZone})}] ${entry.value}`);
     }
-};
+}
 
 export default CapacityLog;
