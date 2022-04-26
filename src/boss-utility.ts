@@ -27,7 +27,7 @@ export function toSortedBosses(bosses: string[]): string[] {
  * @param {BossName} bossName
  * @returns {BossID}
  */
- export function sanitizeBossName(bossName: string): string {
+export function sanitizeBossName(bossName: string): string {
     const bossID = camelize(bossName).replace(/\W/g, '');
     return bossID;
 }
@@ -37,9 +37,8 @@ export function toSortedBosses(bosses: string[]): string[] {
  * @param {BossID} bossID
  * @returns {BossName}
  */
- export function getBossName(bossID: string): string {
-    const bossName = Object.values(FORMATTED_BOSS_NAMES).find((b: string) => sanitizeBossName(b) === bossID);
-    return typeof bossName === "string" ? bossName : "Unknown";
+export function getBossName(bossID: string): string {
+    return FORMATTED_BOSS_NAMES[bossID] ?? "Unknown";
 }
 
 /**
