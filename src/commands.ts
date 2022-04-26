@@ -3,7 +3,7 @@ import state from './state.js';
 import log from './log.js';
 import { updatePlayer, parsePlayerPayload, sendUpdateMessage, toSortedSkills, patchMissingLevels, patchMissingBosses } from './util.js';
 
-import hiscores, { Player } from 'osrs-json-hiscores';
+import hiscores, { FORMATTED_BOSS_NAMES, Player } from 'osrs-json-hiscores';
 
 import { exec } from 'child_process';
 import { toSortedBosses, sanitizeBossName, getBossName, isValidBoss } from './boss-utility.js';
@@ -264,7 +264,7 @@ const commands: Record<string, Command> = {
     spoof: {
         fn: (msg, rawArgs, player) => {
             if (player) {
-                const possibleKeys = Object.keys(constants.bossNamesMap)
+                const possibleKeys = Object.keys(FORMATTED_BOSS_NAMES)
                     .concat(constants.skills)
                     .concat(constants.skills) // Add it again to make it more likely (there are too many bosses)
                     .filter(skill => skill != 'overall');

@@ -1,5 +1,6 @@
 import { loadJson } from './load-json.js';
 import { camelize } from "./util.js";
+import { FORMATTED_BOSS_NAMES } from "osrs-json-hiscores";
 const constants = loadJson('static/constants.json');
 
 /**
@@ -12,8 +13,8 @@ const constants = loadJson('static/constants.json');
   * @typedef {string} BossID
   */
 
-const validBossNames = new Set(Object.values(constants.bossNamesMap));
-const validBossIDs = new Set(Object.keys(constants.bossNamesMap));
+const validBossNames = new Set(Object.values(FORMATTED_BOSS_NAMES));
+const validBossIDs = new Set(Object.keys(FORMATTED_BOSS_NAMES));
 
 export function toSortedBosses(bosses: string[]): string[] {
     const bossSubset = new Set(bosses);
@@ -37,7 +38,7 @@ export function toSortedBosses(bosses: string[]): string[] {
  * @returns {BossName}
  */
  export function getBossName(bossID: string): string {
-    const bossName = Object.values(constants.bossNamesMap).find((b: string) => sanitizeBossName(b) === bossID);
+    const bossName = Object.values(FORMATTED_BOSS_NAMES).find((b: string) => sanitizeBossName(b) === bossID);
     return typeof bossName === "string" ? bossName : "Unknown";
 }
 
