@@ -1,7 +1,7 @@
 import log from "./log.js";
 import state from "./state.js";
 
-import osrs from 'osrs-json-api';
+import hiscores, { Player, Skill, Activity, Bosses } from 'osrs-json-hiscores';
 import { isValidBoss, sanitizeBossName, toSortedBosses, getBossName } from './boss-utility.js';
 
 import { loadJson } from './load-json.js';
@@ -92,13 +92,14 @@ export function filterValueFromMap<T>(input: Record<string, T>, blacklistedValue
 
 export function updatePlayer(player: string, spoofedDiff?: Record<string, number>): void {
     // Retrieve the player's hiscores data
-    osrs.hiscores.getPlayer(player).then((value: PlayerPayload) => {
+    hiscores.getStats(player).then((value: Player) => {
+        const gameMode = value.mode;
         // Check whether the player's overall hiscore state needs to be updated...
-        if (value.skills.overall.rank === '-1' && state.isPlayerOnHiScores(player)) {
+        if (value[gameMode].skills.overall.rank === -1 && state.isPlayerOnHiScores(player)) {
             // If player was previously on the hiscores, take them off
             state.removePlayerFromHiScores(player);
             sendUpdateMessage(state.getTrackingChannel(), `**${player}** has fallen off the hiscores`, 'unhappy', { color: 12919812 });
-        } else if (value.skills.overall.rank !== '-1' && !state.isPlayerOnHiScores(player)) {
+        } else if (value[gameMode].skills.overall.rank !== -1 && !state.isPlayerOnHiScores(player)) {
             // If player was previously off the hiscores, add them back on!
             state.addPlayerToHiScores(player);
             sendUpdateMessage(state.getTrackingChannel(), `**${player}** has made it back onto the hiscores`, 'happy', { color: 16569404 });
@@ -126,40 +127,39 @@ export function updatePlayer(player: string, spoofedDiff?: Record<string, number
 };
 
 
-export function parsePlayerPayload(payload: PlayerPayload): Record<string, Record<string, number>> {
+export function parsePlayerPayload(payload: Player): Record<string, Record<string, number>> {
     const result: Record<string, Record<string, number>> = {
         skills: {},
         bosses: {}
     };
-    Object.keys(payload.skills).forEach((skill: string) => {
+    const gameMode = payload.mode;
+    Object.keys(payload[gameMode].skills).forEach((skill: string) => {
         if (skill !== 'overall') {
-            const skillPayload: SkillPayload = payload.skills[skill];
-            if (skillPayload.level === '1' && skillPayload.xp === '-1') {
+            const skillPayload: Skill = payload[gameMode].skills[skill];
+            if (skillPayload.level === -1 && skillPayload.xp === -1) {
                 // If this skill is for some reason omitted from the payload (bad rank? inactivity? why?), then explicitly mark this using NaN
                 result.skills[skill] = NaN;
             } else {
                 // Otherwise, parse the number as normal...
-                const rawLevel: string = skillPayload.level;
-                const level: number = parseInt(rawLevel);
+                const level: number = skillPayload.level;
                 if (typeof level !== 'number' || isNaN(level) || level < 1) {
-                    throw new Error(`Invalid ${skill} level, '${rawLevel}' parsed to ${level}.\nPayload: ${JSON.stringify(payload.skills)}`);
+                    throw new Error(`Invalid ${skill} level, '${level}' parsed to ${level}.\nPayload: ${JSON.stringify(payload[gameMode].skills)}`);
                 }
                 result.skills[skill] = level;
             }
         }
     });
-    Object.keys(payload.bosses).forEach((bossName: string) => {
-        const bossPayload: BossPayload = payload.bosses[bossName];
+    Object.keys(payload[gameMode].bosses).forEach((bossName: string) => {
+        const bossPayload: Activity = payload[gameMode].bosses[bossName];
         const bossID: string = sanitizeBossName(bossName);
-        if (bossPayload.rank === '-1' && bossPayload.score === '-1') {
+        if (bossPayload.rank === -1 && bossPayload.score === -1) {
             // If this boss is for some reason omitted for the payload, then explicitly mark this using NaN
             result.bosses[bossID] = NaN;
         } else {
             // Otherwise, parse the number as normal...
-            const rawKillCount: string = bossPayload.score;
-            const killCount: number = parseInt(rawKillCount);
+            const killCount: number = bossPayload.score;
             if (typeof killCount !== 'number' || isNaN(killCount)) {
-                throw new Error(`Invalid ${bossID} boss, '${rawKillCount}' parsed to ${killCount}.\nPayload: ${JSON.stringify(payload.bosses)}`);
+                throw new Error(`Invalid ${bossID} boss, '${killCount}' parsed to ${killCount}.\nPayload: ${JSON.stringify(payload[gameMode].bosses)}`);
             }
             result.bosses[bossID] = killCount;
         }

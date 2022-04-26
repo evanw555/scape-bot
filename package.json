@@ -9,10 +9,14 @@
     "engines": {
         "node": ">=16.6.0"
     },
+    "scripts": {
+        "build": "tsc --build",
+        "start": "node build/bot.js"
+    },
     "dependencies": {
         "discord.io": "https://github.com/woor/discord.io/tarball/gateway_v6",
         "discord.js": "13.0.*",
-        "osrs-json-api": "1.4.6",
+        "osrs-json-hiscores": "^2.8.0",
         "winston": "^3.1.0",
         "ws": ">=7.4.6"
     },

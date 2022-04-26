@@ -3,7 +3,7 @@ import state from './state.js';
 import log from './log.js';
 import { updatePlayer, parsePlayerPayload, sendUpdateMessage, toSortedSkills, patchMissingLevels, patchMissingBosses } from './util.js';
 
-import osrs from 'osrs-json-api';
+import hiscores, { Player } from 'osrs-json-hiscores';
 
 import { exec } from 'child_process';
 import { toSortedBosses, sanitizeBossName, getBossName, isValidBoss } from './boss-utility.js';
@@ -94,7 +94,7 @@ const commands: Record<string, Command> = {
                 return;
             }
             // Retrieve the player's hiscores data
-            osrs.hiscores.getPlayer(player).then((value: PlayerPayload) => {
+            hiscores.getStats(player).then((value: Player) => {
                 // Parse the player's hiscores data
                 let playerData: Record<string, Record<string, number>>;
                 try {
@@ -140,7 +140,7 @@ const commands: Record<string, Command> = {
                 return;
             }
             // Retrieve the player's hiscores data
-            osrs.hiscores.getPlayer(player).then((value: PlayerPayload) => {
+            hiscores.getStats(player).then((value: Player) => {
                 // Parse the player's hiscores data
                 let playerData;
                 try {
