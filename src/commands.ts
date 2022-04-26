@@ -1,15 +1,14 @@
-// import { Message } from "../node_modules/discord.js/typings/index";
-import state from './state.js';
-import log from './log.js';
-import { updatePlayer, parsePlayerPayload, sendUpdateMessage, toSortedSkills, patchMissingLevels, patchMissingBosses } from './util.js';
+import state from './state';
+import log from './log';
+import { updatePlayer, parsePlayerPayload, sendUpdateMessage, toSortedSkills, patchMissingLevels, patchMissingBosses } from './util';
 
 import hiscores, { FORMATTED_BOSS_NAMES, Player } from 'osrs-json-hiscores';
 
 import { exec } from 'child_process';
-import { toSortedBosses, sanitizeBossName, getBossName, isValidBoss } from './boss-utility.js';
+import { toSortedBosses, sanitizeBossName, getBossName, isValidBoss } from './boss-utility';
 
-import { loadJson } from './load-json.js';
-import { Command, PlayerPayload } from './types.js';
+import { loadJson } from './load-json';
+import { Command } from './types';
 import { Message } from 'discord.js';
 const config = loadJson('config/config.json');
 const constants = loadJson('static/constants.json');
@@ -189,7 +188,7 @@ const commands: Record<string, Command> = {
                 msg.channel.send(`${sortedPlayers.map(player => `**${player}**: last updated **${state._lastUpdate[player] && state._lastUpdate[player].toLocaleTimeString('en-US', {timeZone: config.timeZone})}**`).join('\n')}`);
             } else {
                 msg.channel.send('Currently not tracking any players');
-                }
+            }
         },
         text: 'Show details of when each tracked player was last updated'
     },
@@ -325,8 +324,8 @@ const commands: Record<string, Command> = {
             if (selector) {
                 // If a selector was specified, select a specific part of the state
                 const selectors: string[] = selector.split('.');
-                for (var s of selectors) {
-                    if (selectedState.hasOwnProperty(s)) {
+                for (const s of selectors) {
+                    if (Object.prototype.hasOwnProperty.call(selectedState, s)) {
                         selectedState = selectedState[s];
                     } else {
                         msg.reply(`\`${selector}\` is not a valid state selector! (failed at \`${s}\`)`);

@@ -1,18 +1,18 @@
-import { Client, DMChannel, GuildMember, Intents, Options, TextBasedChannels } from 'discord.js';
-import { SerializedState } from './types.js';
-import { updatePlayer, sendRestartMessage, sendUpdateMessage } from './util.js';
+import { Client, DMChannel, GuildMember, Intents, Options, TextBasedChannel } from 'discord.js';
+import { SerializedState } from './types';
+import { updatePlayer, sendRestartMessage, sendUpdateMessage } from './util';
 
-import { loadJson } from './load-json.js';
+import { loadJson } from './load-json';
 const auth = loadJson('config/auth.json');
 const config = loadJson('config/config.json');
 
-import log from './log.js';
-import state from './state.js';
+import log from './log';
+import state from './state';
 
-import FileStorage from './file-storage.js';
+import FileStorage from './file-storage';
 const storage: FileStorage = new FileStorage('./data/');
 
-import CommandReader from './command-reader.js';
+import CommandReader from './command-reader';
 const commandReader: CommandReader = new CommandReader();
 
 const deserializeState = async (serializedState: SerializedState): Promise<void> => {
@@ -31,7 +31,7 @@ const deserializeState = async (serializedState: SerializedState): Promise<void>
     }
 
     if (serializedState.trackingChannelId) {
-        const trackingChannel: TextBasedChannels = (await client.channels.fetch(serializedState.trackingChannelId)) as TextBasedChannels;
+        const trackingChannel: TextBasedChannel = (await client.channels.fetch(serializedState.trackingChannelId)) as TextBasedChannel;
         if (trackingChannel) {
             state.setTrackingChannel(trackingChannel);
         }
@@ -51,7 +51,7 @@ const deserializeState = async (serializedState: SerializedState): Promise<void>
 
     // Now that the state has been loaded, mark it as valid
     state.setValid(true);
-}
+};
 
 const dumpState = async (): Promise<void> => {
     if (state.isValid()) {
@@ -61,7 +61,7 @@ const dumpState = async (): Promise<void> => {
 };
 
 // Initialize Discord Bot
-var client = new Client({
+const client = new Client({
     intents: [
         Intents.FLAGS.GUILDS,
         Intents.FLAGS.GUILD_MESSAGES,
@@ -105,7 +105,7 @@ client.on('ready', async () => {
     }
 
     // Deserialize it and load it into the state object
-    let downtimeMillis: number = 0;
+    let downtimeMillis = 0;
     if (serializedState) {
         await deserializeState(serializedState);
         // Compute timestamp if it's present (should only be missing the very first time)
@@ -116,11 +116,11 @@ client.on('ready', async () => {
 
     // Default the tracking channel to the owner's DM if necessary...
     if (state.hasTrackingChannel()) {
-        const trackingChannel: TextBasedChannels = state.getTrackingChannel();
+        const trackingChannel: TextBasedChannel = state.getTrackingChannel();
         log.push(`Loaded up tracking channel '${trackingChannel}' of type '${trackingChannel.type}' with ID '${trackingChannel.id}'`);
     } else if (ownerDmChannel) {
         state.setTrackingChannel(ownerDmChannel);
-        log.push(`Invalid tracking channel ID '${serializedState?.trackingChannelId || "N/A"}', defaulting to guild owner's DM channel`);
+        log.push(`Invalid tracking channel ID '${serializedState?.trackingChannelId || 'N/A'}', defaulting to guild owner's DM channel`);
     } else {
         log.push('Could determine neither the guild owner\'s DM channel nor the saved tracking channel. Please set it using commands.');
     }
@@ -149,7 +149,7 @@ client.on('messageCreate', (msg) => {
             state.incrementBotCounter(msg.author.id);
             // Wait up to 1.5 seconds before sending the message to make it feel more organic
             setTimeout(() => {
-                const replyText: string = `**<@${msg.author.id}>** has gained a level in **botting** and is now level **${state.getBotCounter(msg.author.id)}**`;
+                const replyText = `**<@${msg.author.id}>** has gained a level in **botting** and is now level **${state.getBotCounter(msg.author.id)}**`;
                 sendUpdateMessage(msg.channel, replyText, 'overall');
             }, Math.random() * 1500);
             return;

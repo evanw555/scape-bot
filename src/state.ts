@@ -1,7 +1,7 @@
-import { Snowflake, TextBasedChannels } from "../node_modules/discord.js/typings/index";
-import { SerializedState } from "./types";
-import CircularQueue from './circular-queue.js';
-import { filterValueFromMap } from "./util.js";
+import { Snowflake, TextBasedChannel } from 'discord.js';
+import { SerializedState } from './types';
+import CircularQueue from './circular-queue';
+import { filterValueFromMap } from './util';
 
 class State {
     private _isValid: boolean;
@@ -14,7 +14,7 @@ class State {
     readonly _lastUpdate: Record<string, Date>;
     readonly _ownerIds: Set<string>;
 
-    _trackingChannel?: TextBasedChannels;
+    _trackingChannel?: TextBasedChannel;
 
     constructor() {
         this._isValid = false;
@@ -80,11 +80,11 @@ class State {
         return !this._playersOffHiScores.has(player);
     }
 
-    getTrackingChannel(): TextBasedChannels {
+    getTrackingChannel(): TextBasedChannel {
         return this._trackingChannel;
     }
 
-    setTrackingChannel(channel: TextBasedChannels): void {
+    setTrackingChannel(channel: TextBasedChannel): void {
         this._trackingChannel = channel;
     }
 
@@ -147,7 +147,7 @@ class State {
         });
     }
 
-    incrementBotCounter(botId: Snowflake, delta: number = 1): void {
+    incrementBotCounter(botId: Snowflake, delta = 1): void {
         this._botCounters[botId] = (this._botCounters[botId] ?? 0) + delta;
     }
 

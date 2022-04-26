@@ -1,12 +1,11 @@
-import log from "./log.js";
-import state from "./state.js";
+import log from './log';
+import state from './state';
 
-import hiscores, { Player, Skill, Activity, Bosses } from 'osrs-json-hiscores';
-import { isValidBoss, sanitizeBossName, toSortedBosses, getBossName } from './boss-utility.js';
+import hiscores, { Player, Skill, Activity } from 'osrs-json-hiscores';
+import { isValidBoss, sanitizeBossName, toSortedBosses, getBossName } from './boss-utility';
 
-import { loadJson } from './load-json.js';
-import { TextBasedChannels } from "discord.js";
-import { BossPayload, PlayerPayload, SkillPayload } from "./types.js";
+import { loadJson } from './load-json';
+import { TextBasedChannel } from 'discord.js';
 const constants = loadJson('static/constants.json');
 
 const validSkills: Set<string> = new Set(constants.skills);
@@ -32,7 +31,7 @@ export function getThumbnail(name: string, args: Record<string, any>) {
         };
     }
     return;
-};
+}
 
 export function sendUpdateMessage(channel, text, name, args?) {
     channel.send({
@@ -44,11 +43,11 @@ export function sendUpdateMessage(channel, text, name, args?) {
             url: args && args.url
         } ]
     });
-};
+}
 
 export function camelize(str: string) {
     return str.replace(/(?:^\w|[A-Z]|\b\w)/g, function(word, index) {
-      return index === 0 ? word.toLowerCase() : word.toUpperCase();
+        return index === 0 ? word.toLowerCase() : word.toUpperCase();
     }).replace(/\s+/g, '');
 }
 
@@ -56,7 +55,7 @@ export function camelize(str: string) {
 // expected output: 0,1,2
 export function getRandomInt(max: number): number {
     return Math.floor(Math.random() * Math.floor(max));
-};
+}
 
 export function computeDiff(before: Record<string, number>, after: Record<string, number>): Record<string, number> {
     // Construct the union of all keys from before and after objects (this is needed in the case of new keys)
@@ -78,7 +77,7 @@ export function computeDiff(before: Record<string, number>, after: Record<string
         }
     });
     return diff;
-};
+}
 
 /**
  * Returns a new map including key-value pairs from the input map,
@@ -121,7 +120,7 @@ export function updatePlayer(player: string, spoofedDiff?: Record<string, number
         }
 
         // Attempt to patch over some of the missing data for this player (default to 1/0 if there's no pre-existing data)
-        // The purpose of doing this is to avoid negative skill/kc diffs (caused by weird behavior of the so-called "API")
+        // The purpose of doing this is to avoid negative skill/kc diffs (caused by weird behavior of the so-called 'API')
         const skills: Record<string, number> = patchMissingLevels(player, playerData.skills, 1);
         const bosses: Record<string, number> = patchMissingBosses(player, playerData.bosses, 0);
 
@@ -130,7 +129,7 @@ export function updatePlayer(player: string, spoofedDiff?: Record<string, number
     }).catch((err) => {
         log.push(`Error while fetching player hiscores for ${player}: ${err.toString()}`);
     });
-};
+}
 
 
 export function parsePlayerPayload(payload: Player): Record<string, Record<string, number>> {
@@ -171,13 +170,13 @@ export function parsePlayerPayload(payload: Player): Record<string, Record<strin
         }
     });
     return result;
-};
+}
 
 /**
  * With a parsed skills payload as input, attempt to fill in missing levels (NaN) using pre-existing player skill information.
  * If such pre-existing skill information does not exist, then fall back onto some arbitrary number.
  */
-export function patchMissingLevels(player: string, levels: Record<string, number>, fallbackValue: number = NaN): Record<string, number> {
+export function patchMissingLevels(player: string, levels: Record<string, number>, fallbackValue = NaN): Record<string, number> {
     const result: Record<string, number> = {};
     Object.keys(levels).forEach((skill) => {
         if (isNaN(levels[skill])) {
@@ -193,7 +192,7 @@ export function patchMissingLevels(player: string, levels: Record<string, number
  * With a parsed bosses payload as input, attempt to fill in missing killcounts (NaN) using pre-existing player kill count information.
  * If such pre-existing boss information does not exist, then fall back onto some arbitrary number.
  */
- export function patchMissingBosses(player: string, bosses: Record<string, number>, fallbackValue: number = NaN): Record<string, number> {
+export function patchMissingBosses(player: string, bosses: Record<string, number>, fallbackValue = NaN): Record<string, number> {
     const result: Record<string, number> = {};
     Object.keys(bosses).forEach((bossId) => {
         if (isNaN(bosses[bossId])) {
@@ -252,26 +251,26 @@ export function updateLevels(player: string, newLevels: Record<string, number>, 
         });
         // Send a message showing all the levels gained
         switch (Object.keys(diff).length) {
-            case 0:
-                break;
-            case 1: {
-                const skill = Object.keys(diff)[0];
-                const levelsGained = diff[skill];
-                sendUpdateMessage(state.getTrackingChannel(),
-                    `**${player}** has gained `
+        case 0:
+            break;
+        case 1: {
+            const skill = Object.keys(diff)[0];
+            const levelsGained = diff[skill];
+            sendUpdateMessage(state.getTrackingChannel(),
+                `**${player}** has gained `
                         + (levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`)
                         + ` in **${skill}** and is now level **${newLevels[skill]}**`,
-                    skill);
-                break;
-            }
-            default: {
-                const text = toSortedSkills(Object.keys(diff)).map((skill) => {
-                    const levelsGained = diff[skill];
-                    return `${levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`} in **${skill}** and is now level **${newLevels[skill]}**`;
-                }).join('\n');
-                sendUpdateMessage(state.getTrackingChannel(), `**${player}** has gained...\n${text}`, 'overall');
-                break;
-            }
+                skill);
+            break;
+        }
+        default: {
+            const text = toSortedSkills(Object.keys(diff)).map((skill) => {
+                const levelsGained = diff[skill];
+                return `${levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`} in **${skill}** and is now level **${newLevels[skill]}**`;
+            }).join('\n');
+            sendUpdateMessage(state.getTrackingChannel(), `**${player}** has gained...\n${text}`, 'overall');
+            break;
+        }
         }
     }
     // If not spoofing the diff, update player's levels
@@ -279,7 +278,7 @@ export function updateLevels(player: string, newLevels: Record<string, number>, 
         state.setLevels(player, newLevels);
         state._lastUpdate[player] = new Date();
     }
-};
+}
 
 export function updateKillCounts(player, killCounts, spoofedDiff?) {
     // If channel is set and user already has bosses tracked
@@ -316,32 +315,32 @@ export function updateKillCounts(player, killCounts, spoofedDiff?) {
         ];
         const dopeKillVerb = dopeKillVerbs[getRandomInt(dopeKillVerbs.length)];
         switch (Object.keys(diff).length) {
-            case 0:
-                break;
-            case 1: {
-                const bossID = Object.keys(diff)[0];
-                const killCountIncrease = diff[bossID];
-                const bossName = getBossName(bossID);
-                const text = killCounts[bossID] === 1
-                    ? `**${player}** has slain **${bossName}** for the first time!`
-                    : `**${player}** ${dopeKillVerb} **${bossName}** `
+        case 0:
+            break;
+        case 1: {
+            const bossID = Object.keys(diff)[0];
+            const killCountIncrease = diff[bossID];
+            const bossName = getBossName(bossID);
+            const text = killCounts[bossID] === 1
+                ? `**${player}** has slain **${bossName}** for the first time!`
+                : `**${player}** ${dopeKillVerb} **${bossName}** `
                         + (killCountIncrease === 1 ? 'again' : `**${killCountIncrease}** more times`)
                         + ` and is now at **${killCounts[bossID]}** kills`;
-                sendUpdateMessage(state.getTrackingChannel(), text, bossName, {color: 10363483});
-                break;
-            }
-            default: {
-                const sortedBosses = toSortedBosses(Object.keys(diff));
-                const text = sortedBosses.map((bossID) => {
-                    const killCountIncrease = diff[bossID];
-                    const bossName = getBossName(bossID);
-                    return killCounts[bossID] === 1
-                        ? `**${bossName}** for the first time!`
-                        : `**${bossName}** ${killCountIncrease === 1 ? 'again' : `**${killCountIncrease}** more times`} and is now at **${killCounts[bossID]}**`;
-                }).join('\n');
-                sendUpdateMessage(state.getTrackingChannel(), `**${player}** has killed...\n${text}`, getBossName(sortedBosses[0]), {color: 10363483});
-                break;
-            }
+            sendUpdateMessage(state.getTrackingChannel(), text, bossName, {color: 10363483});
+            break;
+        }
+        default: {
+            const sortedBosses = toSortedBosses(Object.keys(diff));
+            const text = sortedBosses.map((bossID) => {
+                const killCountIncrease = diff[bossID];
+                const bossName = getBossName(bossID);
+                return killCounts[bossID] === 1
+                    ? `**${bossName}** for the first time!`
+                    : `**${bossName}** ${killCountIncrease === 1 ? 'again' : `**${killCountIncrease}** more times`} and is now at **${killCounts[bossID]}**`;
+            }).join('\n');
+            sendUpdateMessage(state.getTrackingChannel(), `**${player}** has killed...\n${text}`, getBossName(sortedBosses[0]), {color: 10363483});
+            break;
+        }
         }
     }
     // If not spoofing the diff, update player's kill counts
@@ -349,7 +348,7 @@ export function updateKillCounts(player, killCounts, spoofedDiff?) {
         state.setBosses(player, killCounts);
         state._lastUpdate[player] = new Date();
     }
-};
+}
 
 export function updatePlayers(players: string[]): void {
     if (players) {
@@ -357,12 +356,12 @@ export function updatePlayers(players: string[]): void {
             updatePlayer(player);
         });
     }
-};
+}
 
-export function sendRestartMessage(channel: TextBasedChannels, downtimeMillis: number): void {
+export function sendRestartMessage(channel: TextBasedChannel, downtimeMillis: number): void {
     if (channel) {
         // Send greeting message to some channel
-        const baseText: string = `ScapeBot online after ${getDurationString(downtimeMillis)} of downtime. In channel **${state.getTrackingChannel()}**, currently`;
+        const baseText = `ScapeBot online after ${getDurationString(downtimeMillis)} of downtime. In channel **${state.getTrackingChannel()}**, currently`;
         if (state.isTrackingAnyPlayers()) {
             channel.send(`${baseText} tracking players **${state.getAllTrackedPlayers().join('**, **')}**`);
         } else {
@@ -371,7 +370,7 @@ export function sendRestartMessage(channel: TextBasedChannels, downtimeMillis: n
     } else {
         log.push('Attempted to send a bot restart message, but the specified channel is undefined!');
     }
-};
+}
 
 export function getDurationString(milliseconds: number) {
     if (milliseconds === 0) {
