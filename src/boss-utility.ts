@@ -1,18 +1,19 @@
 import { loadJson } from './load-json.js';
+import { camelize } from "./util.js";
 const constants = loadJson('static/constants.json');
 
 /**
- * Boss name with capitalization
+ * Boss name with capitalization and spacing
  * @typedef {string} BossName
  */
 
 /**
-  * Boss name in all lowercase
+  * Boss name in camelcase with only alphanumeric characters
   * @typedef {string} BossID
   */
 
-const validBossNames: Set<string> = new Set<string>(constants.bosses);
-const validBossIDs: Set<string> = new Set<string>(constants.bosses.map(b => sanitizeBossName(b)));
+const validBossNames = new Set(Object.values(constants.bossNamesMap));
+const validBossIDs = new Set(Object.keys(constants.bossNamesMap));
 
 export function toSortedBosses(bosses: string[]): string[] {
     const bossSubset = new Set(bosses);
@@ -20,12 +21,13 @@ export function toSortedBosses(bosses: string[]): string[] {
 };
 
 /**
- * Returns lowercase of boss name
+ * Converts boss name to camelcase and removes non-alphanumeric
+ * characters
  * @param {BossName} bossName
  * @returns {BossID}
  */
  export function sanitizeBossName(bossName: string): string {
-    const bossID = bossName.toLowerCase();
+    const bossID = camelize(bossName).replace(/\W/g, '');
     return bossID;
 }
 
@@ -35,7 +37,7 @@ export function toSortedBosses(bosses: string[]): string[] {
  * @returns {BossName}
  */
  export function getBossName(bossID: string): string {
-    const bossName = constants.bosses.find(b => sanitizeBossName(b) === bossID);
+    const bossName = Object.values(constants.bossNamesMap).find((b: string) => sanitizeBossName(b) === bossID) as string;
     return bossName;
 }
 

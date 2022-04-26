@@ -264,8 +264,7 @@ const commands: Record<string, Command> = {
     spoof: {
         fn: (msg, rawArgs, player) => {
             if (player) {
-                const possibleKeys = constants.bosses
-                    .map(boss => sanitizeBossName(boss))
+                const possibleKeys = Object.keys(constants.bossNamesMap)
                     .concat(constants.skills)
                     .concat(constants.skills) // Add it again to make it more likely (there are too many bosses)
                     .filter(skill => skill != 'overall');

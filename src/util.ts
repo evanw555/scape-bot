@@ -46,6 +46,12 @@ export function sendUpdateMessage(channel, text, name, args?) {
     });
 };
 
+export function camelize(str: string) {
+    return str.replace(/(?:^\w|[A-Z]|\b\w)/g, function(word, index) {
+      return index === 0 ? word.toLowerCase() : word.toUpperCase();
+    }).replace(/\s+/g, '');
+}
+
 // input: 3
 // expected output: 0,1,2
 export function getRandomInt(max: number): number {
