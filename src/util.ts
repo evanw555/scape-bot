@@ -315,7 +315,9 @@ export function updateKillCounts(player: string, killCounts: Record<string, numb
                 Object.keys(spoofedDiff).forEach((bossID) => {
                     if (isValidBoss(bossID)) {
                         diff[bossID] = spoofedDiff[bossID];
-                        killCounts[bossID] += diff[bossID];
+                        // I noticed we fallback on 'NaN' to designate a boss KC that is missing or not yet
+                        // in the hiscores, but this means your first positive boss KC total will sum to 'NaN'. 
+                        killCounts[bossID] = (killCounts[bossID] || 0) + diff[bossID];
                     }
                 });
             } else {
