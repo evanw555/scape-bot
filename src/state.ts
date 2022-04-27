@@ -80,7 +80,7 @@ class State {
         return !this._playersOffHiScores.has(player);
     }
 
-    getTrackingChannel(): TextBasedChannel {
+    getTrackingChannel(): TextBasedChannel | undefined {
         return this._trackingChannel;
     }
 
@@ -155,7 +155,7 @@ class State {
         return this._timestamp !== undefined;
     }
 
-    getTimestamp(): Date {
+    getTimestamp(): Date | undefined {
         return this._timestamp;
     }
 
@@ -165,10 +165,10 @@ class State {
 
     serialize(): SerializedState {
         return {
-            timestamp: this._timestamp.toJSON(),
+            timestamp: this._timestamp?.toJSON(),
             players: this._players.toSortedArray(),
             playersOffHiScores: Array.from(this._playersOffHiScores),
-            trackingChannelId: this._trackingChannel.id,
+            trackingChannelId: this._trackingChannel?.id,
             levels: this._levels,
             bosses: this._bosses,
             botCounters: this._botCounters

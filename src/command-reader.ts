@@ -12,7 +12,9 @@ class CommandReader {
         try {
             parsedCommand = CommandReader.parseCommand(msg.content);
         } catch (err) {
-            log.push(`Failed to parse command '${msg.content}': ${err.toString()}`);
+            if (err instanceof Error) {
+                log.push(`Failed to parse command '${msg.content}': ${err.toString()}`);
+            }
             return;
         }
         // Execute command
@@ -26,7 +28,9 @@ class CommandReader {
                     commandInfo.fn(msg, rawArgs, ...args);
                     log.push(`Executed command '${command}' with args ${JSON.stringify(args)}`);
                 } catch (err) {
-                    log.push(`Uncaught error while trying to execute command '${msg.content}': ${err.toString()}`);
+                    if (err instanceof Error) {
+                        log.push(`Uncaught error while trying to execute command '${msg.content}': ${err.toString()}`);
+                    }
                 }
             }
         } else if (command) {

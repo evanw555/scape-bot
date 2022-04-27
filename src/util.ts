@@ -1,17 +1,18 @@
 import log from './log';
 import state from './state';
 
-import hiscores, { Player, Skill, Activity } from 'osrs-json-hiscores';
+import hiscores, { Player, Skill, SkillName, Activity, Boss } from 'osrs-json-hiscores';
 import { isValidBoss, sanitizeBossName, toSortedBosses, getBossName } from './boss-utility';
 
 import { loadJson } from './load-json';
 import { TextBasedChannel } from 'discord.js';
+import { AnyObject } from './types';
 const constants = loadJson('static/constants.json');
 
 const validSkills: Set<string> = new Set(constants.skills);
 const validMiscThumbnails: Set<string> = new Set(constants.miscThumbnails);
 
-export function getThumbnail(name: string, args: Record<string, any>) {
+export function getThumbnail(name: string, args?: AnyObject) {
     if (validSkills.has(name)) {
         const skill = name;
         return {
@@ -33,7 +34,7 @@ export function getThumbnail(name: string, args: Record<string, any>) {
     return;
 }
 
-export function sendUpdateMessage(channel, text, name, args?) {
+export function sendUpdateMessage(channel: TextBasedChannel, text: string, name: string, args?: AnyObject) {
     channel.send({
         embeds: [ {
             description: text,
@@ -65,7 +66,7 @@ export function computeDiff(before: Record<string, number>, after: Record<string
         .forEach(key => keyUnion.add(key));
 
     // For each key, add the diff to the overall diff mapping
-    const diff = {};
+    const diff: Record<string, number> = {};
     keyUnion.forEach((kind) => {
         if (before[kind] !== after[kind]) {
             // TODO: the default isn't necessarily 0, it could be 1 for skills (but does that really matter?)
@@ -86,7 +87,7 @@ export function computeDiff(before: Record<string, number>, after: Record<string
  * @param blacklistedValue value used to determine which entries to omit
  */
 export function filterValueFromMap<T>(input: Record<string, T>, blacklistedValue: T): Record<string, T> {
-    const output = {};
+    const output: Record<string, T> = {};
     Object.keys(input).forEach((key) => {
         if (input[key] !== blacklistedValue) {
             output[key] = input[key];
@@ -98,16 +99,24 @@ export function filterValueFromMap<T>(input: Record<string, T>, blacklistedValue
 export function updatePlayer(player: string, spoofedDiff?: Record<string, number>): void {
     // Retrieve the player's hiscores data
     hiscores.getStats(player).then((value: Player) => {
-        const gameMode = value.mode;
+        const stats = value[value.mode];
         // Check whether the player's overall hiscore state needs to be updated...
-        if (value[gameMode].skills.overall.rank === -1 && state.isPlayerOnHiScores(player)) {
-            // If player was previously on the hiscores, take them off
-            state.removePlayerFromHiScores(player);
-            sendUpdateMessage(state.getTrackingChannel(), `**${player}** has fallen off the hiscores`, 'unhappy', { color: 12919812 });
-        } else if (value[gameMode].skills.overall.rank !== -1 && !state.isPlayerOnHiScores(player)) {
-            // If player was previously off the hiscores, add them back on!
-            state.addPlayerToHiScores(player);
-            sendUpdateMessage(state.getTrackingChannel(), `**${player}** has made it back onto the hiscores`, 'happy', { color: 16569404 });
+        if (stats) {
+            if (stats.skills.overall.rank === -1 && state.isPlayerOnHiScores(player)) {
+                // If player was previously on the hiscores, take them off
+                state.removePlayerFromHiScores(player);
+                if (state.hasTrackingChannel()) {
+                    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+                    sendUpdateMessage(state.getTrackingChannel()!, `**${player}** has fallen off the hiscores`, 'unhappy', { color: 12919812 });
+                }
+            } else if (stats.skills.overall.rank !== -1 && !state.isPlayerOnHiScores(player)) {
+                // If player was previously off the hiscores, add them back on!
+                state.addPlayerToHiScores(player);
+                if (state.hasTrackingChannel()) {
+                    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+                    sendUpdateMessage(state.getTrackingChannel()!, `**${player}** has made it back onto the hiscores`, 'happy', { color: 16569404 });
+                }
+            }
         }
 
         // Parse the player's hiscores data
@@ -115,7 +124,9 @@ export function updatePlayer(player: string, spoofedDiff?: Record<string, number
         try {
             playerData = parsePlayerPayload(value);
         } catch (err) {
-            log.push(`Failed to parse payload for player ${player}: ${err.toString()}`);
+            if (err instanceof Error) {
+                log.push(`Failed to parse payload for player ${player}: ${err.toString()}`);
+            }
             return;
         }
 
@@ -137,38 +148,40 @@ export function parsePlayerPayload(payload: Player): Record<string, Record<strin
         skills: {},
         bosses: {}
     };
-    const gameMode = payload.mode;
-    Object.keys(payload[gameMode].skills).forEach((skill: string) => {
-        if (skill !== 'overall') {
-            const skillPayload: Skill = payload[gameMode].skills[skill];
-            if (skillPayload.level === -1 && skillPayload.xp === -1) {
-                // If this skill is for some reason omitted from the payload (bad rank? inactivity? why?), then explicitly mark this using NaN
-                result.skills[skill] = NaN;
+    const stats = payload[payload.mode];
+    if (stats) {
+        Object.keys(stats.skills).forEach((skill: string) => {
+            if (skill !== 'overall') {
+                const skillPayload: Skill = stats.skills[skill as SkillName];
+                if (skillPayload.level === -1 && skillPayload.xp === -1) {
+                    // If this skill is for some reason omitted from the payload (bad rank? inactivity? why?), then explicitly mark this using NaN
+                    result.skills[skill] = NaN;
+                } else {
+                    // Otherwise, parse the number as normal...
+                    const level: number = skillPayload.level;
+                    if (typeof level !== 'number' || isNaN(level) || level < 1) {
+                        throw new Error(`Invalid ${skill} level, '${level}' parsed to ${level}.\nPayload: ${JSON.stringify(stats.skills)}`);
+                    }
+                    result.skills[skill] = level;
+                }
+            }
+        });
+        Object.keys(stats.bosses).forEach((bossName: string) => {
+            const bossPayload: Activity = stats.bosses[bossName as Boss];
+            const bossID: string = sanitizeBossName(bossName);
+            if (bossPayload.rank === -1 && bossPayload.score === -1) {
+                // If this boss is for some reason omitted for the payload, then explicitly mark this using NaN
+                result.bosses[bossID] = NaN;
             } else {
                 // Otherwise, parse the number as normal...
-                const level: number = skillPayload.level;
-                if (typeof level !== 'number' || isNaN(level) || level < 1) {
-                    throw new Error(`Invalid ${skill} level, '${level}' parsed to ${level}.\nPayload: ${JSON.stringify(payload[gameMode].skills)}`);
+                const killCount: number = bossPayload.score;
+                if (typeof killCount !== 'number' || isNaN(killCount)) {
+                    throw new Error(`Invalid ${bossID} boss, '${killCount}' parsed to ${killCount}.\nPayload: ${JSON.stringify(stats.bosses)}`);
                 }
-                result.skills[skill] = level;
+                result.bosses[bossID] = killCount;
             }
-        }
-    });
-    Object.keys(payload[gameMode].bosses).forEach((bossName: string) => {
-        const bossPayload: Activity = payload[gameMode].bosses[bossName];
-        const bossID: string = sanitizeBossName(bossName);
-        if (bossPayload.rank === -1 && bossPayload.score === -1) {
-            // If this boss is for some reason omitted for the payload, then explicitly mark this using NaN
-            result.bosses[bossID] = NaN;
-        } else {
-            // Otherwise, parse the number as normal...
-            const killCount: number = bossPayload.score;
-            if (typeof killCount !== 'number' || isNaN(killCount)) {
-                throw new Error(`Invalid ${bossID} boss, '${killCount}' parsed to ${killCount}.\nPayload: ${JSON.stringify(payload[gameMode].bosses)}`);
-            }
-            result.bosses[bossID] = killCount;
-        }
-    });
+        });
+    }
     return result;
 }
 
@@ -206,7 +219,7 @@ export function patchMissingBosses(player: string, bosses: Record<string, number
 
 export function toSortedSkills(skills: string[]): string[] {
     const skillSubset = new Set(skills);
-    return constants.skills.filter(skill => skillSubset.has(skill));
+    return constants.skills.filter((skill: string) => skillSubset.has(skill));
 }
 
 export function updateLevels(player: string, newLevels: Record<string, number>, spoofedDiff?: Record<string, number>): void {
@@ -227,7 +240,9 @@ export function updateLevels(player: string, newLevels: Record<string, number>, 
                 diff = computeDiff(state.getLevels(player), newLevels);
             }
         } catch (err) {
-            log.push(`Failed to compute level diff for player ${player}: ${err.toString()}`);
+            if (err instanceof Error) {
+                log.push(`Failed to compute level diff for player ${player}: ${err.toString()}`);
+            }
             return;
         }
         if (!diff) {
@@ -238,14 +253,17 @@ export function updateLevels(player: string, newLevels: Record<string, number>, 
             const newLevel = newLevels[skill];
             if (newLevel === 99) {
                 const levelsGained = diff[skill];
-                sendUpdateMessage(state.getTrackingChannel(),
-                    `**${player}** has gained `
-                        + (levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`)
-                        + ` in **${skill}** and is now level **99**\n\n`
-                        + `@everyone congrats **${player}**!`,
-                    skill, {
-                        is99: true
-                    });
+                if (state.hasTrackingChannel()) {
+                    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+                    sendUpdateMessage(state.getTrackingChannel()!,
+                        `**${player}** has gained `
+                            + (levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`)
+                            + ` in **${skill}** and is now level **99**\n\n`
+                            + `@everyone congrats **${player}**!`,
+                        skill, {
+                            is99: true
+                        });
+                }
                 delete diff[skill];
             }
         });
@@ -256,11 +274,14 @@ export function updateLevels(player: string, newLevels: Record<string, number>, 
         case 1: {
             const skill = Object.keys(diff)[0];
             const levelsGained = diff[skill];
-            sendUpdateMessage(state.getTrackingChannel(),
-                `**${player}** has gained `
-                        + (levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`)
-                        + ` in **${skill}** and is now level **${newLevels[skill]}**`,
-                skill);
+            if (state.hasTrackingChannel()) {
+                // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+                sendUpdateMessage(state.getTrackingChannel()!,
+                    `**${player}** has gained `
+                            + (levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`)
+                            + ` in **${skill}** and is now level **${newLevels[skill]}**`,
+                    skill);
+            }
             break;
         }
         default: {
@@ -268,7 +289,10 @@ export function updateLevels(player: string, newLevels: Record<string, number>, 
                 const levelsGained = diff[skill];
                 return `${levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`} in **${skill}** and is now level **${newLevels[skill]}**`;
             }).join('\n');
-            sendUpdateMessage(state.getTrackingChannel(), `**${player}** has gained...\n${text}`, 'overall');
+            if (state.hasTrackingChannel()) {
+                // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+                sendUpdateMessage(state.getTrackingChannel()!, `**${player}** has gained...\n${text}`, 'overall');
+            }
             break;
         }
         }
@@ -280,7 +304,7 @@ export function updateLevels(player: string, newLevels: Record<string, number>, 
     }
 }
 
-export function updateKillCounts(player, killCounts, spoofedDiff?) {
+export function updateKillCounts(player: string, killCounts: Record<string, number>, spoofedDiff?: Record<string, number>) {
     // If channel is set and user already has bosses tracked
     if (state.getTrackingChannel() && state.hasBosses(player)) {
         // Compute diff for each boss
@@ -298,7 +322,9 @@ export function updateKillCounts(player, killCounts, spoofedDiff?) {
                 diff = computeDiff(state.getBosses(player), killCounts);
             }
         } catch (err) {
-            log.push(`Failed to compute boss KC diff for player ${player}: ${err.toString()}`);
+            if (err instanceof Error) {
+                log.push(`Failed to compute boss KC diff for player ${player}: ${err.toString()}`);
+            }
             return;
         }
         if (!diff) {
@@ -320,25 +346,36 @@ export function updateKillCounts(player, killCounts, spoofedDiff?) {
         case 1: {
             const bossID = Object.keys(diff)[0];
             const killCountIncrease = diff[bossID];
-            const bossName = getBossName(bossID);
+            const bossName = getBossName(bossID as Boss);
             const text = killCounts[bossID] === 1
                 ? `**${player}** has slain **${bossName}** for the first time!`
                 : `**${player}** ${dopeKillVerb} **${bossName}** `
                         + (killCountIncrease === 1 ? 'again' : `**${killCountIncrease}** more times`)
                         + ` and is now at **${killCounts[bossID]}** kills`;
-            sendUpdateMessage(state.getTrackingChannel(), text, bossName, {color: 10363483});
+            if (state.hasTrackingChannel()) {
+                // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+                sendUpdateMessage(state.getTrackingChannel()!, text, bossName, { color: 10363483 });
+            }
             break;
         }
         default: {
             const sortedBosses = toSortedBosses(Object.keys(diff));
             const text = sortedBosses.map((bossID) => {
                 const killCountIncrease = diff[bossID];
-                const bossName = getBossName(bossID);
+                const bossName = getBossName(bossID as Boss);
                 return killCounts[bossID] === 1
                     ? `**${bossName}** for the first time!`
                     : `**${bossName}** ${killCountIncrease === 1 ? 'again' : `**${killCountIncrease}** more times`} and is now at **${killCounts[bossID]}**`;
             }).join('\n');
-            sendUpdateMessage(state.getTrackingChannel(), `**${player}** has killed...\n${text}`, getBossName(sortedBosses[0]), {color: 10363483});
+            if (state.hasTrackingChannel()) {
+                sendUpdateMessage(
+                    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+                    state.getTrackingChannel()!,
+                    `**${player}** has killed...\n${text}`,
+                    getBossName(sortedBosses[0] as Boss),
+                    { color: 10363483 }
+                );
+            }
             break;
         }
         }

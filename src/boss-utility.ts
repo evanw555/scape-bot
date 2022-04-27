@@ -1,5 +1,5 @@
 import { camelize } from './util';
-import { FORMATTED_BOSS_NAMES } from 'osrs-json-hiscores';
+import { FORMATTED_BOSS_NAMES, Boss } from 'osrs-json-hiscores';
 
 /**
  * Boss name with capitalization and spacing
@@ -25,8 +25,8 @@ export function toSortedBosses(bosses: string[]): string[] {
  * @param {BossName} bossName
  * @returns {BossID}
  */
-export function sanitizeBossName(bossName: string): string {
-    const bossID = camelize(bossName).replace(/\W/g, '');
+export function sanitizeBossName(bossName: string): Boss {
+    const bossID = camelize(bossName).replace(/\W/g, '') as Boss;
     return bossID;
 }
 
@@ -35,7 +35,7 @@ export function sanitizeBossName(bossName: string): string {
  * @param {BossID} bossID
  * @returns {BossName}
  */
-export function getBossName(bossID: string): string {
+export function getBossName(bossID: Boss): string {
     return FORMATTED_BOSS_NAMES[bossID] ?? 'Unknown';
 }
 

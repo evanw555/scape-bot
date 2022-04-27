@@ -1,4 +1,4 @@
-import { Client, DMChannel, GuildMember, Intents, Options, TextBasedChannel } from 'discord.js';
+import { Client, ClientUser, DMChannel, GuildMember, Intents, Options, TextBasedChannel } from 'discord.js';
 import { SerializedState } from './types';
 import { updatePlayer, sendRestartMessage, sendUpdateMessage } from './util';
 
@@ -76,7 +76,7 @@ const client = new Client({
 });
 
 client.on('ready', async () => {
-    log.push(`Logged in as: ${client.user.tag}`);
+    log.push(`Logged in as: ${client.user?.tag}`);
     log.push(`Config=${JSON.stringify(config)}`);
 
     // Determine which guild we're operating in
@@ -86,20 +86,22 @@ client.on('ready', async () => {
     log.push(`Operating in guild: ${guild}`);
 
     // Determine the guild owner and the guild owner's DM channel
-    const owner: GuildMember = await guild.fetchOwner();
-    let ownerDmChannel: DMChannel;
-    if (owner) {
-        state.addOwnerId(owner.id);
-        ownerDmChannel = await owner.createDM();
-        log.push(`Determined guild owner: ${owner.displayName}`);
-    } else {
-        log.push('Could not determine the guild\'s owner!');
+    let ownerDmChannel: DMChannel | undefined;
+    if (guild) {
+        const owner: GuildMember = await guild.fetchOwner();
+        if (owner) {
+            state.addOwnerId(owner.id);
+            ownerDmChannel = await owner.createDM();
+            log.push(`Determined guild owner: ${owner.displayName}`);
+        } else {
+            log.push('Could not determine the guild\'s owner!');
+        }
     }
 
     // Read the serialized state from disk
-    let serializedState: SerializedState;
+    let serializedState: SerializedState | undefined;
     try {
-        serializedState = await storage.readJson('state.json');
+        serializedState = await storage.readJson('state.json') as SerializedState;
     } catch (err) {
         log.push('Failed to read the state from disk!');
     }
@@ -110,13 +112,15 @@ client.on('ready', async () => {
         await deserializeState(serializedState);
         // Compute timestamp if it's present (should only be missing the very first time)
         if (state.hasTimestamp()) {
-            downtimeMillis = new Date().getTime() - state.getTimestamp().getTime();
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            downtimeMillis = new Date().getTime() - state.getTimestamp()!.getTime();
         }
     }
 
     // Default the tracking channel to the owner's DM if necessary...
     if (state.hasTrackingChannel()) {
-        const trackingChannel: TextBasedChannel = state.getTrackingChannel();
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        const trackingChannel: TextBasedChannel = state.getTrackingChannel()!;
         log.push(`Loaded up tracking channel '${trackingChannel}' of type '${trackingChannel.type}' with ID '${trackingChannel.id}'`);
     } else if (ownerDmChannel) {
         state.setTrackingChannel(ownerDmChannel);
@@ -137,13 +141,15 @@ client.on('ready', async () => {
         }
     }, config.refreshInterval);
 
-    // Notify the guild owner that the bot has restarted
-    sendRestartMessage(ownerDmChannel, downtimeMillis);
+    if (ownerDmChannel) {
+        // Notify the guild owner that the bot has restarted
+        sendRestartMessage(ownerDmChannel, downtimeMillis);
+    }
 });
 
 client.on('messageCreate', (msg) => {
     // Only process messages that mention the bot
-    if (msg.mentions.has(client.user)) {
+    if (msg.mentions.has(client.user as ClientUser)) {
         // If the message was sent by another bot, troll epic style 😈
         if (msg.author.bot) {
             state.incrementBotCounter(msg.author.id);
