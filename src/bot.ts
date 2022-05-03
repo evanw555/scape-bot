@@ -112,15 +112,13 @@ client.on('ready', async () => {
         await deserializeState(serializedState);
         // Compute timestamp if it's present (should only be missing the very first time)
         if (state.hasTimestamp()) {
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            downtimeMillis = new Date().getTime() - state.getTimestamp()!.getTime();
+            downtimeMillis = new Date().getTime() - state.getTimestamp().getTime();
         }
     }
 
     // Default the tracking channel to the owner's DM if necessary...
     if (state.hasTrackingChannel()) {
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        const trackingChannel: TextBasedChannel = state.getTrackingChannel()!;
+        const trackingChannel: TextBasedChannel = state.getTrackingChannel();
         log.push(`Loaded up tracking channel '${trackingChannel}' of type '${trackingChannel.type}' with ID '${trackingChannel.id}'`);
     } else if (ownerDmChannel) {
         state.setTrackingChannel(ownerDmChannel);

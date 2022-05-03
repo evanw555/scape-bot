@@ -106,15 +106,13 @@ export function updatePlayer(player: string, spoofedDiff?: Record<string, number
                 // If player was previously on the hiscores, take them off
                 state.removePlayerFromHiScores(player);
                 if (state.hasTrackingChannel()) {
-                    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-                    sendUpdateMessage(state.getTrackingChannel()!, `**${player}** has fallen off the hiscores`, 'unhappy', { color: 12919812 });
+                    sendUpdateMessage(state.getTrackingChannel(), `**${player}** has fallen off the hiscores`, 'unhappy', { color: 12919812 });
                 }
             } else if (stats.skills.overall.rank !== -1 && !state.isPlayerOnHiScores(player)) {
                 // If player was previously off the hiscores, add them back on!
                 state.addPlayerToHiScores(player);
                 if (state.hasTrackingChannel()) {
-                    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-                    sendUpdateMessage(state.getTrackingChannel()!, `**${player}** has made it back onto the hiscores`, 'happy', { color: 16569404 });
+                    sendUpdateMessage(state.getTrackingChannel(), `**${player}** has made it back onto the hiscores`, 'happy', { color: 16569404 });
                 }
             }
         }
@@ -254,8 +252,7 @@ export function updateLevels(player: string, newLevels: Record<string, number>, 
             if (newLevel === 99) {
                 const levelsGained = diff[skill];
                 if (state.hasTrackingChannel()) {
-                    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-                    sendUpdateMessage(state.getTrackingChannel()!,
+                    sendUpdateMessage(state.getTrackingChannel(),
                         `**${player}** has gained `
                             + (levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`)
                             + ` in **${skill}** and is now level **99**\n\n`
@@ -275,8 +272,7 @@ export function updateLevels(player: string, newLevels: Record<string, number>, 
             const skill = Object.keys(diff)[0];
             const levelsGained = diff[skill];
             if (state.hasTrackingChannel()) {
-                // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-                sendUpdateMessage(state.getTrackingChannel()!,
+                sendUpdateMessage(state.getTrackingChannel(),
                     `**${player}** has gained `
                             + (levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`)
                             + ` in **${skill}** and is now level **${newLevels[skill]}**`,
@@ -290,8 +286,7 @@ export function updateLevels(player: string, newLevels: Record<string, number>, 
                 return `${levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`} in **${skill}** and is now level **${newLevels[skill]}**`;
             }).join('\n');
             if (state.hasTrackingChannel()) {
-                // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-                sendUpdateMessage(state.getTrackingChannel()!, `**${player}** has gained...\n${text}`, 'overall');
+                sendUpdateMessage(state.getTrackingChannel(), `**${player}** has gained...\n${text}`, 'overall');
             }
             break;
         }
@@ -355,8 +350,7 @@ export function updateKillCounts(player: string, killCounts: Record<string, numb
                         + (killCountIncrease === 1 ? 'again' : `**${killCountIncrease}** more times`)
                         + ` and is now at **${killCounts[bossID]}** kills`;
             if (state.hasTrackingChannel()) {
-                // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-                sendUpdateMessage(state.getTrackingChannel()!, text, bossName, { color: 10363483 });
+                sendUpdateMessage(state.getTrackingChannel(), text, bossName, { color: 10363483 });
             }
             break;
         }
@@ -371,8 +365,7 @@ export function updateKillCounts(player: string, killCounts: Record<string, numb
             }).join('\n');
             if (state.hasTrackingChannel()) {
                 sendUpdateMessage(
-                    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-                    state.getTrackingChannel()!,
+                    state.getTrackingChannel(),
                     `**${player}** has killed...\n${text}`,
                     getBossName(sortedBosses[0] as Boss),
                     { color: 10363483 }

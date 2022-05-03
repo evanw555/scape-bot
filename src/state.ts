@@ -80,7 +80,10 @@ class State {
         return !this._playersOffHiScores.has(player);
     }
 
-    getTrackingChannel(): TextBasedChannel | undefined {
+    getTrackingChannel(): TextBasedChannel {
+        if (!this._trackingChannel) {
+            throw new Error('Tracking channel does not exist');
+        }
         return this._trackingChannel;
     }
 
@@ -155,7 +158,10 @@ class State {
         return this._timestamp !== undefined;
     }
 
-    getTimestamp(): Date | undefined {
+    getTimestamp(): Date {
+        if (!this._timestamp) {
+            throw new Error('Timestamp does not exist');
+        }
         return this._timestamp;
     }
 
