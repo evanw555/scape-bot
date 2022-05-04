@@ -81,6 +81,9 @@ class State {
     }
 
     getTrackingChannel(): TextBasedChannel {
+        if (!this._trackingChannel) {
+            throw new Error('Tracking channel does not exist');
+        }
         return this._trackingChannel;
     }
 
@@ -156,6 +159,9 @@ class State {
     }
 
     getTimestamp(): Date {
+        if (!this._timestamp) {
+            throw new Error('Timestamp does not exist');
+        }
         return this._timestamp;
     }
 
@@ -165,10 +171,10 @@ class State {
 
     serialize(): SerializedState {
         return {
-            timestamp: this._timestamp.toJSON(),
+            timestamp: this._timestamp?.toJSON(),
             players: this._players.toSortedArray(),
             playersOffHiScores: Array.from(this._playersOffHiScores),
-            trackingChannelId: this._trackingChannel.id,
+            trackingChannelId: this._trackingChannel?.id,
             levels: this._levels,
             bosses: this._bosses,
             botCounters: this._botCounters

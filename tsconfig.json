@@ -6,6 +6,7 @@
       "outDir": "build",
       "esModuleInterop": true,
       "sourceMap": true,
+      "strict": true
     },
     "include": [
         "src/**/*"

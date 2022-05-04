@@ -1,7 +1,12 @@
 import { Message, Snowflake } from 'discord.js';
 
+export interface AnyObject {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    [key: string]: string | number | any;
+}
+
 export interface SerializedState {
-    timestamp: string,
+    timestamp?: string,
     players: string[],
     playersOffHiScores: string[],
     trackingChannelId?: string,
@@ -22,21 +27,4 @@ export interface ParsedCommand {
     command: string,
     args: string[],
     rawArgs: string
-}
-
-export interface SkillPayload {
-    level: string,
-    xp: string,
-    rank: string
-}
-
-export interface BossPayload {
-    score: string,
-    xp: string,
-    rank: string
-}
-
-export interface PlayerPayload {
-    skills: Record<string, SkillPayload>,
-    bosses: Record<string, BossPayload>
 }

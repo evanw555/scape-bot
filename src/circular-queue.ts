@@ -51,7 +51,7 @@ class CircularQueue<T> {
         this._index = 0;
     }
 
-    getNext(): T {
+    getNext(): T | undefined {
         if (this._list.length === 0) {
             return undefined;
         }

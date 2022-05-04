@@ -2,13 +2,13 @@ import state from './state';
 import log from './log';
 import { updatePlayer, parsePlayerPayload, sendUpdateMessage, toSortedSkills, patchMissingLevels, patchMissingBosses } from './util';
 
-import hiscores, { FORMATTED_BOSS_NAMES, Player } from 'osrs-json-hiscores';
+import hiscores, { FORMATTED_BOSS_NAMES, Player, Boss } from 'osrs-json-hiscores';
 
 import { exec } from 'child_process';
 import { toSortedBosses, sanitizeBossName, getBossName, isValidBoss } from './boss-utility';
 
 import { loadJson } from './load-json';
-import { Command } from './types';
+import { AnyObject, Command } from './types';
 import { Message } from 'discord.js';
 const config = loadJson('config/config.json');
 const constants = loadJson('static/constants.json');
@@ -99,7 +99,9 @@ const commands: Record<string, Command> = {
                 try {
                     playerData = parsePlayerPayload(value);
                 } catch (err) {
-                    log.push(`Failed to parse hiscores payload for player ${player}: ${err.toString()}`);
+                    if (err instanceof Error) {
+                        log.push(`Failed to parse hiscores payload for player ${player}: ${err.toString()}`);
+                    }
                     return;
                 }
                 let messageText = '';
@@ -116,7 +118,7 @@ const commands: Record<string, Command> = {
                 if (kcBosses.length) {
                     messageText += '\n\n';
                 }
-                messageText += `${kcBosses.map(boss => `**${killCounts[boss]}** ${getBossName(boss)}`).join('\n')}`;
+                messageText += `${kcBosses.map(boss => `**${killCounts[boss]}** ${getBossName(boss as Boss)}`).join('\n')}`;
                 sendUpdateMessage(msg.channel, messageText, 'overall', {
                     title: player,
                     url: `${constants.hiScoresUrlTemplate}${encodeURI(player)}`
@@ -145,7 +147,9 @@ const commands: Record<string, Command> = {
                 try {
                     playerData = parsePlayerPayload(value);
                 } catch (err) {
-                    log.push(`Failed to parse hiscores payload for player ${player}: ${err.toString()}`);
+                    if (err instanceof Error) {
+                        log.push(`Failed to parse hiscores payload for player ${player}: ${err.toString()}`);
+                    }
                     return;
                 }
                 // Create boss message text
@@ -252,7 +256,9 @@ const commands: Record<string, Command> = {
                 spoofedDiff = inputData.diff;
                 player = inputData.player || 'zezima';
             } catch (err) {
-                msg.channel.send(`\`${err.toString()}\``);
+                if (err instanceof Error) {
+                    msg.channel.send(`\`${err.toString()}\``);
+                }
                 return;
             }
             updatePlayer(player, spoofedDiff);
@@ -268,7 +274,7 @@ const commands: Record<string, Command> = {
                     .concat(constants.skills) // Add it again to make it more likely (there are too many bosses)
                     .filter(skill => skill != 'overall');
                 const numUpdates = Math.floor(Math.random() * 5) + 1;
-                const spoofedDiff = {};
+                const spoofedDiff: Record<string, number> = {};
                 for (let i = 0; i < numUpdates; i++) {
                     const randomKey = possibleKeys[Math.floor(Math.random() * possibleKeys.length)];
                     spoofedDiff[randomKey] = Math.floor(Math.random() * 3) + 1;
@@ -318,7 +324,8 @@ const commands: Record<string, Command> = {
     },
     state: {
         fn: (msg: Message, rawArgs: string) => {
-            let selectedState: any = state.serialize();
+            // TODO: We should be a bit stricter with our type guards for state
+            let selectedState: AnyObject = state.serialize();
             // We have to use rawArgs because the args are made lower-case...
             const selector: string = rawArgs.trim();
             if (selector) {
