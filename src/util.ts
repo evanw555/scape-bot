@@ -1,7 +1,7 @@
 import log from './log';
 import state from './state';
 
-import hiscores, { Player, Skill, SkillName, Activity, Boss } from 'osrs-json-hiscores';
+import hiscores, { Player, Skill, SkillName, Activity, Boss, INVALID_FORMAT_ERROR } from 'osrs-json-hiscores';
 import { isValidBoss, sanitizeBossName, toSortedBosses, getBossName } from './boss-utility';
 
 import { loadJson } from './load-json';
@@ -136,7 +136,16 @@ export function updatePlayer(player: string, spoofedDiff?: Record<string, number
         updateLevels(player, skills, spoofedDiff);
         updateKillCounts(player, bosses, spoofedDiff);
     }).catch((err) => {
-        log.push(`Error while fetching player hiscores for ${player}: ${err.toString()}`);
+        if ((err instanceof Error) && err.message === INVALID_FORMAT_ERROR) {
+            // If the API has changed, disable the bot and send a message
+            // TODO: This will likely get dumped to disk if in the normal loop, but not if run by certain commands... change this?
+            if (!state.isDisabled()) {
+                state.setDisabled(true);
+                sendUpdateMessage(state.getTrackingChannel(), 'The hiscores API has changed, the bot is now disabled. Please fix this, then re-enable the bot', 'wrench', { color: 7303023 });
+            }
+        } else {
+            log.push(`Error while fetching player hiscores for ${player}: ${err.toString()}`);
+        }
     });
 }
 

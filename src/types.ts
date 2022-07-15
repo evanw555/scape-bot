@@ -7,6 +7,7 @@ export interface AnyObject {
 
 export interface SerializedState {
     timestamp?: string,
+    disabled?: boolean,
     players: string[],
     playersOffHiScores: string[],
     trackingChannelId?: string,
@@ -19,7 +20,8 @@ export interface Command {
     fn: (msg: Message, rawArgs: string, ...args: string[]) => void,
     text: string,
     hidden?: boolean,
-    privileged?: boolean
+    privileged?: boolean,
+    failIfDisabled?: boolean
 }
 
 export interface ParsedCommand {

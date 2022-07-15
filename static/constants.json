@@ -27,7 +27,8 @@
     ],
     "miscThumbnails": [
         "happy",
-        "unhappy"
+        "unhappy",
+        "wrench"
     ],
     "baseThumbnailUrl": "https://raw.githubusercontent.com/evanw555/scape-bot/master/static/thumbnails/",
     "level99Path": "99/",

@@ -6,6 +6,7 @@ import { filterValueFromMap } from './util';
 class State {
     private _isValid: boolean;
     private _timestamp?: Date;
+    private _disabled?: boolean;
     private readonly _players: CircularQueue<string>;
     private readonly _playersOffHiScores: Set<string>;
     private readonly _levels: Record<string, Record<string, number>>;
@@ -33,6 +34,18 @@ class State {
 
     setValid(isValid: boolean): void {
         this._isValid = isValid;
+    }
+
+    isDisabled(): boolean {
+        return this._disabled ?? false;
+    }
+
+    setDisabled(disabled: boolean): void {
+        if (disabled) {
+            this._disabled = true;
+        } else {
+            this._disabled = undefined;
+        }
     }
 
     isTrackingPlayer(player: string): boolean {
@@ -172,6 +185,7 @@ class State {
     serialize(): SerializedState {
         return {
             timestamp: this._timestamp?.toJSON(),
+            disabled: this._disabled,
             players: this._players.toSortedArray(),
             playersOffHiScores: Array.from(this._playersOffHiScores),
             trackingChannelId: this._trackingChannel?.id,

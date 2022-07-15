@@ -20,6 +20,10 @@ const deserializeState = async (serializedState: SerializedState): Promise<void>
         state.setTimestamp(new Date(serializedState.timestamp));
     }
 
+    if (serializedState.disabled) {
+        state.setDisabled(serializedState.disabled);
+    }
+
     if (serializedState.players) {
         state.getTrackedPlayers().addAll(serializedState.players);
     }
@@ -129,13 +133,15 @@ client.on('ready', async () => {
 
     // Regardless of whether loading the players/channel was successful, start the update loop
     setInterval(() => {
-        const nextPlayer = state.getTrackedPlayers().getNext();
-        if (nextPlayer) {
-            updatePlayer(nextPlayer);
-            // TODO: do this somewhere else!
-            dumpState();
-        } else {
-            // No players being tracked
+        if (!state.isDisabled()) {
+            const nextPlayer = state.getTrackedPlayers().getNext();
+            if (nextPlayer) {
+                updatePlayer(nextPlayer);
+                // TODO: do this somewhere else!
+                dumpState();
+            } else {
+                // No players being tracked
+            }
         }
     }, config.refreshInterval);
 

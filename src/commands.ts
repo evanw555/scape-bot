@@ -50,7 +50,8 @@ const commands: Record<string, Command> = {
                 msg.channel.send(`Now tracking player **${player}**`);
             }
         },
-        text: 'Tracks a player and gives updates when they level up'
+        text: 'Tracks a player and gives updates when they level up',
+        failIfDisabled: true
     },
     remove: {
         fn: (msg, rawArgs) => {
@@ -66,14 +67,16 @@ const commands: Record<string, Command> = {
                 msg.channel.send('That player is not currently being tracked');
             }
         },
-        text: 'Stops tracking a player'
+        text: 'Stops tracking a player',
+        failIfDisabled: true
     },
     clear: {
         fn: (msg) => {
             state.clearAllTrackedPlayers();
             msg.channel.send('No longer tracking any players');
         },
-        text: 'Stops tracking all players'
+        text: 'Stops tracking all players',
+        failIfDisabled: true
     },
     list: {
         fn: (msg) => {
@@ -128,7 +131,8 @@ const commands: Record<string, Command> = {
                 msg.channel.send(`Couldn't fetch hiscores for player **${player}** :pensive:\n\`${err.toString()}\``);
             });
         },
-        text: 'Show the current levels for some player'
+        text: 'Show the current levels for some player',
+        failIfDisabled: true
     },
     kc: {
         fn: (msg, rawArgs, player, boss) => {
@@ -167,7 +171,8 @@ const commands: Record<string, Command> = {
                 msg.channel.send(`Couldn't fetch hiscores for player **${player}** :pensive:\n\`${err.toString()}\``);
             });
         },
-        text: 'Show kill count of a boss for some player'
+        text: 'Show kill count of a boss for some player',
+        failIfDisabled: true
     },
     channel: {
         fn: (msg) => {
@@ -175,7 +180,8 @@ const commands: Record<string, Command> = {
             msg.channel.send('Player experience updates will now be sent to this channel');
         },
         text: 'All player updates will be sent to the channel where this command is issued',
-        privileged: true
+        privileged: true,
+        failIfDisabled: true
     },
     hiddenhelp: {
         fn: (msg) => {
@@ -264,7 +270,8 @@ const commands: Record<string, Command> = {
             updatePlayer(player, spoofedDiff);
         },
         hidden: true,
-        text: 'Spoof an update notification using a raw JSON object {player, diff: {skills|bosses}}'
+        text: 'Spoof an update notification using a raw JSON object {player, diff: {skills|bosses}}',
+        failIfDisabled: true
     },
     spoof: {
         fn: (msg, rawArgs, player) => {
@@ -285,7 +292,8 @@ const commands: Record<string, Command> = {
             }
         },
         hidden: true,
-        text: 'Spoof an update notification for some player with random skill/boss updates'
+        text: 'Spoof an update notification for some player with random skill/boss updates',
+        failIfDisabled: true
     },
     uptime: {
         fn: (msg) => {
@@ -353,6 +361,15 @@ const commands: Record<string, Command> = {
         },
         hidden: true,
         text: 'Prints the bot\'s state',
+        privileged: true
+    },
+    enable: {
+        fn: (msg: Message) => {
+            msg.reply('Enabling the bot... If the API format is still not supported, the bot will disable itself.');
+            state.setDisabled(false);
+        },
+        hidden: true,
+        text: 'Enables the bot, this should be used after the bot has been disabled due to an incompatible API change',
         privileged: true
     }
 };

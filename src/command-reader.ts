@@ -23,6 +23,8 @@ class CommandReader {
             const commandInfo: Command = commands[command];
             if (commandInfo.privileged && !state.isOwner(msg.author.id)) {
                 msg.channel.send('You can\'t do that');
+            } else if (commandInfo.failIfDisabled && state.isDisabled()) {
+                msg.channel.send('I can\'t do that while I\'m disabled');
             } else {
                 try {
                     commandInfo.fn(msg, rawArgs, ...args);
