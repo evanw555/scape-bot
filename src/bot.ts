@@ -213,11 +213,11 @@ client.on('ready', async () => {
         next5pm.setHours(next5pm.getHours() + 24);
     }
     if (ownerDmChannel) {
-        await ownerDmChannel.send(`Set total XP timeout for ${next5pm.toLocaleDateString('en-US')}`);
+        await ownerDmChannel.send(`Set total XP timeout for ${next5pm.toLocaleString('en-US', { hour12: true })}`);
     }
     setTimeout(async () => {
         await weeklyTotalXpUpdate(ownerDmChannel);
-    }, next5pm.getMilliseconds() - new Date().getMilliseconds());
+    }, next5pm.getTime() - new Date().getTime());
 
     if (ownerDmChannel) {
         // Notify the guild owner that the bot has restarted
