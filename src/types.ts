@@ -13,7 +13,8 @@ export interface SerializedState {
     trackingChannelId?: string,
     levels: Record<string, Record<string, number>>,
     bosses: Record<string, Record<string, number>>,
-    botCounters: Record<Snowflake, number>
+    botCounters: Record<Snowflake, number>,
+    weeklyTotalXpSnapshots: Record<string, number>
 }
 
 export interface Command {

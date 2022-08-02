@@ -13,6 +13,7 @@ import FileStorage from './file-storage';
 const storage: FileStorage = new FileStorage('./data/');
 
 import CommandReader from './command-reader';
+import hiscores, { Player } from 'osrs-json-hiscores';
 const commandReader: CommandReader = new CommandReader();
 
 const deserializeState = async (serializedState: SerializedState): Promise<void> => {
@@ -53,6 +54,10 @@ const deserializeState = async (serializedState: SerializedState): Promise<void>
         state.setBotCounters(serializedState.botCounters);
     }
 
+    if (serializedState.weeklyTotalXpSnapshots) {
+        state.setWeeklyTotalXpSnapshots(serializedState.weeklyTotalXpSnapshots);
+    }
+
     // Now that the state has been loaded, mark it as valid
     state.setValid(true);
 };
@@ -78,6 +83,56 @@ const client = new Client({
         }
     })
 });
+
+const weeklyTotalXpUpdate = async (ownerDmChannel: DMChannel | undefined) => {
+    // Schedule next timeout
+    // TODO: Make this weekly, not daily
+    setTimeout(async () => {
+        await weeklyTotalXpUpdate(ownerDmChannel);
+    }, 1000 * 60 * 60 * 24);
+    // Abort is disabled
+    if (state.isDisabled()) {
+        return;
+    }
+    // Get old total XP values
+    const oldTotalXpValues: Record<string, number> = state.getWeeklyTotalXpSnapshots();
+    // Get new total XP values
+    const newTotalXpValues: Record<string, number> = {};
+    for (const rsn of state.getAllTrackedPlayers()) {
+        try {
+            const player: Player = await hiscores.getStats(rsn);
+            const totalXp: number = player[player.mode]?.skills.overall.xp ?? 0;
+            // Use some arbitrary threshold like 10xp to ensure inactive users aren't included
+            if (totalXp > 10) {
+                newTotalXpValues[rsn] = totalXp;
+            }
+        } catch (err) {
+            // TODO: Log error?
+            continue;
+        }
+    }
+    // Determine the biggest winners
+    const playersToCompare: string[] = Object.keys(oldTotalXpValues).filter(rsn => rsn in newTotalXpValues);
+    const totalXpDiffs: Record<string, number> = {};
+    for (const rsn of playersToCompare) {
+        totalXpDiffs[rsn] = newTotalXpValues[rsn] - oldTotalXpValues[rsn];
+    }
+    const sortedPlayers: string[] = playersToCompare.sort((x, y) => totalXpDiffs[y] - totalXpDiffs[x]);
+    const winners: string[] = sortedPlayers.slice(3);
+    // Send the message to the tracking channel
+    // TODO: Improve formatting!!!
+    // await state.getTrackingChannel().send('**Biggest XP earners over the last week:**\n'
+    //     + winners.map((rsn, i) => `_#${i + 1}_ **${rsn}** with **${totalXpDiffs[rsn]} XP**`));
+    // TODO: Temp logic to test this out
+    if (ownerDmChannel) {
+        await ownerDmChannel.send(`**${Object.keys(oldTotalXpValues).length}** players in last week's total XP map, **${Object.keys(newTotalXpValues).length}** players in this week's.`);
+        await ownerDmChannel.send('**Biggest XP earners over the last day:**\n'
+        + sortedPlayers.map((rsn, i) => `_#${i + 1}_ **${rsn}** with **${totalXpDiffs[rsn]} XP**`) || '_none this week._');
+    }
+    // Commit the changes
+    state.setWeeklyTotalXpSnapshots(newTotalXpValues);
+    await dumpState();
+};
 
 client.on('ready', async () => {
     log.push(`Logged in as: ${client.user?.tag}`);
@@ -132,6 +187,7 @@ client.on('ready', async () => {
     }
 
     // Regardless of whether loading the players/channel was successful, start the update loop
+    // TODO: Use timeout manager
     setInterval(() => {
         if (!state.isDisabled()) {
             const nextPlayer = state.getTrackedPlayers().getNext();
@@ -144,6 +200,24 @@ client.on('ready', async () => {
             }
         }
     }, config.refreshInterval);
+
+    // Start the weekly loop (get next Friday at 5)
+    // TODO: Use timeout manager
+    // const nextFriday: Date = new Date();
+    // nextFriday.setHours(17, 0, 0, 0);
+    // nextFriday.setHours(nextFriday.getHours() + 24 * ((12 - nextFriday.getDay()) % 7));
+    // TODO: Temp daily logic (today at 5:10)
+    const next5pm: Date = new Date();
+    next5pm.setHours(17, 10, 0, 0);
+    if (next5pm.getTime() < new Date().getTime()) {
+        next5pm.setHours(next5pm.getHours() + 24);
+    }
+    if (ownerDmChannel) {
+        await ownerDmChannel.send(`Set total XP timeout for ${next5pm.toLocaleDateString('en-US')}`);
+    }
+    setTimeout(async () => {
+        await weeklyTotalXpUpdate(ownerDmChannel);
+    }, next5pm.getMilliseconds() - new Date().getMilliseconds());
 
     if (ownerDmChannel) {
         // Notify the guild owner that the bot has restarted

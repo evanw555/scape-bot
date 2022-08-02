@@ -12,6 +12,7 @@ class State {
     private readonly _levels: Record<string, Record<string, number>>;
     private readonly _bosses: Record<string, Record<string, number>>;
     private readonly _botCounters: Record<Snowflake, number>;
+    private _weeklyTotalXpSnapshots: Record<string, number>;
     readonly _lastUpdate: Record<string, Date>;
     readonly _ownerIds: Set<string>;
 
@@ -24,6 +25,7 @@ class State {
         this._levels = {};
         this._bosses = {};
         this._botCounters = {};
+        this._weeklyTotalXpSnapshots = {};
         this._lastUpdate = {};
         this._ownerIds = new Set<string>();
     }
@@ -167,6 +169,14 @@ class State {
         this._botCounters[botId] = (this._botCounters[botId] ?? 0) + delta;
     }
 
+    getWeeklyTotalXpSnapshots(): Record<string, number> {
+        return this._weeklyTotalXpSnapshots;
+    }
+
+    setWeeklyTotalXpSnapshots(snapshots: Record<string, number>): void {
+        this._weeklyTotalXpSnapshots = snapshots;
+    }
+
     hasTimestamp(): boolean {
         return this._timestamp !== undefined;
     }
@@ -191,7 +201,8 @@ class State {
             trackingChannelId: this._trackingChannel?.id,
             levels: this._levels,
             bosses: this._bosses,
-            botCounters: this._botCounters
+            botCounters: this._botCounters,
+            weeklyTotalXpSnapshots: this._weeklyTotalXpSnapshots
         };
     }
 }
