@@ -1,6 +1,6 @@
 import { Client, ClientUser, DMChannel, GuildMember, Intents, Options, TextBasedChannel } from 'discord.js';
 import { SerializedState } from './types';
-import { updatePlayer, sendRestartMessage, sendUpdateMessage } from './util';
+import { updatePlayer, sendRestartMessage, sendUpdateMessage, getQuantityWithUnits } from './util';
 
 import { loadJson } from './load-json';
 const auth = loadJson('config/auth.json');
@@ -115,19 +115,22 @@ const weeklyTotalXpUpdate = async (ownerDmChannel: DMChannel | undefined) => {
     const playersToCompare: string[] = Object.keys(oldTotalXpValues).filter(rsn => rsn in newTotalXpValues);
     const totalXpDiffs: Record<string, number> = {};
     for (const rsn of playersToCompare) {
-        totalXpDiffs[rsn] = newTotalXpValues[rsn] - oldTotalXpValues[rsn];
+        const diff = newTotalXpValues[rsn] - oldTotalXpValues[rsn];
+        if (diff > 0) {
+            totalXpDiffs[rsn] = diff;
+        }
     }
     const sortedPlayers: string[] = playersToCompare.sort((x, y) => totalXpDiffs[y] - totalXpDiffs[x]);
     const winners: string[] = sortedPlayers.slice(3);
     // Send the message to the tracking channel
     // TODO: Improve formatting!!!
     // await state.getTrackingChannel().send('**Biggest XP earners over the last week:**\n'
-    //     + winners.map((rsn, i) => `_#${i + 1}_ **${rsn}** with **${totalXpDiffs[rsn]} XP**`));
+    //     + winners.map((rsn, i) => `_#${i + 1}_ **${rsn}**: ${getQuantityWithUnits(totalXpDiffs[rsn])}`).join('\n'));
     // TODO: Temp logic to test this out
     if (ownerDmChannel) {
         await ownerDmChannel.send(`**${Object.keys(oldTotalXpValues).length}** players in last week's total XP map, **${Object.keys(newTotalXpValues).length}** players in this week's.`);
         await ownerDmChannel.send('**Biggest XP earners over the last day:**\n'
-        + sortedPlayers.map((rsn, i) => `_#${i + 1}_ **${rsn}** with **${totalXpDiffs[rsn]} XP**`) || '_none this week._');
+        + sortedPlayers.map((rsn, i) => `_#${i + 1}_ **${rsn}**: ${getQuantityWithUnits(totalXpDiffs[rsn])}`).join('\n') || '_none this week._');
     }
     // Commit the changes
     state.setWeeklyTotalXpSnapshots(newTotalXpValues);

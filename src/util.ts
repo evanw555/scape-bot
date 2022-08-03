@@ -447,3 +447,13 @@ export function getDurationString(milliseconds: number) {
     const days = Math.floor(hours / 24);
     return `${days} days`;
 }
+
+export function getQuantityWithUnits(quantity: number): string {
+    if (quantity < 1000) {
+        return quantity.toString();
+    } else if (quantity < 1000000) {
+        return (quantity / 1000).toFixed(1) + 'K';
+    } else {
+        return (quantity / 1000000).toFixed(1) + 'M';
+    }
+}
