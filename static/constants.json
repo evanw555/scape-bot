@@ -26,7 +26,10 @@
             "construction"
     ],
     "miscThumbnails": [
+        "bronze",
+        "gold",
         "happy",
+        "silver",
         "unhappy",
         "wrench"
     ],

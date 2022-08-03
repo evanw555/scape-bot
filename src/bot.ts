@@ -1,6 +1,6 @@
-import { Client, ClientUser, DMChannel, GuildMember, Intents, Options, TextBasedChannel } from 'discord.js';
+import { Client, ClientUser, DMChannel, GuildMember, Intents, Options, TextBasedChannel, TextChannel } from 'discord.js';
 import { SerializedState } from './types';
-import { updatePlayer, sendRestartMessage, sendUpdateMessage, getQuantityWithUnits } from './util';
+import { updatePlayer, sendRestartMessage, sendUpdateMessage, getQuantityWithUnits, getThumbnail } from './util';
 
 import { loadJson } from './load-json';
 const auth = loadJson('config/auth.json');
@@ -127,15 +127,27 @@ const weeklyTotalXpUpdate = async (ownerDmChannel: DMChannel | undefined) => {
     // await state.getTrackingChannel().send('**Biggest XP earners over the last week:**\n'
     //     + winners.map((rsn, i) => `_#${i + 1}_ **${rsn}**: ${getQuantityWithUnits(totalXpDiffs[rsn])}`).join('\n'));
     // TODO: Temp logic to test this out
-    if (ownerDmChannel) {
+    if (ownerDmChannel && sneakPeekChannel) {
         await ownerDmChannel.send(`**${Object.keys(oldTotalXpValues).length}** players in last week's total XP map, **${Object.keys(newTotalXpValues).length}** players in this week's.`);
-        await ownerDmChannel.send('**Biggest XP earners over the last day:**\n'
-        + sortedPlayers.map((rsn, i) => `_#${i + 1}_ **${rsn}**: ${getQuantityWithUnits(totalXpDiffs[rsn])}`).join('\n') || '_none this week._');
+
+        const medalNames = ['gold', 'silver', 'bronze'];
+        await sneakPeekChannel.send({
+            content: '**Biggest XP earners over the last day:**',
+            embeds: winners.map((rsn, i) => {
+                return {
+                    description: `**${rsn}** with **${getQuantityWithUnits(totalXpDiffs[rsn])} XP**`,
+                    thumbnail: getThumbnail(medalNames[i])
+                };
+            })
+        });
     }
     // Commit the changes
     state.setWeeklyTotalXpSnapshots(newTotalXpValues);
     await dumpState();
 };
+
+// TODO: Delete this
+let sneakPeekChannel: TextChannel;
 
 client.on('ready', async () => {
     log.push(`Logged in as: ${client.user?.tag}`);
@@ -157,6 +169,13 @@ client.on('ready', async () => {
             log.push(`Determined guild owner: ${owner.displayName}`);
         } else {
             log.push('Could not determine the guild\'s owner!');
+        }
+
+        // TODO: Temp logic to get sneak peek channel
+        try {
+            sneakPeekChannel = await guild.channels.fetch('878721761724747828') as TextChannel;
+        } catch (err) {
+            await ownerDmChannel?.send(`Unable to fetch sneak peek channel: \`${err}\``);
         }
     }
 
