@@ -111,17 +111,17 @@ const weeklyTotalXpUpdate = async (ownerDmChannel: DMChannel | undefined) => {
             continue;
         }
     }
-    // Determine the biggest winners
+    // For each player appearing in both last week's and this week's mapping, determine the change in total XP
     const playersToCompare: string[] = Object.keys(oldTotalXpValues).filter(rsn => rsn in newTotalXpValues);
     const totalXpDiffs: Record<string, number> = {};
     for (const rsn of playersToCompare) {
-        const diff = newTotalXpValues[rsn] - oldTotalXpValues[rsn];
-        if (diff > 0) {
-            totalXpDiffs[rsn] = diff;
-        }
+        totalXpDiffs[rsn] = newTotalXpValues[rsn] - oldTotalXpValues[rsn];
     }
-    const sortedPlayers: string[] = playersToCompare.sort((x, y) => totalXpDiffs[y] - totalXpDiffs[x]);
-    const winners: string[] = sortedPlayers.slice(3);
+    // For each player with a non-zero diff, sort descending and get the top 3
+    const sortedPlayers: string[] = playersToCompare
+        .filter(rsn => totalXpDiffs[rsn] > 0)
+        .sort((x, y) => totalXpDiffs[y] - totalXpDiffs[x]);
+    const winners: string[] = sortedPlayers.slice(0, 3);
     // Send the message to the tracking channel
     // TODO: Improve formatting!!!
     // await state.getTrackingChannel().send('**Biggest XP earners over the last week:**\n'
@@ -131,9 +131,20 @@ const weeklyTotalXpUpdate = async (ownerDmChannel: DMChannel | undefined) => {
         await ownerDmChannel.send(`**${Object.keys(oldTotalXpValues).length}** players in last week's total XP map, **${Object.keys(newTotalXpValues).length}** players in this week's.`);
 
         const medalNames = ['gold', 'silver', 'bronze'];
+        // Send top 3 to the sneak peek channel
         await sneakPeekChannel.send({
             content: '**Biggest XP earners over the last day:**',
             embeds: winners.map((rsn, i) => {
+                return {
+                    description: `**${rsn}** with **${getQuantityWithUnits(totalXpDiffs[rsn])} XP**`,
+                    thumbnail: getThumbnail(medalNames[i])
+                };
+            })
+        });
+        // TODO: Temp debugging for just the guild owner, but show all players
+        await ownerDmChannel.send({
+            content: '**Biggest XP earners over the last day:**',
+            embeds: sortedPlayers.map((rsn, i) => {
                 return {
                     description: `**${rsn}** with **${getQuantityWithUnits(totalXpDiffs[rsn])} XP**`,
                     thumbnail: getThumbnail(medalNames[i])
