@@ -452,8 +452,8 @@ export function getQuantityWithUnits(quantity: number): string {
     if (quantity < 1000) {
         return quantity.toString();
     } else if (quantity < 1000000) {
-        return (quantity / 1000).toFixed(1) + 'K';
+        return (quantity / 1000).toFixed(1) + 'k';
     } else {
-        return (quantity / 1000000).toFixed(1) + 'M';
+        return (quantity / 1000000).toFixed(1) + 'm';
     }
 }

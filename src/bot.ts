@@ -36,7 +36,7 @@ const deserializeState = async (serializedState: SerializedState): Promise<void>
     }
 
     if (serializedState.trackingChannelId) {
-        const trackingChannel: TextBasedChannel = (await client.channels.fetch(serializedState.trackingChannelId)) as TextBasedChannel;
+        const trackingChannel = (await client.channels.fetch(serializedState.trackingChannelId) as TextBasedChannel);
         if (trackingChannel) {
             state.setTrackingChannel(trackingChannel);
         }
@@ -89,7 +89,7 @@ const weeklyTotalXpUpdate = async (ownerDmChannel: DMChannel | undefined) => {
     // TODO: Make this weekly, not daily
     setTimeout(async () => {
         await weeklyTotalXpUpdate(ownerDmChannel);
-    }, 1000 * 60 * 60 * 24);
+    }, 1000 * 60 * 60 * 24 * 7);
     // Abort is disabled
     if (state.isDisabled()) {
         return;
@@ -122,36 +122,33 @@ const weeklyTotalXpUpdate = async (ownerDmChannel: DMChannel | undefined) => {
         .filter(rsn => totalXpDiffs[rsn] > 0)
         .sort((x, y) => totalXpDiffs[y] - totalXpDiffs[x]);
     const winners: string[] = sortedPlayers.slice(0, 3);
-    // Send the message to the tracking channel
-    // TODO: Improve formatting!!!
-    // await state.getTrackingChannel().send('**Biggest XP earners over the last week:**\n'
-    //     + winners.map((rsn, i) => `_#${i + 1}_ **${rsn}**: ${getQuantityWithUnits(totalXpDiffs[rsn])}`).join('\n'));
-    // TODO: Temp logic to test this out
-    if (ownerDmChannel && sneakPeekChannel) {
-        await ownerDmChannel.send(`**${Object.keys(oldTotalXpValues).length}** players in last week's total XP map, **${Object.keys(newTotalXpValues).length}** players in this week's.`);
 
-        const medalNames = ['gold', 'silver', 'bronze'];
-        // Send top 3 to the sneak peek channel
-        await sneakPeekChannel.send({
-            content: '**Biggest XP earners over the last day:**',
-            embeds: winners.map((rsn, i) => {
-                return {
-                    description: `**${rsn}** with **${getQuantityWithUnits(totalXpDiffs[rsn])} XP**`,
-                    thumbnail: getThumbnail(medalNames[i])
-                };
-            })
-        });
-        // TODO: Temp debugging for just the guild owner, but show all players
+    // Send the message to the tracking channel
+    const medalNames = ['gold', 'silver', 'bronze'];
+    await state.getTrackingChannel().send({
+        content: '**Biggest XP earners over the last week:**',
+        embeds: winners.map((rsn, i) => {
+            return {
+                description: `**${rsn}** with **${getQuantityWithUnits(totalXpDiffs[rsn])} XP**`,
+                thumbnail: getThumbnail(medalNames[i])
+            };
+        })
+    });
+
+    // TODO: Temp debugging for just the guild owner, but show all players
+    if (ownerDmChannel) {
+        await ownerDmChannel.send(`**${Object.keys(oldTotalXpValues).length}** players in last week's total XP map, **${Object.keys(newTotalXpValues).length}** players in this week's.`);
         await ownerDmChannel.send({
-            content: '**Biggest XP earners over the last day:**',
+            content: '**Biggest XP earners over the last week:**',
             embeds: sortedPlayers.map((rsn, i) => {
                 return {
-                    description: `**${rsn}** with **${getQuantityWithUnits(totalXpDiffs[rsn])} XP**`,
+                    description: `**${rsn}** with _${getQuantityWithUnits(totalXpDiffs[rsn])} XP_`,
                     thumbnail: getThumbnail(medalNames[i])
                 };
             })
         });
     }
+
     // Commit the changes
     state.setWeeklyTotalXpSnapshots(newTotalXpValues);
     await dumpState();
@@ -234,23 +231,20 @@ client.on('ready', async () => {
         }
     }, config.refreshInterval);
 
-    // Start the weekly loop (get next Friday at 5)
+    // Start the weekly loop (get next Friday at 5:10pm)
     // TODO: Use timeout manager
-    // const nextFriday: Date = new Date();
-    // nextFriday.setHours(17, 0, 0, 0);
-    // nextFriday.setHours(nextFriday.getHours() + 24 * ((12 - nextFriday.getDay()) % 7));
-    // TODO: Temp daily logic (today at 5:10)
-    const next5pm: Date = new Date();
-    next5pm.setHours(17, 10, 0, 0);
-    if (next5pm.getTime() < new Date().getTime()) {
-        next5pm.setHours(next5pm.getHours() + 24);
+    const nextFriday: Date = new Date();
+    nextFriday.setHours(17, 10, 0, 0);
+    nextFriday.setHours(nextFriday.getHours() + 24 * ((12 - nextFriday.getDay()) % 7));
+    if (nextFriday.getTime() < new Date().getTime()) {
+        nextFriday.setHours(nextFriday.getHours() + (24 * 7));
     }
     if (ownerDmChannel) {
-        await ownerDmChannel.send(`Set total XP timeout for ${next5pm.toLocaleString('en-US', { hour12: true })}`);
+        await ownerDmChannel.send(`Set total XP timeout for ${nextFriday.toLocaleString('en-US', { hour12: true })}`);
     }
     setTimeout(async () => {
         await weeklyTotalXpUpdate(ownerDmChannel);
-    }, next5pm.getTime() - new Date().getTime());
+    }, nextFriday.getTime() - new Date().getTime());
 
     if (ownerDmChannel) {
         // Notify the guild owner that the bot has restarted
