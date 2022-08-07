@@ -253,10 +253,10 @@ client.on('ready', async () => {
 });
 
 client.on('messageCreate', (msg) => {
-    // Only process messages that mention the bot
-    if (msg.mentions.has(client.user as ClientUser)) {
+    // Only process messages from other users mentio
+    if (msg.mentions.has(client.user as ClientUser) && msg.author.id !== client.user?.id) {
         // If the message was sent by another bot, troll epic style 😈
-        if (msg.author.bot && msg.author.id !== client.user?.id) {
+        if (msg.author.bot) {
             state.incrementBotCounter(msg.author.id);
             // Wait up to 1.5 seconds before sending the message to make it feel more organic
             setTimeout(() => {
