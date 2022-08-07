@@ -5,18 +5,18 @@ import hiscores, { Player, Skill, SkillName, Activity, Boss, INVALID_FORMAT_ERRO
 import { isValidBoss, sanitizeBossName, toSortedBosses, getBossName } from './boss-utility';
 
 import { loadJson } from './load-json';
-import { TextBasedChannel } from 'discord.js';
+import { Message, TextBasedChannel } from 'discord.js';
 import { AnyObject } from './types';
 const constants = loadJson('static/constants.json');
 
 const validSkills: Set<string> = new Set(constants.skills);
 const validMiscThumbnails: Set<string> = new Set(constants.miscThumbnails);
 
-export function getThumbnail(name: string, args?: AnyObject) {
+export function getThumbnail(name: string, options?: { is99?: boolean }) {
     if (validSkills.has(name)) {
         const skill = name;
         return {
-            url: `${constants.baseThumbnailUrl}${(args && args.is99) ? constants.level99Path : ''}${skill}${constants.imageFileExtension}`
+            url: `${constants.baseThumbnailUrl}${options?.is99 ? constants.level99Path : ''}${skill}${constants.imageFileExtension}`
         };
     } 
     if (isValidBoss(name)) {
@@ -34,14 +34,15 @@ export function getThumbnail(name: string, args?: AnyObject) {
     return;
 }
 
-export function sendUpdateMessage(channel: TextBasedChannel, text: string, name: string, args?: AnyObject) {
-    channel.send({
+export async function sendUpdateMessage(channel: TextBasedChannel, text: string, name: string, options?: { color?: number, title?: string, url?: string, is99?: boolean, header?: string }): Promise<Message> {
+    return await channel.send({
+        content: options?.header,
         embeds: [ {
             description: text,
-            thumbnail: getThumbnail(name, args),
-            color: (args && args.color) || 6316287,
-            title: args && args.title,
-            url: args && args.url
+            thumbnail: getThumbnail(name, options),
+            color: options?.color ?? 6316287,
+            title: options?.title,
+            url: options?.url
         } ]
     });
 }
@@ -229,7 +230,7 @@ export function toSortedSkills(skills: string[]): string[] {
     return constants.skills.filter((skill: string) => skillSubset.has(skill));
 }
 
-export function updateLevels(player: string, newLevels: Record<string, number>, spoofedDiff?: Record<string, number>): void {
+export async function updateLevels(player: string, newLevels: Record<string, number>, spoofedDiff?: Record<string, number>): Promise<void> {
     // If channel is set and user already has levels tracked
     if (state.hasTrackingChannel() && state.hasLevels(player)) {
         // Compute diff for each level
@@ -256,23 +257,29 @@ export function updateLevels(player: string, newLevels: Record<string, number>, 
             return;
         }
         // Send a message for any skill that is now 99 and remove it from the diff
-        toSortedSkills(Object.keys(diff)).forEach((skill) => {
+        for (const skill of toSortedSkills(Object.keys(diff))) {
             const newLevel = newLevels[skill];
             if (newLevel === 99) {
                 const levelsGained = diff[skill];
                 if (state.hasTrackingChannel()) {
-                    sendUpdateMessage(state.getTrackingChannel(),
+                    const message99: Message = await sendUpdateMessage(state.getTrackingChannel(),
                         `**${player}** has gained `
                             + (levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`)
-                            + ` in **${skill}** and is now level **99**\n\n`
-                            + `@everyone congrats **${player}**!`,
+                            + ` in **${skill}** and is now level **99**`,
                         skill, {
+                            header: '@everyone',
                             is99: true
                         });
+                    try {
+                        await message99.react('🇬');
+                        await message99.react('🇿');
+                    } catch (err) {
+                        log.push(`Unable to react to 99 update message: ${err}`);
+                    }
                 }
                 delete diff[skill];
             }
-        });
+        }
         // Send a message showing all the levels gained
         switch (Object.keys(diff).length) {
         case 0:
@@ -281,7 +288,7 @@ export function updateLevels(player: string, newLevels: Record<string, number>, 
             const skill = Object.keys(diff)[0];
             const levelsGained = diff[skill];
             if (state.hasTrackingChannel()) {
-                sendUpdateMessage(state.getTrackingChannel(),
+                await sendUpdateMessage(state.getTrackingChannel(),
                     `**${player}** has gained `
                             + (levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`)
                             + ` in **${skill}** and is now level **${newLevels[skill]}**`,
@@ -295,7 +302,7 @@ export function updateLevels(player: string, newLevels: Record<string, number>, 
                 return `${levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`} in **${skill}** and is now level **${newLevels[skill]}**`;
             }).join('\n');
             if (state.hasTrackingChannel()) {
-                sendUpdateMessage(state.getTrackingChannel(), `**${player}** has gained...\n${text}`, 'overall');
+                await sendUpdateMessage(state.getTrackingChannel(), `**${player}** has gained...\n${text}`, 'overall');
             }
             break;
         }
