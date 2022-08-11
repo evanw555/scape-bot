@@ -1,6 +1,7 @@
 import { Client, ClientUser, DMChannel, GuildMember, Intents, Options, TextBasedChannel, TextChannel } from 'discord.js';
-import { SerializedState } from './types';
-import { updatePlayer, sendRestartMessage, sendUpdateMessage, getQuantityWithUnits, getThumbnail } from './util';
+import { SerializedState, TimeoutType } from './types';
+import { updatePlayer, sendUpdateMessage, getQuantityWithUnits, getThumbnail, getDurationString, getNextFridayEvening } from './util';
+import { TimeoutManager, FileStorage, PastTimeoutStrategy } from 'evanw555.js';
 
 import { loadJson } from './load-json';
 const auth = loadJson('config/auth.json');
@@ -9,12 +10,37 @@ const config = loadJson('config/config.json');
 import log from './log';
 import state from './state';
 
-import FileStorage from './file-storage';
-const storage: FileStorage = new FileStorage('./data/');
+// TODO: Migrate to evanw555.js file storage
+import LegacyFileStorage from './file-storage';
+const storage: LegacyFileStorage = new LegacyFileStorage('./data/');
 
 import CommandReader from './command-reader';
 import hiscores, { Player } from 'osrs-json-hiscores';
 const commandReader: CommandReader = new CommandReader();
+
+export function sendRestartMessage(channel: TextBasedChannel, downtimeMillis: number): void {
+    if (channel) {
+        // Send greeting message to some channel
+        const baseText = `ScapeBot online after ${getDurationString(downtimeMillis)} of downtime. In channel **${state.getTrackingChannel()}**, currently`;
+        let fullText;
+        if (state.isTrackingAnyPlayers()) {
+            fullText = `${baseText} tracking players **${state.getAllTrackedPlayers().join('**, **')}**`;
+        } else {
+            fullText = `${baseText} not tracking any players`;
+        }
+        channel.send(fullText + '\n**Timeouts Scheduled:**\n' + timeoutManager.toStrings().join('\n') || '_none._');
+    } else {
+        log.push('Attempted to send a bot restart message, but the specified channel is undefined!');
+    }
+}
+
+const timeoutCallbacks = {
+    [TimeoutType.WeeklyXpUpdate]: async (): Promise<void> => {
+        await timeoutManager.registerTimeout(TimeoutType.WeeklyXpUpdate, getNextFridayEvening(), { pastStrategy: PastTimeoutStrategy.Invoke });
+        await weeklyTotalXpUpdate();
+    }
+};
+const timeoutManager = new TimeoutManager<TimeoutType>(new FileStorage('./data/'), timeoutCallbacks);
 
 const deserializeState = async (serializedState: SerializedState): Promise<void> => {
     if (serializedState.timestamp) {
@@ -84,12 +110,7 @@ const client = new Client({
     })
 });
 
-const weeklyTotalXpUpdate = async (ownerDmChannel: DMChannel | undefined) => {
-    // Schedule next timeout
-    // TODO: Make this weekly, not daily
-    setTimeout(async () => {
-        await weeklyTotalXpUpdate(ownerDmChannel);
-    }, 1000 * 60 * 60 * 24 * 7);
+const weeklyTotalXpUpdate = async () => {
     // Abort is disabled
     if (state.isDisabled()) {
         return;
@@ -134,20 +155,6 @@ const weeklyTotalXpUpdate = async (ownerDmChannel: DMChannel | undefined) => {
             };
         })
     });
-
-    // TODO: Temp debugging for just the guild owner, but show all players
-    if (ownerDmChannel) {
-        await ownerDmChannel.send(`**${Object.keys(oldTotalXpValues).length}** players in last week's total XP map, **${Object.keys(newTotalXpValues).length}** players in this week's.`);
-        await ownerDmChannel.send({
-            content: '**Biggest XP earners over the last week:**',
-            embeds: sortedPlayers.map((rsn, i) => {
-                return {
-                    description: `**${rsn}** with _${getQuantityWithUnits(totalXpDiffs[rsn])} XP_`,
-                    thumbnail: getThumbnail(medalNames[i])
-                };
-            })
-        });
-    }
 
     // Commit the changes
     state.setWeeklyTotalXpSnapshots(newTotalXpValues);
@@ -231,20 +238,10 @@ client.on('ready', async () => {
         }
     }, config.refreshInterval);
 
-    // Start the weekly loop (get next Friday at 5:10pm)
-    // TODO: Use timeout manager
-    const nextFriday: Date = new Date();
-    nextFriday.setHours(17, 10, 0, 0);
-    nextFriday.setHours(nextFriday.getHours() + 24 * ((12 - nextFriday.getDay()) % 7));
-    if (nextFriday.getTime() < new Date().getTime()) {
-        nextFriday.setHours(nextFriday.getHours() + (24 * 7));
+    // Start the weekly loop if the right timeout isn't already scheduled (get next Friday at 5:10pm)
+    if (!timeoutManager.hasTimeout(TimeoutType.WeeklyXpUpdate)) {
+        await timeoutManager.registerTimeout(TimeoutType.WeeklyXpUpdate, getNextFridayEvening(), { pastStrategy: PastTimeoutStrategy.Invoke });
     }
-    if (ownerDmChannel) {
-        await ownerDmChannel.send(`Set total XP timeout for ${nextFriday.toLocaleString('en-US', { hour12: true })}`);
-    }
-    setTimeout(async () => {
-        await weeklyTotalXpUpdate(ownerDmChannel);
-    }, nextFriday.getTime() - new Date().getTime());
 
     if (ownerDmChannel) {
         // Notify the guild owner that the bot has restarted

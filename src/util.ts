@@ -406,20 +406,6 @@ export function updatePlayers(players: string[]): void {
     }
 }
 
-export function sendRestartMessage(channel: TextBasedChannel, downtimeMillis: number): void {
-    if (channel) {
-        // Send greeting message to some channel
-        const baseText = `ScapeBot online after ${getDurationString(downtimeMillis)} of downtime. In channel **${state.getTrackingChannel()}**, currently`;
-        if (state.isTrackingAnyPlayers()) {
-            channel.send(`${baseText} tracking players **${state.getAllTrackedPlayers().join('**, **')}**`);
-        } else {
-            channel.send(`${baseText} not tracking any players`);
-        }
-    } else {
-        log.push('Attempted to send a bot restart message, but the specified channel is undefined!');
-    }
-}
-
 export function getDurationString(milliseconds: number) {
     if (milliseconds === 0) {
         return 'no time at all';
@@ -463,4 +449,15 @@ export function getQuantityWithUnits(quantity: number): string {
     } else {
         return (quantity / 1000000).toFixed(1) + 'm';
     }
+}
+
+export function getNextFridayEvening(): Date {
+    // Get next Friday at 5:10pm
+    const nextFriday: Date = new Date();
+    nextFriday.setHours(17, 10, 0, 0);
+    nextFriday.setHours(nextFriday.getHours() + 24 * ((12 - nextFriday.getDay()) % 7));
+    if (nextFriday.getTime() <= new Date().getTime()) {
+        nextFriday.setHours(nextFriday.getHours() + (24 * 7));
+    }
+    return nextFriday;
 }

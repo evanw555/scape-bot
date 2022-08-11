@@ -1,5 +1,9 @@
 import { Message, Snowflake } from 'discord.js';
 
+export enum TimeoutType {
+    WeeklyXpUpdate = 'WEEKLY_XP_UPDATE'
+}
+
 export interface AnyObject {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     [key: string]: string | number | any;
