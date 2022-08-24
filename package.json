@@ -15,8 +15,8 @@
     },
     "dependencies": {
         "discord.js": "13.6.0",
-        "osrs-json-hiscores": "^2.9.0",
-        "evanw555.js": "evanw555/evanw555.js"
+        "evanw555.js": "evanw555/evanw555.js",
+        "osrs-json-hiscores": "^2.10.0"
     },
     "devDependencies": {
         "@typescript-eslint/eslint-plugin": "^5.16.0",
