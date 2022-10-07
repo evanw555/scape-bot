@@ -1,4 +1,4 @@
-import { Message } from 'discord.js';
+import { Message, Snowflake } from 'discord.js';
 import { ParsedCommand, Command } from './types';
 
 import commands from './commands';

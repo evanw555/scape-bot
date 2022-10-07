@@ -28,16 +28,23 @@ export interface ScapeBotConstants {
     osrsWikiBaseUrl: string
 }
 
+export interface SerializedGuildState {
+    trackingChannelId?: Snowflake,
+    players: string[]
+}
+
 export interface SerializedState {
     timestamp?: string,
     disabled?: boolean,
-    players: string[],
+    guilds: Record<Snowflake, SerializedGuildState>,
     playersOffHiScores: string[],
-    trackingChannelId?: string,
     levels: Record<string, Record<string, number>>,
     bosses: Record<string, Record<string, number>>,
     botCounters: Record<Snowflake, number>,
     weeklyTotalXpSnapshots: Record<string, number>
+    // TODO: Remove these
+    players?: string[],
+    trackingChannelId?: string
 }
 
 export interface Command {

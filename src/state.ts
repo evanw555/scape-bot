@@ -1,13 +1,12 @@
 import { Snowflake, TextBasedChannel } from 'discord.js';
 import { CircularQueue } from 'evanw555.js';
-import { SerializedState } from './types';
+import { SerializedGuildState, SerializedState } from './types';
 import { filterValueFromMap } from './util';
 
 class State {
     private _isValid: boolean;
     private _timestamp?: Date;
     private _disabled?: boolean;
-    private readonly _players: CircularQueue<string>;
     private readonly _playersOffHiScores: Set<string>;
     private readonly _levels: Record<string, Record<string, number>>;
     private readonly _bosses: Record<string, Record<string, number>>;
@@ -16,11 +15,16 @@ class State {
     readonly _lastUpdate: Record<string, Date>;
     readonly _ownerIds: Set<string>;
 
-    _trackingChannel?: TextBasedChannel;
+    private readonly _masterPlayerQueue: CircularQueue<string>;
+    private readonly _guildsByPlayer: Record<Snowflake, Set<Snowflake>>;
+    private readonly _playersByGuild: Record<Snowflake, Set<Snowflake>>;
+
+    private readonly _trackingChannelsByGuild: Record<Snowflake, TextBasedChannel>;
+
+    // _trackingChannel?: TextBasedChannel;
 
     constructor() {
         this._isValid = false;
-        this._players = new CircularQueue<string>();
         this._playersOffHiScores = new Set<string>();
         this._levels = {};
         this._bosses = {};
@@ -28,6 +32,11 @@ class State {
         this._weeklyTotalXpSnapshots = {};
         this._lastUpdate = {};
         this._ownerIds = new Set<string>();
+
+        this._masterPlayerQueue = new CircularQueue<string>();
+        this._guildsByPlayer = {};
+        this._playersByGuild = {};
+        this._trackingChannelsByGuild = {};
     }
 
     isValid(): boolean {
@@ -50,64 +59,130 @@ class State {
         }
     }
 
-    isTrackingPlayer(player: string): boolean {
-        return this._players.contains(player);
+    nextTrackedPlayer(): string | undefined {
+        return this._masterPlayerQueue.next();
     }
 
-    isTrackingAnyPlayers(): boolean {
-        return !this._players.isEmpty();
+    isTrackingPlayer(guildId: Snowflake, rsn: string): boolean {
+        return guildId in this._playersByGuild && this._playersByGuild[guildId].has(rsn);
     }
 
-    addTrackedPlayer(player: string): void {
-        this._players.add(player);
+    isTrackingAnyPlayers(guildId: Snowflake): boolean {
+        return guildId in this._playersByGuild && this._playersByGuild[guildId].size > 0;
     }
 
-    removeTrackedPlayer(player: string): void {
-        this._players.remove(player);
-        delete this._levels[player];
-        delete this._bosses[player];
-        delete this._lastUpdate[player];
+    addTrackedPlayer(guildId: Snowflake, rsn: string): void {
+        // If this guild doesn't have a player set yet, initialize it
+        if (!this._playersByGuild[guildId]) {
+            this._playersByGuild[guildId] = new Set();
+        }
+        // Add this player to the guild's player set
+        this._playersByGuild[guildId].add(rsn);
+        // If this player doesn't have a guild set yet, initialize it
+        if (!this._guildsByPlayer[rsn]) {
+            this._guildsByPlayer[rsn] = new Set();
+        }
+        // Add this guild to the player's guild set
+        this._guildsByPlayer[rsn].add(guildId);
+
+        // Add to the master queue
+        this._masterPlayerQueue.add(rsn);
     }
 
-    getAllTrackedPlayers(): string[] {
-        return this._players.toSortedArray();
+    removeTrackedPlayer(guildId: Snowflake, rsn: string): void {
+        // Attempt to delete the player from the guild's player set
+        this._playersByGuild[guildId]?.delete(rsn);
+        // If this guild no longer is tracking any players, delete its player set
+        if (!this.isTrackingAnyPlayers(guildId)) {
+            delete this._playersByGuild[guildId];
+        }
+        // Attempt to delete the guild from the player's guild set
+        this._guildsByPlayer[rsn]?.delete(guildId);
+        // If no longer being tracked in any guilds, delete all info related to this player
+        if (!this.isPlayerTrackedInAnyGuilds(rsn)) {
+            // Delete the player's guild set
+            delete this._guildsByPlayer[rsn];
+            // Remove from the master queue
+            this._masterPlayerQueue.remove(rsn);
+            // Delete player-related data
+            delete this._levels[rsn];
+            delete this._bosses[rsn];
+            delete this._lastUpdate[rsn];
+        }
     }
 
-    getTrackedPlayers(): CircularQueue<string> {
-        return this._players;
+    getAllTrackedPlayers(guildId: Snowflake): string[] {
+        if (this.isTrackingAnyPlayers(guildId)) {
+            return Array.from(this._playersByGuild[guildId]).sort();
+        } else {
+            return [];
+        }
     }
 
-    clearAllTrackedPlayers(): void {
-        this.getAllTrackedPlayers().forEach((player: string) => {
-            this.removeTrackedPlayer(player);
-        });
+    getAllGloballyTrackedPlayers(): string[] {
+        return this._masterPlayerQueue.toSortedArray();
     }
 
-    addPlayerToHiScores(player: string): void {
-        this._playersOffHiScores.delete(player);
+    // getTrackedPlayers(): CircularQueue<string> {
+    //     return this._players;
+    // }
+
+    clearAllTrackedPlayers(guildId: Snowflake): void {
+        for (const rsn of this.getAllTrackedPlayers(guildId)) {
+            this.removeTrackedPlayer(guildId, rsn);
+        }
     }
 
-    removePlayerFromHiScores(player: string): void {
-        this._playersOffHiScores.add(player);
+    isPlayerTrackedInAnyGuilds(rsn: string): boolean {
+        return this._guildsByPlayer[rsn] && this._guildsByPlayer[rsn].size > 0;
     }
 
-    isPlayerOnHiScores(player: string): boolean {
-        return !this._playersOffHiScores.has(player);
+    getGuildsTrackingPlayer(rsn: string): Snowflake[] {
+        if (this.isPlayerTrackedInAnyGuilds(rsn)) {
+            return Array.from(this._guildsByPlayer[rsn]).sort();
+        } else {
+            return [];
+        }
     }
 
-    getTrackingChannel(): TextBasedChannel {
-        if (!this._trackingChannel) {
+    addPlayerToHiScores(rsn: string): void {
+        this._playersOffHiScores.delete(rsn);
+    }
+
+    removePlayerFromHiScores(rsn: string): void {
+        this._playersOffHiScores.add(rsn);
+    }
+
+    isPlayerOnHiScores(rsn: string): boolean {
+        return !this._playersOffHiScores.has(rsn);
+    }
+
+    getTrackingChannel(guildId: Snowflake): TextBasedChannel {
+        if (!this._trackingChannelsByGuild[guildId]) {
             throw new Error('Tracking channel does not exist');
         }
-        return this._trackingChannel;
+        return this._trackingChannelsByGuild[guildId];
     }
 
-    setTrackingChannel(channel: TextBasedChannel): void {
-        this._trackingChannel = channel;
+    setTrackingChannel(guildId: Snowflake, channel: TextBasedChannel): void {
+        // Theoretically this should always be true, but ensure the instance exists just to be sure
+        if (channel) {
+            this._trackingChannelsByGuild[guildId] = channel;
+        }
     }
 
-    hasTrackingChannel(): boolean {
-        return this._trackingChannel !== undefined;
+    hasTrackingChannel(guildId: Snowflake): boolean {
+        return guildId in this._trackingChannelsByGuild;
+    }
+
+    getAllTrackingChannels(): TextBasedChannel[] {
+        return Object.values(this._trackingChannelsByGuild);
+    }
+
+    getTrackingChannelsForPlayer(rsn: string): TextBasedChannel[] {
+        return this.getGuildsTrackingPlayer(rsn)
+            .filter(guildId => this.hasTrackingChannel(guildId))
+            .map(guildId => this.getTrackingChannel(guildId));
     }
 
     addOwnerId(ownerId: string): void {
@@ -119,40 +194,40 @@ class State {
     }
 
     setAllLevels(levels: Record<string, Record<string, number>>): void {
-        Object.entries(levels).forEach(([player, value]) => {
-            this.setLevels(player, value);
+        Object.entries(levels).forEach(([rsn, value]) => {
+            this.setLevels(rsn, value);
         });
     }
 
     setAllBosses(bosses: Record<string, Record<string, number>>): void {
-        Object.entries(bosses).forEach(([player, value]) => {
-            this.setBosses(player, value);
+        Object.entries(bosses).forEach(([rsn, value]) => {
+            this.setBosses(rsn, value);
         });
     }
 
-    hasLevels(player: string): boolean {
-        return this._levels[player] !== undefined;
+    hasLevels(rsn: string): boolean {
+        return this._levels[rsn] !== undefined;
     }
 
-    getLevels(player: string): Record<string, number> {
-        return this._levels[player];
+    getLevels(rsn: string): Record<string, number> {
+        return this._levels[rsn];
     }
 
-    setLevels(player: string, levels: Record<string, number>): void {
-        this._levels[player] = levels;
+    setLevels(rsn: string, levels: Record<string, number>): void {
+        this._levels[rsn] = levels;
     }
 
-    hasBosses(player: string): boolean {
-        return this._bosses[player] !== undefined;
+    hasBosses(rsn: string): boolean {
+        return this._bosses[rsn] !== undefined;
     }
 
-    getBosses(player: string): Record<string, number> {
-        return this._bosses[player];
+    getBosses(rsn: string): Record<string, number> {
+        return this._bosses[rsn];
     }
 
-    setBosses(player: string, bosses: Record<string, number>): void {
+    setBosses(rsn: string, bosses: Record<string, number>): void {
         // Remove entries with zero kills to avoid bloating the state file
-        this._bosses[player] = filterValueFromMap(bosses, 0);
+        this._bosses[rsn] = filterValueFromMap(bosses, 0);
     }
 
     getBotCounter(botId: Snowflake): number {
@@ -192,13 +267,37 @@ class State {
         this._timestamp = timestamp;
     }
 
+    /**
+     * TODO: Is there a better way to do this?
+     * 
+     * @returns All guild IDs which are either tracking players or have a tracking channel set
+     */
+    getAllRelevantGuilds(): Snowflake[] {
+        const allGuildIds: Set<Snowflake> = new Set();
+        for (const guildId of Object.keys(this._trackingChannelsByGuild)) {
+            allGuildIds.add(guildId);
+        }
+        for (const guildId of Object.keys(this._playersByGuild)) {
+            allGuildIds.add(guildId);
+        }
+        return Array.from(allGuildIds).sort();
+    }
+
     serialize(): SerializedState {
+        const guilds: Record<Snowflake, SerializedGuildState> = {};
+        for (const guildId of this.getAllRelevantGuilds()) {
+            guilds[guildId] = {
+                players: this.getAllTrackedPlayers(guildId)
+            };
+            if (this._trackingChannelsByGuild[guildId]) {
+                guilds[guildId].trackingChannelId = this._trackingChannelsByGuild[guildId].id;
+            }
+        }
         return {
             timestamp: this._timestamp?.toJSON(),
             disabled: this._disabled,
-            players: this._players.toSortedArray(),
+            guilds,
             playersOffHiScores: Array.from(this._playersOffHiScores),
-            trackingChannelId: this._trackingChannel?.id,
             levels: this._levels,
             bosses: this._bosses,
             botCounters: this._botCounters,

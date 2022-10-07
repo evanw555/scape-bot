@@ -3,7 +3,7 @@ import hiscores, { FORMATTED_BOSS_NAMES, Player, Boss } from 'osrs-json-hiscores
 import { exec } from 'child_process';
 import { toSortedBosses, sanitizeBossName, getBossName, isValidBoss } from './boss-utility';
 import { AnyObject, Command, ScapeBotConfig, ScapeBotConstants } from './types';
-import { Message } from 'discord.js';
+import { Message, Snowflake } from 'discord.js';
 import { loadJson, randChoice, randInt } from 'evanw555.js';
 
 import state from './state';
@@ -36,15 +36,21 @@ const commands: Record<string, Command> = {
     },
     track: {
         fn: (msg, rawArgs) => {
+            const guildId: Snowflake | null = msg.guildId;
+            if (!guildId) {
+                msg.reply('This command can only be used in a guild text channel!');
+                return;
+            }
+
             const player = rawArgs && rawArgs.toLowerCase();
             if (!player || !player.trim()) {
                 msg.channel.send('Invalid username');
                 return;
             }
-            if (state.isTrackingPlayer(player)) {
+            if (state.isTrackingPlayer(guildId, player)) {
                 msg.channel.send('That player is already being tracked');
             } else {
-                state.addTrackedPlayer(player);
+                state.addTrackedPlayer(guildId, player);
                 updatePlayer(player);
                 msg.channel.send(`Now tracking player **${player}**`);
             }
@@ -54,13 +60,19 @@ const commands: Record<string, Command> = {
     },
     remove: {
         fn: (msg, rawArgs) => {
+            const guildId: Snowflake | null = msg.guildId;
+            if (!guildId) {
+                msg.reply('This command can only be used in a guild text channel!');
+                return;
+            }
+
             const player = rawArgs && rawArgs.toLowerCase();
             if (!player || !player.trim()) {
                 msg.channel.send('Invalid username');
                 return;
             }
-            if (state.isTrackingPlayer(player)) {
-                state.removeTrackedPlayer(player);
+            if (state.isTrackingPlayer(guildId, player)) {
+                state.removeTrackedPlayer(guildId, player);
                 msg.channel.send(`No longer tracking player **${player}**`);
             } else {
                 msg.channel.send('That player is not currently being tracked');
@@ -71,7 +83,13 @@ const commands: Record<string, Command> = {
     },
     clear: {
         fn: (msg) => {
-            state.clearAllTrackedPlayers();
+            const guildId: Snowflake | null = msg.guildId;
+            if (!guildId) {
+                msg.reply('This command can only be used in a guild text channel!');
+                return;
+            }
+
+            state.clearAllTrackedPlayers(guildId);
             msg.channel.send('No longer tracking any players');
         },
         text: 'Stops tracking all players',
@@ -79,8 +97,14 @@ const commands: Record<string, Command> = {
     },
     list: {
         fn: (msg) => {
-            if (state.isTrackingAnyPlayers()) {
-                msg.channel.send(`Currently tracking players **${state.getAllTrackedPlayers().join('**, **')}**`);
+            const guildId: Snowflake | null = msg.guildId;
+            if (!guildId) {
+                msg.reply('This command can only be used in a guild text channel!');
+                return;
+            }
+
+            if (state.isTrackingAnyPlayers(guildId)) {
+                msg.channel.send(`Currently tracking players **${state.getAllTrackedPlayers(guildId).join('**, **')}**`);
             } else {
                 msg.channel.send('Currently not tracking any players');
             }
@@ -121,7 +145,7 @@ const commands: Record<string, Command> = {
                     messageText += '\n\n';
                 }
                 messageText += `${kcBosses.map(boss => `**${killCounts[boss]}** ${getBossName(boss as Boss)}`).join('\n')}`;
-                sendUpdateMessage(msg.channel, messageText, 'overall', {
+                sendUpdateMessage([msg.channel], messageText, 'overall', {
                     title: player,
                     url: `${constants.hiScoresUrlTemplate}${encodeURI(player)}`
                 });
@@ -160,7 +184,7 @@ const commands: Record<string, Command> = {
                 const bossID = sanitizeBossName(boss);
                 const bossName = getBossName(bossID);
                 const messageText = `**${player}** has killed **${bossName}** **${killCounts[bossID]}** times`;
-                sendUpdateMessage(msg.channel, messageText, bossID, {
+                sendUpdateMessage([msg.channel], messageText, bossID, {
                     title: bossName,
                     url: `${constants.osrsWikiBaseUrl}${encodeURIComponent(bossName)}`,
                     color: 10363483
@@ -175,7 +199,13 @@ const commands: Record<string, Command> = {
     },
     channel: {
         fn: (msg) => {
-            state.setTrackingChannel(msg.channel);
+            const guildId: Snowflake | null = msg.guildId;
+            if (!guildId) {
+                msg.reply('This command can only be used in a guild text channel!');
+                return;
+            }
+
+            state.setTrackingChannel(guildId, msg.channel);
             msg.channel.send('Player experience updates will now be sent to this channel');
         },
         text: 'All player updates will be sent to the channel where this command is issued',
@@ -192,8 +222,14 @@ const commands: Record<string, Command> = {
     },
     details: {
         fn: (msg) => {
-            if (state.isTrackingAnyPlayers()) {
-                const sortedPlayers = state.getAllTrackedPlayers();
+            const guildId: Snowflake | null = msg.guildId;
+            if (!guildId) {
+                msg.reply('This command can only be used in a guild text channel!');
+                return;
+            }
+
+            if (state.isTrackingAnyPlayers(guildId)) {
+                const sortedPlayers = state.getAllTrackedPlayers(guildId);
                 msg.channel.send(`${sortedPlayers.map(player => `**${player}**: last updated **${state._lastUpdate[player] && state._lastUpdate[player].toLocaleTimeString('en-US', { timeZone: config.timeZone })}**`).join('\n')}`);
             } else {
                 msg.channel.send('Currently not tracking any players');
@@ -225,11 +261,11 @@ const commands: Record<string, Command> = {
     thumbnail: {
         fn: (msg, rawArgs, name) => {
             if (validSkills.has(name)) {
-                sendUpdateMessage(msg.channel, 'Here is the thumbnail', name, {
+                sendUpdateMessage([msg.channel], 'Here is the thumbnail', name, {
                     title: name
                 });
             } else if (isValidBoss(name)) {
-                sendUpdateMessage(msg.channel, 'Here is the thumbnail', name, {
+                sendUpdateMessage([msg.channel], 'Here is the thumbnail', name, {
                     title: name
                 });
             } else {
@@ -242,7 +278,7 @@ const commands: Record<string, Command> = {
     thumbnail99: {
         fn: (msg, rawArgs, skill) => {
             if (validSkills.has(skill)) {
-                sendUpdateMessage(msg.channel, 'Here is the level 99 thumbnail', skill, {
+                sendUpdateMessage([msg.channel], 'Here is the level 99 thumbnail', skill, {
                     title: skill,
                     is99: true
                 });

@@ -1,4 +1,4 @@
-import { Client, ClientUser, DMChannel, GuildMember, Intents, Options, TextBasedChannel, TextChannel } from 'discord.js';
+import { Client, ClientUser, DMChannel, Guild, GuildMember, Intents, Options, TextBasedChannel, TextChannel } from 'discord.js';
 import { ScapeBotConfig, SerializedState, TimeoutType } from './types';
 import { updatePlayer, sendUpdateMessage, getQuantityWithUnits, getThumbnail, getDurationString, getNextFridayEvening } from './util';
 import hiscores, { Player } from 'osrs-json-hiscores';
@@ -17,10 +17,11 @@ const commandReader: CommandReader = new CommandReader();
 export function sendRestartMessage(channel: TextBasedChannel, downtimeMillis: number): void {
     if (channel) {
         // Send greeting message to some channel
-        const baseText = `ScapeBot online after ${getDurationString(downtimeMillis)} of downtime. In channel **${state.getTrackingChannel()}**, currently`;
+        const baseText = `ScapeBot online after ${getDurationString(downtimeMillis)} of downtime. In **${client.guilds.cache.size}** guild(s), currently`;
         let fullText;
-        if (state.isTrackingAnyPlayers()) {
-            fullText = `${baseText} tracking players **${state.getAllTrackedPlayers().join('**, **')}**`;
+        const allTrackedPlayers: string[] = state.getAllGloballyTrackedPlayers();
+        if (allTrackedPlayers.length > 0) {
+            fullText = `${baseText} tracking players **${allTrackedPlayers.join('**, **')}**`;
         } else {
             fullText = `${baseText} not tracking any players`;
         }
@@ -47,21 +48,24 @@ const deserializeState = async (serializedState: SerializedState): Promise<void>
         state.setDisabled(serializedState.disabled);
     }
 
-    if (serializedState.players) {
-        state.getTrackedPlayers().addAll(serializedState.players);
+    if (serializedState.guilds) {
+        for (const [ guildId, serializedGuildState ] of Object.entries(serializedState.guilds)) {
+            for (const rsn of serializedGuildState.players) {
+                state.addTrackedPlayer(guildId, rsn);
+            }
+            if (serializedGuildState.trackingChannelId) {
+                const trackingChannel = (await client.channels.fetch(serializedGuildState.trackingChannelId) as TextBasedChannel);
+                if (trackingChannel) {
+                    state.setTrackingChannel(guildId, trackingChannel);
+                }
+            }
+        }
     }
 
     if (serializedState.playersOffHiScores) {
-        serializedState.playersOffHiScores.forEach((player) => {
-            state.removePlayerFromHiScores(player);
+        serializedState.playersOffHiScores.forEach((rsn) => {
+            state.removePlayerFromHiScores(rsn);
         });
-    }
-
-    if (serializedState.trackingChannelId) {
-        const trackingChannel = (await client.channels.fetch(serializedState.trackingChannelId) as TextBasedChannel);
-        if (trackingChannel) {
-            state.setTrackingChannel(trackingChannel);
-        }
     }
 
     if (serializedState.levels) {
@@ -78,6 +82,24 @@ const deserializeState = async (serializedState: SerializedState): Promise<void>
 
     if (serializedState.weeklyTotalXpSnapshots) {
         state.setWeeklyTotalXpSnapshots(serializedState.weeklyTotalXpSnapshots);
+    }
+
+    // TODO: If legacy pre-guild data still exists, add it for every guild
+    const allGuilds: Guild[] = client.guilds.cache.toJSON();
+    if (serializedState.trackingChannelId) {
+        const trackingChannel = (await client.channels.fetch(serializedState.trackingChannelId) as TextBasedChannel);
+        if (trackingChannel) {
+            for (const guild of client.guilds.cache.toJSON()) {
+                state.setTrackingChannel(guild.id, trackingChannel);
+            }
+        }
+    }
+    if (serializedState.players) {
+        for (const guild of client.guilds.cache.toJSON()) {
+            for (const rsn of serializedState.players) {
+                state.addTrackedPlayer(guild.id, rsn);
+            }
+        }
     }
 
     // Now that the state has been loaded, mark it as valid
@@ -115,7 +137,7 @@ const weeklyTotalXpUpdate = async () => {
     const oldTotalXpValues: Record<string, number> = state.getWeeklyTotalXpSnapshots();
     // Get new total XP values
     const newTotalXpValues: Record<string, number> = {};
-    for (const rsn of state.getAllTrackedPlayers()) {
+    for (const rsn of state.getAllGloballyTrackedPlayers()) {
         try {
             const player: Player = await hiscores.getStats(rsn);
             const totalXp: number = player[player.mode]?.skills.overall.xp ?? 0;
@@ -128,47 +150,52 @@ const weeklyTotalXpUpdate = async () => {
             continue;
         }
     }
+
     // For each player appearing in both last week's and this week's mapping, determine the change in total XP
     const playersToCompare: string[] = Object.keys(oldTotalXpValues).filter(rsn => rsn in newTotalXpValues);
     const totalXpDiffs: Record<string, number> = {};
     for (const rsn of playersToCompare) {
         totalXpDiffs[rsn] = newTotalXpValues[rsn] - oldTotalXpValues[rsn];
     }
-    // For each player with a non-zero diff, sort descending and get the top 3
+
+    // For each player with a non-zero diff, sort descending
     const sortedPlayers: string[] = playersToCompare
         .filter(rsn => totalXpDiffs[rsn] > 0)
         .sort((x, y) => totalXpDiffs[y] - totalXpDiffs[x]);
-    const winners: string[] = sortedPlayers.slice(0, 3);
 
-    // Send the message to the tracking channel
-    const medalNames = ['gold', 'silver', 'bronze'];
-    await state.getTrackingChannel().send({
-        content: '**Biggest XP earners over the last week:**',
-        embeds: winners.map((rsn, i) => {
-            return {
-                description: `**${rsn}** with **${getQuantityWithUnits(totalXpDiffs[rsn])} XP**`,
-                thumbnail: getThumbnail(medalNames[i])
-            };
-        })
-    });
+    // Compute the winners and send out an update for each guild
+    for (const guildId of state.getAllRelevantGuilds()) {
+        if (state.hasTrackingChannel(guildId)) {
+            // Get the top 3 XP earners for this guild
+            const winners: string[] = sortedPlayers.filter(rsn => state.isTrackingPlayer(guildId, rsn)).slice(0, 3);
+
+            // Send the message to the tracking channel
+            const medalNames = ['gold', 'silver', 'bronze'];
+            await state.getTrackingChannel(guildId).send({
+                content: '**Biggest XP earners over the last week:**',
+                embeds: winners.map((rsn, i) => {
+                    return {
+                        description: `**${rsn}** with **${getQuantityWithUnits(totalXpDiffs[rsn])} XP**`,
+                        thumbnail: getThumbnail(medalNames[i])
+                    };
+                })
+            });
+        }
+    }
 
     // Commit the changes
     state.setWeeklyTotalXpSnapshots(newTotalXpValues);
     await dumpState();
 };
 
-// TODO: Delete this
-let sneakPeekChannel: TextChannel;
-
 client.on('ready', async () => {
     log.push(`Logged in as: ${client.user?.tag}`);
     log.push(`Config=${JSON.stringify(config)}`);
 
     // Determine which guild we're operating in
-    // TODO: how would we handle multiple guilds???
+    // TODO: Set the "owner" via a hidden config in auth.json, for now just use the first one
     await client.guilds.fetch();
     const guild = client.guilds.cache.first();
-    log.push(`Operating in guild: ${guild}`);
 
     // Determine the guild owner and the guild owner's DM channel
     let ownerDmChannel: DMChannel | undefined;
@@ -180,13 +207,6 @@ client.on('ready', async () => {
             log.push(`Determined guild owner: ${owner.displayName}`);
         } else {
             log.push('Could not determine the guild\'s owner!');
-        }
-
-        // TODO: Temp logic to get sneak peek channel
-        try {
-            sneakPeekChannel = await guild.channels.fetch('878721761724747828') as TextChannel;
-        } catch (err) {
-            await ownerDmChannel?.send(`Unable to fetch sneak peek channel: \`${err}\``);
         }
     }
 
@@ -208,22 +228,18 @@ client.on('ready', async () => {
         }
     }
 
-    // Default the tracking channel to the owner's DM if necessary...
-    if (state.hasTrackingChannel()) {
-        const trackingChannel: TextBasedChannel = state.getTrackingChannel();
-        log.push(`Loaded up tracking channel '${trackingChannel}' of type '${trackingChannel.type}' with ID '${trackingChannel.id}'`);
-    } else if (ownerDmChannel) {
-        state.setTrackingChannel(ownerDmChannel);
-        log.push(`Invalid tracking channel ID '${serializedState?.trackingChannelId || 'N/A'}', defaulting to guild owner's DM channel`);
-    } else {
-        log.push('Could determine neither the guild owner\'s DM channel nor the saved tracking channel. Please set it using commands.');
+    // Log how many guilds are missing tracking channels
+    const guildsWithoutTrackingChannels: Guild[] = client.guilds.cache.toJSON()
+        .filter(guild => !state.hasTrackingChannel(guild.id));
+    if (guildsWithoutTrackingChannels.length > 0) {
+        await ownerDmChannel?.send(`This bot is in **${client.guilds.cache.size}** guilds, but a tracking channel is missing for **${guildsWithoutTrackingChannels.length}** of them`);
     }
 
     // Regardless of whether loading the players/channel was successful, start the update loop
     // TODO: Use timeout manager
     setInterval(() => {
         if (!state.isDisabled()) {
-            const nextPlayer = state.getTrackedPlayers().next();
+            const nextPlayer = state.nextTrackedPlayer();
             if (nextPlayer) {
                 updatePlayer(nextPlayer);
                 // TODO: do this somewhere else!
@@ -254,7 +270,7 @@ client.on('messageCreate', (msg) => {
             // Wait up to 1.5 seconds before sending the message to make it feel more organic
             setTimeout(() => {
                 const replyText = `**<@${msg.author.id}>** has gained a level in **botting** and is now level **${state.getBotCounter(msg.author.id)}**`;
-                sendUpdateMessage(msg.channel, replyText, 'overall');
+                sendUpdateMessage([msg.channel], replyText, 'overall');
             }, randInt(0, 1500));
             return;
         }
