@@ -1,18 +1,15 @@
 import { Client, ClientUser, DMChannel, GuildMember, Intents, Options, TextBasedChannel, TextChannel } from 'discord.js';
 import { SerializedState, TimeoutType } from './types';
 import { updatePlayer, sendUpdateMessage, getQuantityWithUnits, getThumbnail, getDurationString, getNextFridayEvening } from './util';
-import { TimeoutManager, FileStorage, PastTimeoutStrategy } from 'evanw555.js';
+import { TimeoutManager, FileStorage, PastTimeoutStrategy, loadJson, randInt } from 'evanw555.js';
 
-import { loadJson } from './load-json';
 const auth = loadJson('config/auth.json');
 const config = loadJson('config/config.json');
 
 import log from './log';
 import state from './state';
 
-// TODO: Migrate to evanw555.js file storage
-import LegacyFileStorage from './file-storage';
-const storage: LegacyFileStorage = new LegacyFileStorage('./data/');
+const storage: FileStorage = new FileStorage('./data/');
 
 import CommandReader from './command-reader';
 import hiscores, { Player } from 'osrs-json-hiscores';
@@ -40,7 +37,7 @@ const timeoutCallbacks = {
         await weeklyTotalXpUpdate();
     }
 };
-const timeoutManager = new TimeoutManager<TimeoutType>(new FileStorage('./data/'), timeoutCallbacks);
+const timeoutManager = new TimeoutManager<TimeoutType>(storage, timeoutCallbacks);
 
 const deserializeState = async (serializedState: SerializedState): Promise<void> => {
     if (serializedState.timestamp) {
@@ -227,7 +224,7 @@ client.on('ready', async () => {
     // TODO: Use timeout manager
     setInterval(() => {
         if (!state.isDisabled()) {
-            const nextPlayer = state.getTrackedPlayers().getNext();
+            const nextPlayer = state.getTrackedPlayers().next();
             if (nextPlayer) {
                 updatePlayer(nextPlayer);
                 // TODO: do this somewhere else!
@@ -259,7 +256,7 @@ client.on('messageCreate', (msg) => {
             setTimeout(() => {
                 const replyText = `**<@${msg.author.id}>** has gained a level in **botting** and is now level **${state.getBotCounter(msg.author.id)}**`;
                 sendUpdateMessage(msg.channel, replyText, 'overall');
-            }, Math.random() * 1500);
+            }, randInt(0, 1500));
             return;
         }
         // Else, process the command as normal

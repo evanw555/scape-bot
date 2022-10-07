@@ -1,6 +1,6 @@
 import { Snowflake, TextBasedChannel } from 'discord.js';
+import { CircularQueue } from 'evanw555.js';
 import { SerializedState } from './types';
-import CircularQueue from './circular-queue';
 import { filterValueFromMap } from './util';
 
 class State {

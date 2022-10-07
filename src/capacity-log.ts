@@ -1,6 +1,6 @@
-import { loadJson } from './load-json';
-const config = loadJson('config/config.json');
+import { loadJson } from "evanw555.js";
 
+const config = loadJson('config/config.json');
 interface LogEntry {
     date: Date;
     value: string;

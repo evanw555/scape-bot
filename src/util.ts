@@ -4,9 +4,9 @@ import state from './state';
 import hiscores, { Player, Skill, SkillName, Activity, Boss, INVALID_FORMAT_ERROR } from 'osrs-json-hiscores';
 import { isValidBoss, sanitizeBossName, toSortedBosses, getBossName } from './boss-utility';
 
-import { loadJson } from './load-json';
 import { Message, TextBasedChannel } from 'discord.js';
-import { AnyObject } from './types';
+
+import { loadJson, randChoice } from 'evanw555.js';
 const constants = loadJson('static/constants.json');
 
 const validSkills: Set<string> = new Set(constants.skills);
@@ -51,12 +51,6 @@ export function camelize(str: string) {
     return str.replace(/(?:^\w|[A-Z]|\b\w)/g, function(word, index) {
         return index === 0 ? word.toLowerCase() : word.toUpperCase();
     }).replace(/\s+/g, '');
-}
-
-// input: 3
-// expected output: 0,1,2
-export function getRandomInt(max: number): number {
-    return Math.floor(Math.random() * Math.floor(max));
 }
 
 export function computeDiff(before: Record<string, number>, after: Record<string, number>): Record<string, number> {
@@ -352,7 +346,7 @@ export function updateKillCounts(player: string, killCounts: Record<string, numb
             'slaughtered',
             'butchered'
         ];
-        const dopeKillVerb = dopeKillVerbs[getRandomInt(dopeKillVerbs.length)];
+        const dopeKillVerb: string = randChoice(...dopeKillVerbs);
         switch (Object.keys(diff).length) {
         case 0:
             break;

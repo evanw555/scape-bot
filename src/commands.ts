@@ -7,9 +7,10 @@ import hiscores, { FORMATTED_BOSS_NAMES, Player, Boss } from 'osrs-json-hiscores
 import { exec } from 'child_process';
 import { toSortedBosses, sanitizeBossName, getBossName, isValidBoss } from './boss-utility';
 
-import { loadJson } from './load-json';
 import { AnyObject, Command } from './types';
 import { Message } from 'discord.js';
+
+import { loadJson, randChoice, randInt } from 'evanw555.js';
 const config = loadJson('config/config.json');
 const constants = loadJson('static/constants.json');
 
@@ -280,11 +281,11 @@ const commands: Record<string, Command> = {
                     .concat(constants.skills)
                     .concat(constants.skills) // Add it again to make it more likely (there are too many bosses)
                     .filter(skill => skill != 'overall');
-                const numUpdates = Math.floor(Math.random() * 5) + 1;
+                const numUpdates: number = randInt(1, 6);
                 const spoofedDiff: Record<string, number> = {};
                 for (let i = 0; i < numUpdates; i++) {
-                    const randomKey = possibleKeys[Math.floor(Math.random() * possibleKeys.length)];
-                    spoofedDiff[randomKey] = Math.floor(Math.random() * 3) + 1;
+                    const randomKey: string = randChoice(...possibleKeys);
+                    spoofedDiff[randomKey] = randInt(1, 4);
                 }
                 updatePlayer(player, spoofedDiff);
             } else {
@@ -321,7 +322,7 @@ const commands: Record<string, Command> = {
                 'I will die',
                 'As you wish'
             ];
-            const phrase = phrases[Math.floor(Math.random() * phrases.length)];
+            const phrase: string = randChoice(...phrases);
             msg.channel.send(`${phrase}... 💀`).then(() => {
                 process.exit(1);
             });
