@@ -1,20 +1,18 @@
-import state from './state';
-import log from './log';
 import { updatePlayer, parsePlayerPayload, sendUpdateMessage, toSortedSkills, patchMissingLevels, patchMissingBosses } from './util';
-
 import hiscores, { FORMATTED_BOSS_NAMES, Player, Boss } from 'osrs-json-hiscores';
-
 import { exec } from 'child_process';
 import { toSortedBosses, sanitizeBossName, getBossName, isValidBoss } from './boss-utility';
-
-import { AnyObject, Command } from './types';
+import { AnyObject, Command, ScapeBotConfig, ScapeBotConstants } from './types';
 import { Message } from 'discord.js';
-
 import { loadJson, randChoice, randInt } from 'evanw555.js';
-const config = loadJson('config/config.json');
-const constants = loadJson('static/constants.json');
 
-const validSkills = new Set(constants.skills);
+import state from './state';
+import log from './log';
+
+const config: ScapeBotConfig = loadJson('config/config.json');
+const constants: ScapeBotConstants = loadJson('static/constants.json');
+
+const validSkills = new Set<string>(constants.skills);
 
 const getHelpText = (hidden?: boolean) => {
     const commandKeys = Object.keys(commands)
@@ -196,7 +194,7 @@ const commands: Record<string, Command> = {
         fn: (msg) => {
             if (state.isTrackingAnyPlayers()) {
                 const sortedPlayers = state.getAllTrackedPlayers();
-                msg.channel.send(`${sortedPlayers.map(player => `**${player}**: last updated **${state._lastUpdate[player] && state._lastUpdate[player].toLocaleTimeString('en-US', {timeZone: config.timeZone})}**`).join('\n')}`);
+                msg.channel.send(`${sortedPlayers.map(player => `**${player}**: last updated **${state._lastUpdate[player] && state._lastUpdate[player].toLocaleTimeString('en-US', { timeZone: config.timeZone })}**`).join('\n')}`);
             } else {
                 msg.channel.send('Currently not tracking any players');
             }

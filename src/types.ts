@@ -1,4 +1,5 @@
 import { Message, Snowflake } from 'discord.js';
+import { SkillName } from 'osrs-json-hiscores';
 
 export enum TimeoutType {
     WeeklyXpUpdate = 'WEEKLY_XP_UPDATE'
@@ -7,6 +8,24 @@ export enum TimeoutType {
 export interface AnyObject {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     [key: string]: string | number | any;
+}
+
+export interface ScapeBotConfig {
+    refreshInterval: number,
+    logCapacity: number,
+    logMaxEntryLength: number,
+    timeZone: string
+}
+
+export interface ScapeBotConstants {
+    skills: SkillName[],
+    miscThumbnails: string[],
+    baseThumbnailUrl: string,
+    level99Path: string,
+    miscThumbnailPath: string,
+    imageFileExtension: string,
+    hiScoresUrlTemplate: string,
+    osrsWikiBaseUrl: string
 }
 
 export interface SerializedState {

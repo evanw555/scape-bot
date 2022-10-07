@@ -1,13 +1,13 @@
+import hiscores, { Player, Skill, SkillName, Activity, Boss, INVALID_FORMAT_ERROR } from 'osrs-json-hiscores';
+import { isValidBoss, sanitizeBossName, toSortedBosses, getBossName } from './boss-utility';
+import { Message, TextBasedChannel } from 'discord.js';
+import { loadJson, randChoice } from 'evanw555.js';
+import { ScapeBotConstants } from './types';
+
 import log from './log';
 import state from './state';
 
-import hiscores, { Player, Skill, SkillName, Activity, Boss, INVALID_FORMAT_ERROR } from 'osrs-json-hiscores';
-import { isValidBoss, sanitizeBossName, toSortedBosses, getBossName } from './boss-utility';
-
-import { Message, TextBasedChannel } from 'discord.js';
-
-import { loadJson, randChoice } from 'evanw555.js';
-const constants = loadJson('static/constants.json');
+const constants: ScapeBotConstants = loadJson('static/constants.json');
 
 const validSkills: Set<string> = new Set(constants.skills);
 const validMiscThumbnails: Set<string> = new Set(constants.miscThumbnails);
@@ -221,7 +221,7 @@ export function patchMissingBosses(player: string, bosses: Record<string, number
 
 export function toSortedSkills(skills: string[]): string[] {
     const skillSubset = new Set(skills);
-    return constants.skills.filter((skill: string) => skillSubset.has(skill));
+    return constants.skills.filter((skill: SkillName) => skillSubset.has(skill));
 }
 
 export async function updateLevels(player: string, newLevels: Record<string, number>, spoofedDiff?: Record<string, number>): Promise<void> {

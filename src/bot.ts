@@ -1,18 +1,17 @@
 import { Client, ClientUser, DMChannel, GuildMember, Intents, Options, TextBasedChannel, TextChannel } from 'discord.js';
-import { SerializedState, TimeoutType } from './types';
+import { ScapeBotConfig, SerializedState, TimeoutType } from './types';
 import { updatePlayer, sendUpdateMessage, getQuantityWithUnits, getThumbnail, getDurationString, getNextFridayEvening } from './util';
+import hiscores, { Player } from 'osrs-json-hiscores';
 import { TimeoutManager, FileStorage, PastTimeoutStrategy, loadJson, randInt } from 'evanw555.js';
+import CommandReader from './command-reader';
 
 const auth = loadJson('config/auth.json');
-const config = loadJson('config/config.json');
+const config: ScapeBotConfig = loadJson('config/config.json');
 
 import log from './log';
 import state from './state';
 
 const storage: FileStorage = new FileStorage('./data/');
-
-import CommandReader from './command-reader';
-import hiscores, { Player } from 'osrs-json-hiscores';
 const commandReader: CommandReader = new CommandReader();
 
 export function sendRestartMessage(channel: TextBasedChannel, downtimeMillis: number): void {
