@@ -237,7 +237,7 @@ client.on('ready', async () => {
     if (pgClient) {
         try {
             const res = await pgClient.query('SELECT * FROM guilds;');
-            await adminDmChannel?.send(res.rows.map(r => `\`${r.join(', ')}\``).join('\n'));
+            await adminDmChannel?.send(res.rows.map(row => `\`${JSON.stringify(row)}\``).join('\n'));
         } catch (err) {
             await adminDmChannel?.send(`PG client failed to get guild rows: \`${err}\``);
         }
