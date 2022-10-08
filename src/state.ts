@@ -3,6 +3,8 @@ import { CircularQueue } from 'evanw555.js';
 import { SerializedGuildState, SerializedState } from './types';
 import { filterValueFromMap } from './util';
 
+import log from './log';
+
 class State {
     private _isValid: boolean;
     private _timestamp?: Date;
@@ -20,8 +22,6 @@ class State {
     private readonly _playersByGuild: Record<Snowflake, Set<Snowflake>>;
 
     private readonly _trackingChannelsByGuild: Record<Snowflake, TextBasedChannel>;
-
-    // _trackingChannel?: TextBasedChannel;
 
     constructor() {
         this._isValid = false;
@@ -74,12 +74,14 @@ class State {
         // If this guild doesn't have a player set yet, initialize it
         if (!this._playersByGuild[guildId]) {
             this._playersByGuild[guildId] = new Set();
+            log.push(`Created new player set for guild ${guildId}`);
         }
         // Add this player to the guild's player set
         this._playersByGuild[guildId].add(rsn);
         // If this player doesn't have a guild set yet, initialize it
         if (!this._guildsByPlayer[rsn]) {
             this._guildsByPlayer[rsn] = new Set();
+            log.push(`Created new guild set for player ${rsn}`);
         }
         // Add this guild to the player's guild set
         this._guildsByPlayer[rsn].add(guildId);
@@ -94,6 +96,7 @@ class State {
         // If this guild no longer is tracking any players, delete its player set
         if (!this.isTrackingAnyPlayers(guildId)) {
             delete this._playersByGuild[guildId];
+            log.push(`Deleted player set for guild ${guildId}`);
         }
         // Attempt to delete the guild from the player's guild set
         this._guildsByPlayer[rsn]?.delete(guildId);
@@ -107,6 +110,7 @@ class State {
             delete this._levels[rsn];
             delete this._bosses[rsn];
             delete this._lastUpdate[rsn];
+            log.push(`Removed player ${rsn} from the master queue`);
         }
     }
 
@@ -121,10 +125,6 @@ class State {
     getAllGloballyTrackedPlayers(): string[] {
         return this._masterPlayerQueue.toSortedArray();
     }
-
-    // getTrackedPlayers(): CircularQueue<string> {
-    //     return this._players;
-    // }
 
     clearAllTrackedPlayers(guildId: Snowflake): void {
         for (const rsn of this.getAllTrackedPlayers(guildId)) {

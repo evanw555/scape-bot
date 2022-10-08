@@ -14,18 +14,12 @@ import state from './state';
 const storage: FileStorage = new FileStorage('./data/');
 const commandReader: CommandReader = new CommandReader();
 
-export function sendRestartMessage(channel: TextBasedChannel, downtimeMillis: number): void {
+export async function sendRestartMessage(channel: TextBasedChannel, downtimeMillis: number): Promise<void> {
     if (channel) {
         // Send greeting message to some channel
-        const baseText = `ScapeBot online after ${getDurationString(downtimeMillis)} of downtime. In **${client.guilds.cache.size}** guild(s), currently`;
-        let fullText;
-        const allTrackedPlayers: string[] = state.getAllGloballyTrackedPlayers();
-        if (allTrackedPlayers.length > 0) {
-            fullText = `${baseText} tracking players **${allTrackedPlayers.join('**, **')}**`;
-        } else {
-            fullText = `${baseText} not tracking any players`;
-        }
-        channel.send(fullText + '\n**Timeouts Scheduled:**\n' + timeoutManager.toStrings().join('\n') || '_none._');
+        const text = `ScapeBot online after ${getDurationString(downtimeMillis)} of downtime. In **${client.guilds.cache.size}** guild(s)`;
+        await channel.send(text + timeoutManager.toStrings().join('\n') || '_none._');
+        await channel.send(client.guilds.cache.toJSON().map((guild, i) => `**${i + 1}.** _${guild.name}_ with **${state.getAllTrackedPlayers(guild.id).length}** in <#${state.getTrackingChannel(guild.id)}>`).join('\n'));
     } else {
         log.push('Attempted to send a bot restart message, but the specified channel is undefined!');
     }

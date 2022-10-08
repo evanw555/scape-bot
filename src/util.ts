@@ -1,6 +1,6 @@
 import hiscores, { Player, Skill, SkillName, Activity, Boss, INVALID_FORMAT_ERROR } from 'osrs-json-hiscores';
 import { isValidBoss, sanitizeBossName, toSortedBosses, getBossName } from './boss-utility';
-import { Message, TextBasedChannel } from 'discord.js';
+import { TextBasedChannel } from 'discord.js';
 import { addReactsSync, loadJson, randChoice } from 'evanw555.js';
 import { ScapeBotConstants } from './types';
 
