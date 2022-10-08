@@ -48,8 +48,8 @@ export interface SerializedState {
     levels: Record<string, Record<string, number>>,
     bosses: Record<string, Record<string, number>>,
     botCounters: Record<Snowflake, number>,
-    weeklyTotalXpSnapshots: Record<string, number>
     // TODO: Remove these
+    weeklyTotalXpSnapshots?: Record<string, number>
     players?: string[],
     trackingChannelId?: string
 }

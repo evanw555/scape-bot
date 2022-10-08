@@ -11,6 +11,7 @@ const config: ScapeBotConfig = loadJson('config/config.json');
 
 import log from './log';
 import state from './state';
+import { fetchWeeklyXpSnapshots, writeWeeklyXpSnapshots } from './pg-storage';
 
 const storage: FileStorage = new FileStorage('./data/');
 const commandReader: CommandReader = new CommandReader();
@@ -130,7 +131,23 @@ const weeklyTotalXpUpdate = async () => {
         return;
     }
     // Get old total XP values
-    const oldTotalXpValues: Record<string, number> = state.getWeeklyTotalXpSnapshots();
+    // TODO: Falling back to the legacy state data in the transition, remove this
+    let oldTotalXpValues: Record<string, number> | undefined;
+    try {
+        oldTotalXpValues = await fetchWeeklyXpSnapshots(pgClient as PGClient);
+    } catch (err) {
+        log.push(`Unable to fetch weekly XP snapshots from PG: ${err}`);
+    }
+    // TODO Remove this
+    if (!oldTotalXpValues || Object.keys(oldTotalXpValues).length === 0) {
+        log.push('Falling back to legacy XP snapshot state data');
+        oldTotalXpValues = state.getWeeklyTotalXpSnapshots();
+    }
+    if (!oldTotalXpValues) {
+        log.push('Still cannot fetch weekly XP snapshots, aborting...');
+        return;
+    }
+
     // Get new total XP values
     const newTotalXpValues: Record<string, number> = {};
     for (const rsn of state.getAllGloballyTrackedPlayers()) {
@@ -180,7 +197,9 @@ const weeklyTotalXpUpdate = async () => {
     }
 
     // Commit the changes
-    state.setWeeklyTotalXpSnapshots(newTotalXpValues);
+    await writeWeeklyXpSnapshots(pgClient as PGClient, newTotalXpValues);
+    // TODO: Remove this
+    state.setWeeklyTotalXpSnapshots(undefined);
     await dumpState();
 };
 
@@ -222,25 +241,6 @@ client.on('ready', async () => {
     } catch (err) {
         pgClient = undefined;
         await adminDmChannel?.send(`PG client failed to connect: \`${err}\``);
-    }
-
-    // TODO: Temp logic to test out the pg stuff
-    for (const guild of client.guilds.cache.toJSON()) {
-        if (pgClient) {
-            try {
-                const res = await pgClient.query(`INSERT INTO guilds VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET name = $2;`, [guild.id, guild.name]);
-            } catch (err) {
-                await adminDmChannel?.send(`PG client failed to insert guild row: \`${err}\``);
-            }
-        }
-    }
-    if (pgClient) {
-        try {
-            const res = await pgClient.query('SELECT * FROM guilds;');
-            await adminDmChannel?.send(res.rows.map(row => `\`${JSON.stringify(row)}\``).join('\n'));
-        } catch (err) {
-            await adminDmChannel?.send(`PG client failed to get guild rows: \`${err}\``);
-        }
     }
 
     // Deserialize it and load it into the state object

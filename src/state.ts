@@ -13,7 +13,7 @@ class State {
     private readonly _levels: Record<string, Record<string, number>>;
     private readonly _bosses: Record<string, Record<string, number>>;
     private readonly _botCounters: Record<Snowflake, number>;
-    private _weeklyTotalXpSnapshots: Record<string, number>;
+    private _weeklyTotalXpSnapshots?: Record<string, number>;
     private readonly _lastUpdate: Record<string, Date>;
     private _adminId?: Snowflake;
 
@@ -251,11 +251,11 @@ class State {
         this._botCounters[botId] = (this._botCounters[botId] ?? 0) + delta;
     }
 
-    getWeeklyTotalXpSnapshots(): Record<string, number> {
+    getWeeklyTotalXpSnapshots(): Record<string, number> | undefined {
         return this._weeklyTotalXpSnapshots;
     }
 
-    setWeeklyTotalXpSnapshots(snapshots: Record<string, number>): void {
+    setWeeklyTotalXpSnapshots(snapshots: Record<string, number> | undefined): void {
         this._weeklyTotalXpSnapshots = snapshots;
     }
 
