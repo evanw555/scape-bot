@@ -243,12 +243,6 @@ client.on('ready', async () => {
         await adminDmChannel?.send(`PG client failed to connect: \`${err}\``);
     }
 
-    // TODO: test logic to test pg-format
-    if (pgClient) {
-        await writeWeeklyXpSnapshots(pgClient, {"test1": 123, "test2": 456, "test3": 789});
-        await adminDmChannel?.send('```' + JSON.stringify(await fetchWeeklyXpSnapshots(pgClient)) + '```');
-    }
-
     // Deserialize it and load it into the state object
     let downtimeMillis = 0;
     if (serializedState) {

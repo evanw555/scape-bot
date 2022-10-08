@@ -87,6 +87,11 @@ export function computeDiff(before: Record<string, number>, after: Record<string
         if (before[kind] !== after[kind]) {
             // TODO: the default isn't necessarily 0, it could be 1 for skills (but does that really matter?)
             const thisDiff = (after[kind] ?? 0) - (before[kind] ?? 0);
+            // Fail silently if the negative diff is because the user has fallen off the hi scores
+            if (thisDiff < 0 && after[kind] === 1) {
+                throw new Error('');
+            }
+            // For bizarre cases, fail loudly
             if (typeof thisDiff !== 'number' || isNaN(thisDiff) || thisDiff < 0) {
                 throw new Error(`Invalid ${kind} diff, '${after[kind]}' minus '${before[kind]}' is '${thisDiff}'`);
             }
@@ -259,8 +264,8 @@ export async function updateLevels(rsn: string, newLevels: Record<string, number
                 diff = computeDiff(state.getLevels(rsn), newLevels);
             }
         } catch (err) {
-            if (err instanceof Error) {
-                log.push(`Failed to compute level diff for player ${rsn}: ${err.toString()}`);
+            if (err instanceof Error && err.message) {
+                log.push(`Failed to compute level diff for player ${rsn}: ${err.message}`);
             }
             return;
         }
@@ -336,8 +341,8 @@ export function updateKillCounts(rsn: string, killCounts: Record<string, number>
                 diff = computeDiff(state.getBosses(rsn), killCounts);
             }
         } catch (err) {
-            if (err instanceof Error) {
-                log.push(`Failed to compute boss KC diff for player ${rsn}: ${err.toString()}`);
+            if (err instanceof Error && err.message) {
+                log.push(`Failed to compute boss KC diff for player ${rsn}: ${err.message}`);
             }
             return;
         }
