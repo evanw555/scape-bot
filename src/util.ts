@@ -291,11 +291,11 @@ export async function updateLevels(rsn: string, newLevels: Record<string, number
         case 1: {
             const skill = Object.keys(diff)[0];
             const levelsGained = diff[skill];
-            await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn),
-                `**${rsn}** has gained `
-                        + (levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`)
-                        + ` in **${skill}** and is now level **${newLevels[skill]}**`,
-                skill);
+            const text = `**${rsn}** has gained `
+                + (levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`)
+                + ` in **${skill}** and is now level **${newLevels[skill]}**`;
+            log.push(text);
+            await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, skill);
             break;
         }
         default: {
@@ -303,6 +303,7 @@ export async function updateLevels(rsn: string, newLevels: Record<string, number
                 const levelsGained = diff[skill];
                 return `${levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`} in **${skill}** and is now level **${newLevels[skill]}**`;
             }).join('\n');
+            log.push(text);
             await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), `**${rsn}** has gained...\n${text}`, 'overall');
             break;
         }
@@ -365,6 +366,7 @@ export function updateKillCounts(rsn: string, killCounts: Record<string, number>
                 : `**${rsn}** ${dopeKillVerb} **${bossName}** `
                         + (killCountIncrease === 1 ? 'again' : `**${killCountIncrease}** more times`)
                         + ` and is now at **${killCounts[bossID]}** kills`;
+            log.push(text);
             sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, bossName, { color: 10363483 });
             break;
         }
@@ -377,6 +379,7 @@ export function updateKillCounts(rsn: string, killCounts: Record<string, number>
                     ? `**${bossName}** for the first time!`
                     : `**${bossName}** ${killCountIncrease === 1 ? 'again' : `**${killCountIncrease}** more times`} and is now at **${killCounts[bossID]}**`;
             }).join('\n');
+            log.push(text);
             sendUpdateMessage(
                 state.getTrackingChannelsForPlayer(rsn),
                 `**${rsn}** has killed...\n${text}`,
