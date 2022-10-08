@@ -17,12 +17,14 @@
         "discord.js": "13.6.0",
         "evanw555.js": "evanw555/evanw555.js",
         "osrs-json-hiscores": "^2.10.0",
-        "pg": "8.8.0"
+        "pg": "8.8.0",
+        "pg-format": "1.0.4"
     },
     "devDependencies": {
         "@typescript-eslint/eslint-plugin": "^5.16.0",
         "@typescript-eslint/parser": "^5.16.0",
         "@types/pg": "8.6.5",
+        "@types/pg-format": "1.0.2",
         "eslint": "^8.12.0",
         "typescript": "^4.6.3"
     }
