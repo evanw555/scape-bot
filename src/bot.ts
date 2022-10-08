@@ -19,9 +19,9 @@ let pgClient: PGClient | undefined;
 export async function sendRestartMessage(channel: TextBasedChannel, downtimeMillis: number): Promise<void> {
     if (channel) {
         // Send greeting message to some channel
-        const text = `ScapeBot online after ${getDurationString(downtimeMillis)} of downtime. In **${client.guilds.cache.size}** guild(s)`;
+        const text = `ScapeBot online after ${getDurationString(downtimeMillis)} of downtime. In **${client.guilds.cache.size}** guild(s).\n`;
         await channel.send(text + timeoutManager.toStrings().join('\n') || '_none._');
-        await channel.send(client.guilds.cache.toJSON().map((guild, i) => `**${i + 1}.** _${guild.name}_ with **${state.getAllTrackedPlayers(guild.id).length}** in <#${state.getTrackingChannel(guild.id)}>`).join('\n'));
+        await channel.send(client.guilds.cache.toJSON().map((guild, i) => `**${i + 1}.** _${guild.name}_ with **${state.getAllTrackedPlayers(guild.id).length}** in ${state.getTrackingChannel(guild.id)}`).join('\n'));
     } else {
         log.push('Attempted to send a bot restart message, but the specified channel is undefined!');
     }
@@ -228,7 +228,7 @@ client.on('ready', async () => {
     for (const guild of client.guilds.cache.toJSON()) {
         if (pgClient) {
             try {
-                const res = await pgClient.query(`INSERT INTO guilds VALUES ($1, $2) ON CONFLICT DO UPDATE SET name = $2;`, [guild.id, guild.name]);
+                const res = await pgClient.query(`INSERT INTO guilds VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET name = $2;`, [guild.id, guild.name]);
             } catch (err) {
                 await adminDmChannel?.send(`PG client failed to insert guild row: \`${err}\``);
             }
