@@ -15,6 +15,7 @@ import { fetchWeeklyXpSnapshots, writeWeeklyXpSnapshots } from './pg-storage';
 
 const storage: FileStorage = new FileStorage('./data/');
 const commandReader: CommandReader = new CommandReader();
+let adminDmChannel: TextBasedChannel | undefined;
 let pgClient: PGClient | undefined;
 
 export async function sendRestartMessage(channel: TextBasedChannel, downtimeMillis: number): Promise<void> {
@@ -77,10 +78,6 @@ const deserializeState = async (serializedState: SerializedState): Promise<void>
         state.setBotCounters(serializedState.botCounters);
     }
 
-    if (serializedState.weeklyTotalXpSnapshots) {
-        state.setWeeklyTotalXpSnapshots(serializedState.weeklyTotalXpSnapshots);
-    }
-
     // Now that the state has been loaded, mark it as valid
     state.setValid(true);
 };
@@ -113,20 +110,11 @@ const weeklyTotalXpUpdate = async () => {
         return;
     }
     // Get old total XP values
-    // TODO: Falling back to the legacy state data in the transition, remove this
     let oldTotalXpValues: Record<string, number> | undefined;
     try {
         oldTotalXpValues = await fetchWeeklyXpSnapshots(pgClient as PGClient);
     } catch (err) {
-        log.push(`Unable to fetch weekly XP snapshots from PG: ${err}`);
-    }
-    // TODO Remove this
-    if (!oldTotalXpValues || Object.keys(oldTotalXpValues).length === 0) {
-        log.push('Falling back to legacy XP snapshot state data');
-        oldTotalXpValues = state.getWeeklyTotalXpSnapshots();
-    }
-    if (!oldTotalXpValues) {
-        log.push('Still cannot fetch weekly XP snapshots, aborting...');
+        await adminDmChannel?.send(`Unable to fetch weekly XP snapshots from PG: \`${err}\``);
         return;
     }
 
@@ -179,10 +167,11 @@ const weeklyTotalXpUpdate = async () => {
     }
 
     // Commit the changes
-    await writeWeeklyXpSnapshots(pgClient as PGClient, newTotalXpValues);
-    // TODO: Remove this
-    state.setWeeklyTotalXpSnapshots(undefined);
-    await dumpState();
+    try {
+        await writeWeeklyXpSnapshots(pgClient as PGClient, newTotalXpValues);
+    } catch (err) {
+        await adminDmChannel?.send(`Unable to write weekly XP snapshots to PG: \`${err}\``);
+    }
 };
 
 client.on('ready', async () => {
@@ -193,7 +182,6 @@ client.on('ready', async () => {
     await client.guilds.fetch();
 
     // Determine the admin user and the admin user's DM channel
-    let adminDmChannel: DMChannel | undefined;
     if (auth.adminUserId) {
         const admin: User = await client.users.fetch(auth.adminUserId);
         if (admin) {

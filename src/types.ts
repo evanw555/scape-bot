@@ -47,9 +47,7 @@ export interface SerializedState {
     playersOffHiScores: string[],
     levels: Record<string, Record<string, number>>,
     bosses: Record<string, Record<string, number>>,
-    botCounters: Record<Snowflake, number>,
-    // TODO: Remove these
-    weeklyTotalXpSnapshots?: Record<string, number>
+    botCounters: Record<Snowflake, number>
 }
 
 export interface Command {
