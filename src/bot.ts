@@ -1,11 +1,11 @@
-import { Client, ClientUser, DMChannel, Guild, GuildMember, Intents, Options, TextBasedChannel, TextChannel } from 'discord.js';
-import { ScapeBotConfig, SerializedState, TimeoutType } from './types';
+import { Client, ClientUser, DMChannel, Guild, GuildMember, Intents, Options, TextBasedChannel, TextChannel, User } from 'discord.js';
+import { ScapeBotAuth, ScapeBotConfig, SerializedState, TimeoutType } from './types';
 import { updatePlayer, sendUpdateMessage, getQuantityWithUnits, getThumbnail, getDurationString, getNextFridayEvening } from './util';
 import hiscores, { Player } from 'osrs-json-hiscores';
 import { TimeoutManager, FileStorage, PastTimeoutStrategy, loadJson, randInt } from 'evanw555.js';
 import CommandReader from './command-reader';
 
-const auth = loadJson('config/auth.json');
+const auth: ScapeBotAuth = loadJson('config/auth.json');
 const config: ScapeBotConfig = loadJson('config/config.json');
 
 import log from './log';
@@ -192,22 +192,22 @@ client.on('ready', async () => {
     log.push(`Logged in as: ${client.user?.tag}`);
     log.push(`Config=${JSON.stringify(config)}`);
 
-    // Determine which guild we're operating in
-    // TODO: Set the "owner" via a hidden config in auth.json, for now just use the first one
+    // Fetch guilds to load them into the cache
     await client.guilds.fetch();
-    const guild = client.guilds.cache.first();
 
-    // Determine the guild owner and the guild owner's DM channel
-    let ownerDmChannel: DMChannel | undefined;
-    if (guild) {
-        const owner: GuildMember = await guild.fetchOwner();
-        if (owner) {
-            state.addOwnerId(owner.id);
-            ownerDmChannel = await owner.createDM();
-            log.push(`Determined guild owner: ${owner.displayName}`);
+    // Determine the admin user and the admin user's DM channel
+    let adminDmChannel: DMChannel | undefined;
+    if (auth.adminUserId) {
+        const admin: User = await client.users.fetch(auth.adminUserId);
+        if (admin) {
+            state.setAdminId(admin.id);
+            adminDmChannel = await admin.createDM();
+            log.push(`Determined admin user: ${admin.username}`);
         } else {
-            log.push('Could not determine the guild\'s owner!');
+            log.push('Could not fetch the admin user!');
         }
+    } else {
+        log.push('No admin user ID was specified in auth.json!');
     }
 
     // Read the serialized state from disk
@@ -232,7 +232,7 @@ client.on('ready', async () => {
     const guildsWithoutTrackingChannels: Guild[] = client.guilds.cache.toJSON()
         .filter(guild => !state.hasTrackingChannel(guild.id));
     if (guildsWithoutTrackingChannels.length > 0) {
-        await ownerDmChannel?.send(`This bot is in **${client.guilds.cache.size}** guilds, but a tracking channel is missing for **${guildsWithoutTrackingChannels.length}** of them`);
+        await adminDmChannel?.send(`This bot is in **${client.guilds.cache.size}** guilds, but a tracking channel is missing for **${guildsWithoutTrackingChannels.length}** of them`);
     }
 
     // Regardless of whether loading the players/channel was successful, start the update loop
@@ -255,9 +255,9 @@ client.on('ready', async () => {
         await timeoutManager.registerTimeout(TimeoutType.WeeklyXpUpdate, getNextFridayEvening(), { pastStrategy: PastTimeoutStrategy.Invoke });
     }
 
-    if (ownerDmChannel) {
-        // Notify the guild owner that the bot has restarted
-        sendRestartMessage(ownerDmChannel, downtimeMillis);
+    if (adminDmChannel) {
+        // Notify the admin that the bot has restarted
+        sendRestartMessage(adminDmChannel, downtimeMillis);
     }
 });
 

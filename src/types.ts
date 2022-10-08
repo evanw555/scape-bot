@@ -10,6 +10,11 @@ export interface AnyObject {
     [key: string]: string | number | any;
 }
 
+export interface ScapeBotAuth {
+    token: string,
+    adminUserId: Snowflake
+}
+
 export interface ScapeBotConfig {
     refreshInterval: number,
     logCapacity: number,

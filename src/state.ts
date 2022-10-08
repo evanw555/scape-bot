@@ -12,8 +12,8 @@ class State {
     private readonly _bosses: Record<string, Record<string, number>>;
     private readonly _botCounters: Record<Snowflake, number>;
     private _weeklyTotalXpSnapshots: Record<string, number>;
-    readonly _lastUpdate: Record<string, Date>;
-    readonly _ownerIds: Set<string>;
+    private readonly _lastUpdate: Record<string, Date>;
+    private _adminId?: Snowflake;
 
     private readonly _masterPlayerQueue: CircularQueue<string>;
     private readonly _guildsByPlayer: Record<Snowflake, Set<Snowflake>>;
@@ -31,7 +31,6 @@ class State {
         this._botCounters = {};
         this._weeklyTotalXpSnapshots = {};
         this._lastUpdate = {};
-        this._ownerIds = new Set<string>();
 
         this._masterPlayerQueue = new CircularQueue<string>();
         this._guildsByPlayer = {};
@@ -185,12 +184,20 @@ class State {
             .map(guildId => this.getTrackingChannel(guildId));
     }
 
-    addOwnerId(ownerId: string): void {
-        this._ownerIds.add(ownerId);
+    getLastUpdated(rsn: string): Date | undefined {
+        return this._lastUpdate[rsn];
     }
 
-    isOwner(ownerId: string): boolean {
-        return this._ownerIds.has(ownerId);
+    setLastUpdated(rsn: string, date: Date): void {
+        this._lastUpdate[rsn] = date;
+    }
+
+    setAdminId(adminId: string): void {
+        this._adminId = adminId;
+    }
+
+    isAdmin(adminId: string): boolean {
+        return this._adminId !== undefined && this._adminId === adminId;
     }
 
     setAllLevels(levels: Record<string, Record<string, number>>): void {

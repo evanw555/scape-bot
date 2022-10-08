@@ -311,7 +311,7 @@ export async function updateLevels(rsn: string, newLevels: Record<string, number
     // If not spoofing the diff, update player's levels
     if (!spoofedDiff) {
         state.setLevels(rsn, newLevels);
-        state._lastUpdate[rsn] = new Date();
+        state.setLastUpdated(rsn, new Date());
     }
 }
 
@@ -390,7 +390,7 @@ export function updateKillCounts(rsn: string, killCounts: Record<string, number>
     // If not spoofing the diff, update player's kill counts
     if (!spoofedDiff) {
         state.setBosses(rsn, killCounts);
-        state._lastUpdate[rsn] = new Date();
+        state.setLastUpdated(rsn, new Date());
     }
 }
 

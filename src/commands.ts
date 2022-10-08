@@ -42,17 +42,17 @@ const commands: Record<string, Command> = {
                 return;
             }
 
-            const player = rawArgs && rawArgs.toLowerCase();
-            if (!player || !player.trim()) {
+            const rsn = rawArgs && rawArgs.toLowerCase();
+            if (!rsn || !rsn.trim()) {
                 msg.channel.send('Invalid username');
                 return;
             }
-            if (state.isTrackingPlayer(guildId, player)) {
+            if (state.isTrackingPlayer(guildId, rsn)) {
                 msg.channel.send('That player is already being tracked');
             } else {
-                state.addTrackedPlayer(guildId, player);
-                updatePlayer(player);
-                msg.channel.send(`Now tracking player **${player}**`);
+                state.addTrackedPlayer(guildId, rsn);
+                updatePlayer(rsn);
+                msg.channel.send(`Now tracking player **${rsn}**`);
             }
         },
         text: 'Tracks a player and gives updates when they level up',
@@ -66,14 +66,14 @@ const commands: Record<string, Command> = {
                 return;
             }
 
-            const player = rawArgs && rawArgs.toLowerCase();
-            if (!player || !player.trim()) {
+            const rsn = rawArgs && rawArgs.toLowerCase();
+            if (!rsn || !rsn.trim()) {
                 msg.channel.send('Invalid username');
                 return;
             }
-            if (state.isTrackingPlayer(guildId, player)) {
-                state.removeTrackedPlayer(guildId, player);
-                msg.channel.send(`No longer tracking player **${player}**`);
+            if (state.isTrackingPlayer(guildId, rsn)) {
+                state.removeTrackedPlayer(guildId, rsn);
+                msg.channel.send(`No longer tracking player **${rsn}**`);
             } else {
                 msg.channel.send('That player is not currently being tracked');
             }
@@ -113,26 +113,26 @@ const commands: Record<string, Command> = {
     },
     check: {
         fn: (msg, rawArgs) => {
-            const player = rawArgs && rawArgs.toLowerCase();
-            if (!player || !player.trim()) {
+            const rsn = rawArgs && rawArgs.toLowerCase();
+            if (!rsn || !rsn.trim()) {
                 msg.channel.send('Invalid username');
                 return;
             }
             // Retrieve the player's hiscores data
-            hiscores.getStats(player).then((value: Player) => {
+            hiscores.getStats(rsn).then((value: Player) => {
                 // Parse the player's hiscores data
                 let playerData: Record<string, Record<string, number>>;
                 try {
                     playerData = parsePlayerPayload(value);
                 } catch (err) {
                     if (err instanceof Error) {
-                        log.push(`Failed to parse hiscores payload for player ${player}: ${err.toString()}`);
+                        log.push(`Failed to parse hiscores payload for player ${rsn}: ${err.toString()}`);
                     }
                     return;
                 }
                 let messageText = '';
                 // Create skills message text
-                const currentLevels: Record<string, number> = patchMissingLevels(player, playerData.skills);
+                const currentLevels: Record<string, number> = patchMissingLevels(rsn, playerData.skills);
                 const skills = toSortedSkills(Object.keys(currentLevels));
                 const baseLevel = Math.min(...Object.values(currentLevels).filter((x) => !isNaN(x)));
                 const totalLevel = Object.values(currentLevels).filter((x) => !isNaN(x)).reduce((x: number, y: number) => { return x + y; });
@@ -146,12 +146,12 @@ const commands: Record<string, Command> = {
                 }
                 messageText += `${kcBosses.map(boss => `**${killCounts[boss]}** ${getBossName(boss as Boss)}`).join('\n')}`;
                 sendUpdateMessage([msg.channel], messageText, 'overall', {
-                    title: player,
-                    url: `${constants.hiScoresUrlTemplate}${encodeURI(player)}`
+                    title: rsn,
+                    url: `${constants.hiScoresUrlTemplate}${encodeURI(rsn)}`
                 });
             }).catch((err) => {
-                log.push(`Error while fetching hiscores (check) for player ${player}: ${err.toString()}`);
-                msg.channel.send(`Couldn't fetch hiscores for player **${player}** :pensive:\n\`${err.toString()}\``);
+                log.push(`Error while fetching hiscores (check) for player ${rsn}: ${err.toString()}`);
+                msg.channel.send(`Couldn't fetch hiscores for player **${rsn}** :pensive:\n\`${err.toString()}\``);
             });
         },
         text: 'Show the current levels for some player',
@@ -230,7 +230,7 @@ const commands: Record<string, Command> = {
 
             if (state.isTrackingAnyPlayers(guildId)) {
                 const sortedPlayers = state.getAllTrackedPlayers(guildId);
-                msg.channel.send(`${sortedPlayers.map(player => `**${player}**: last updated **${state._lastUpdate[player] && state._lastUpdate[player].toLocaleTimeString('en-US', { timeZone: config.timeZone })}**`).join('\n')}`);
+                msg.channel.send(`${sortedPlayers.map(rsn => `**${rsn}**: last updated **${state.getLastUpdated(rsn)?.toLocaleTimeString('en-US', { timeZone: config.timeZone })}**`).join('\n')}`);
             } else {
                 msg.channel.send('Currently not tracking any players');
             }
