@@ -50,8 +50,6 @@ export interface SerializedState {
     botCounters: Record<Snowflake, number>,
     // TODO: Remove these
     weeklyTotalXpSnapshots?: Record<string, number>
-    players?: string[],
-    trackingChannelId?: string
 }
 
 export interface Command {

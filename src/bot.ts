@@ -81,24 +81,6 @@ const deserializeState = async (serializedState: SerializedState): Promise<void>
         state.setWeeklyTotalXpSnapshots(serializedState.weeklyTotalXpSnapshots);
     }
 
-    // TODO: If legacy pre-guild data still exists, add it for every guild
-    const allGuilds: Guild[] = client.guilds.cache.toJSON();
-    if (serializedState.trackingChannelId) {
-        const trackingChannel = (await client.channels.fetch(serializedState.trackingChannelId) as TextBasedChannel);
-        if (trackingChannel) {
-            for (const guild of client.guilds.cache.toJSON()) {
-                state.setTrackingChannel(guild.id, trackingChannel);
-            }
-        }
-    }
-    if (serializedState.players) {
-        for (const guild of client.guilds.cache.toJSON()) {
-            for (const rsn of serializedState.players) {
-                state.addTrackedPlayer(guild.id, rsn);
-            }
-        }
-    }
-
     // Now that the state has been loaded, mark it as valid
     state.setValid(true);
 };
