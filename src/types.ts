@@ -1,5 +1,6 @@
 import { Message, Snowflake } from 'discord.js';
 import { SkillName } from 'osrs-json-hiscores';
+import { ClientConfig } from 'pg';
 
 export enum TimeoutType {
     WeeklyXpUpdate = 'WEEKLY_XP_UPDATE'
@@ -12,7 +13,8 @@ export interface AnyObject {
 
 export interface ScapeBotAuth {
     token: string,
-    adminUserId: Snowflake
+    adminUserId: Snowflake,
+    pg: ClientConfig
 }
 
 export interface ScapeBotConfig {

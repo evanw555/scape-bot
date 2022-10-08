@@ -1,9 +1,10 @@
-import { Client, ClientUser, DMChannel, Guild, GuildMember, Intents, Options, TextBasedChannel, TextChannel, User } from 'discord.js';
+import { Client, ClientUser, DMChannel, Guild, Intents, Options, TextBasedChannel, User } from 'discord.js';
 import { ScapeBotAuth, ScapeBotConfig, SerializedState, TimeoutType } from './types';
 import { updatePlayer, sendUpdateMessage, getQuantityWithUnits, getThumbnail, getDurationString, getNextFridayEvening } from './util';
 import hiscores, { Player } from 'osrs-json-hiscores';
 import { TimeoutManager, FileStorage, PastTimeoutStrategy, loadJson, randInt } from 'evanw555.js';
 import CommandReader from './command-reader';
+import { Client as PGClient } from 'pg';
 
 const auth: ScapeBotAuth = loadJson('config/auth.json');
 const config: ScapeBotConfig = loadJson('config/config.json');
@@ -13,6 +14,7 @@ import state from './state';
 
 const storage: FileStorage = new FileStorage('./data/');
 const commandReader: CommandReader = new CommandReader();
+let pgClient: PGClient | undefined;
 
 export async function sendRestartMessage(channel: TextBasedChannel, downtimeMillis: number): Promise<void> {
     if (channel) {
@@ -210,6 +212,35 @@ client.on('ready', async () => {
         serializedState = await storage.readJson('state.json') as SerializedState;
     } catch (err) {
         log.push('Failed to read the state from disk!');
+    }
+
+    // Attempt to initialize the PG client
+    try {
+        pgClient = new PGClient(auth.pg);
+        await pgClient.connect();
+        await adminDmChannel?.send(`PG client connected to \`${pgClient.host}:${pgClient.port}\``);
+    } catch (err) {
+        pgClient = undefined;
+        await adminDmChannel?.send(`PG client failed to connect: \`${err}\``);
+    }
+
+    // TODO: Temp logic to test out the pg stuff
+    for (const guild of client.guilds.cache.toJSON()) {
+        if (pgClient) {
+            try {
+                const res = await pgClient.query(`INSERT INTO guilds VALUES ($1, $2) ON CONFLICT DO UPDATE SET name = $2;`, [guild.id, guild.name]);
+            } catch (err) {
+                await adminDmChannel?.send(`PG client failed to insert guild row: \`${err}\``);
+            }
+        }
+    }
+    if (pgClient) {
+        try {
+            const res = await pgClient.query('SELECT * FROM guilds;');
+            await adminDmChannel?.send(res.rows.map(r => `\`${r.join(', ')}\``).join('\n'));
+        } catch (err) {
+            await adminDmChannel?.send(`PG client failed to get guild rows: \`${err}\``);
+        }
     }
 
     // Deserialize it and load it into the state object
