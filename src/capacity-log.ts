@@ -2,6 +2,7 @@ import { loadJson } from "evanw555.js";
 import { ScapeBotConfig } from "./types";
 
 const config: ScapeBotConfig = loadJson('config/config.json');
+
 interface LogEntry {
     date: Date;
     value: string;
@@ -43,4 +44,6 @@ class CapacityLog {
     }
 }
 
-export default CapacityLog;
+const capacityLog: CapacityLog = new CapacityLog(config.logCapacity, config.logMaxEntryLength);
+
+export default capacityLog;

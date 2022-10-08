@@ -1,7 +1,10 @@
-import CapacityLog from './capacity-log';
-import { ScapeBotConfig } from './types';
-import { loadJson } from 'evanw555.js';
+import { MultiLogger } from 'evanw555.js';
 
-const config: ScapeBotConfig = loadJson('config/config.json');
+import capacityLog from './capacity-log';
 
-export default new CapacityLog(config.logCapacity, config.logMaxEntryLength);
+const logger: MultiLogger = new MultiLogger();
+logger.addOutput(async (text: string ) => {
+    capacityLog.push(text);
+});
+
+export default logger;

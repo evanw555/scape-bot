@@ -9,24 +9,18 @@ import { Client as PGClient } from 'pg';
 const auth: ScapeBotAuth = loadJson('config/auth.json');
 const config: ScapeBotConfig = loadJson('config/config.json');
 
-import log from './log';
+import logger from './log';
 import state from './state';
 import { fetchWeeklyXpSnapshots, writeWeeklyXpSnapshots } from './pg-storage';
 
 const storage: FileStorage = new FileStorage('./data/');
 const commandReader: CommandReader = new CommandReader();
-let adminDmChannel: TextBasedChannel | undefined;
 let pgClient: PGClient | undefined;
 
-export async function sendRestartMessage(channel: TextBasedChannel, downtimeMillis: number): Promise<void> {
-    if (channel) {
-        // Send greeting message to some channel
-        const text = `ScapeBot online after ${getDurationString(downtimeMillis)} of downtime. In **${client.guilds.cache.size}** guild(s).\n`;
-        await channel.send(text + timeoutManager.toStrings().join('\n') || '_none._');
-        await channel.send(client.guilds.cache.toJSON().map((guild, i) => `**${i + 1}.** _${guild.name}_ with **${state.getAllTrackedPlayers(guild.id).length}** in ${state.getTrackingChannel(guild.id)}`).join('\n'));
-    } else {
-        log.push('Attempted to send a bot restart message, but the specified channel is undefined!');
-    }
+export async function sendRestartMessage(downtimeMillis: number): Promise<void> {
+    const text = `ScapeBot online after ${getDurationString(downtimeMillis)} of downtime. In **${client.guilds.cache.size}** guild(s).\n`;
+    await logger.log(text + timeoutManager.toStrings().join('\n') || '_none._');
+    await logger.log(client.guilds.cache.toJSON().map((guild, i) => `**${i + 1}.** _${guild.name}_ with **${state.getAllTrackedPlayers(guild.id).length}** in ${state.getTrackingChannel(guild.id)}`).join('\n'));
 }
 
 const timeoutCallbacks = {
@@ -114,7 +108,7 @@ const weeklyTotalXpUpdate = async () => {
     try {
         oldTotalXpValues = await fetchWeeklyXpSnapshots(pgClient as PGClient);
     } catch (err) {
-        await adminDmChannel?.send(`Unable to fetch weekly XP snapshots from PG: \`${err}\``);
+        logger.log(`Unable to fetch weekly XP snapshots from PG: \`${err}\``);
         return;
     }
 
@@ -170,13 +164,13 @@ const weeklyTotalXpUpdate = async () => {
     try {
         await writeWeeklyXpSnapshots(pgClient as PGClient, newTotalXpValues);
     } catch (err) {
-        await adminDmChannel?.send(`Unable to write weekly XP snapshots to PG: \`${err}\``);
+        logger.log(`Unable to write weekly XP snapshots to PG: \`${err}\``);
     }
 };
 
 client.on('ready', async () => {
-    log.push(`Logged in as: ${client.user?.tag}`);
-    log.push(`Config=${JSON.stringify(config)}`);
+    logger.log(`Logged in as: ${client.user?.tag}`);
+    logger.log(`Config=${JSON.stringify(config)}`);
 
     // Fetch guilds to load them into the cache
     await client.guilds.fetch();
@@ -186,13 +180,16 @@ client.on('ready', async () => {
         const admin: User = await client.users.fetch(auth.adminUserId);
         if (admin) {
             state.setAdminId(admin.id);
-            adminDmChannel = await admin.createDM();
-            log.push(`Determined admin user: ${admin.username}`);
+            const adminDmChannel: TextBasedChannel = await admin.createDM();
+            logger.log(`Determined admin user: ${admin.username}`);
+            logger.addOutput(async (text: string) => {
+                await adminDmChannel.send(text);
+            });
         } else {
-            log.push('Could not fetch the admin user!');
+            logger.log('Could not fetch the admin user!');
         }
     } else {
-        log.push('No admin user ID was specified in auth.json!');
+        logger.log('No admin user ID was specified in auth.json!');
     }
 
     // Read the serialized state from disk
@@ -200,17 +197,17 @@ client.on('ready', async () => {
     try {
         serializedState = await storage.readJson('state.json') as SerializedState;
     } catch (err) {
-        log.push('Failed to read the state from disk!');
+        logger.log('Failed to read the state from disk!');
     }
 
     // Attempt to initialize the PG client
     try {
         pgClient = new PGClient(auth.pg);
         await pgClient.connect();
-        await adminDmChannel?.send(`PG client connected to \`${pgClient.host}:${pgClient.port}\``);
+        logger.log(`PG client connected to \`${pgClient.host}:${pgClient.port}\``);
     } catch (err) {
         pgClient = undefined;
-        await adminDmChannel?.send(`PG client failed to connect: \`${err}\``);
+        logger.log(`PG client failed to connect: \`${err}\``);
     }
 
     // Deserialize it and load it into the state object
@@ -227,7 +224,7 @@ client.on('ready', async () => {
     const guildsWithoutTrackingChannels: Guild[] = client.guilds.cache.toJSON()
         .filter(guild => !state.hasTrackingChannel(guild.id));
     if (guildsWithoutTrackingChannels.length > 0) {
-        await adminDmChannel?.send(`This bot is in **${client.guilds.cache.size}** guilds, but a tracking channel is missing for **${guildsWithoutTrackingChannels.length}** of them`);
+        logger.log(`This bot is in **${client.guilds.cache.size}** guilds, but a tracking channel is missing for **${guildsWithoutTrackingChannels.length}** of them`);
     }
 
     // Regardless of whether loading the players/channel was successful, start the update loop
@@ -250,10 +247,8 @@ client.on('ready', async () => {
         await timeoutManager.registerTimeout(TimeoutType.WeeklyXpUpdate, getNextFridayEvening(), { pastStrategy: PastTimeoutStrategy.Invoke });
     }
 
-    if (adminDmChannel) {
-        // Notify the admin that the bot has restarted
-        sendRestartMessage(adminDmChannel, downtimeMillis);
-    }
+    // Notify the admin that the bot has restarted
+    sendRestartMessage(downtimeMillis);
 });
 
 client.on('messageCreate', (msg) => {

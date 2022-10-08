@@ -1,8 +1,8 @@
-import { Message, Snowflake } from 'discord.js';
+import { Message } from 'discord.js';
 import { ParsedCommand, Command } from './types';
 
 import commands from './commands';
-import log from './log';
+import logger from './log';
 import state from './state';
 
 class CommandReader {
@@ -13,7 +13,7 @@ class CommandReader {
             parsedCommand = CommandReader.parseCommand(msg.content);
         } catch (err) {
             if (err instanceof Error) {
-                log.push(`Failed to parse command '${msg.content}': ${err.toString()}`);
+                logger.log(`Failed to parse command '${msg.content}': ${err.toString()}`);
             }
             return;
         }
@@ -28,10 +28,10 @@ class CommandReader {
             } else {
                 try {
                     commandInfo.fn(msg, rawArgs, ...args);
-                    log.push(`Executed command '${command}' with args ${JSON.stringify(args)}`);
+                    logger.log(`Executed command '${command}' with args ${JSON.stringify(args)}`);
                 } catch (err) {
                     if (err instanceof Error) {
-                        log.push(`Uncaught error while trying to execute command '${msg.content}': ${err.toString()}`);
+                        logger.log(`Uncaught error while trying to execute command '${msg.content}': ${err.toString()}`);
                     }
                 }
             }

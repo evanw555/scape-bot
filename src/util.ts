@@ -4,7 +4,7 @@ import { TextBasedChannel } from 'discord.js';
 import { addReactsSync, loadJson, randChoice } from 'evanw555.js';
 import { ScapeBotConstants } from './types';
 
-import log from './log';
+import logger from './log';
 import state from './state';
 
 const constants: ScapeBotConstants = loadJson('static/constants.json');
@@ -140,7 +140,7 @@ export function updatePlayer(rsn: string, spoofedDiff?: Record<string, number>):
             playerData = parsePlayerPayload(value);
         } catch (err) {
             if (err instanceof Error) {
-                log.push(`Failed to parse payload for player ${rsn}: ${err.toString()}`);
+                logger.log(`Failed to parse payload for player ${rsn}: ${err.toString()}`);
             }
             return;
         }
@@ -161,7 +161,7 @@ export function updatePlayer(rsn: string, spoofedDiff?: Record<string, number>):
                 sendUpdateMessage(state.getAllTrackingChannels(), 'The hiscores API has changed, the bot is now disabled. Please fix this, then re-enable the bot', 'wrench', { color: 7303023 });
             }
         } else {
-            log.push(`Error while fetching player hiscores for ${rsn}: ${err.toString()}`);
+            logger.log(`Error while fetching player hiscores for ${rsn}: ${err.toString()}`);
         }
     });
 }
@@ -265,7 +265,7 @@ export async function updateLevels(rsn: string, newLevels: Record<string, number
             }
         } catch (err) {
             if (err instanceof Error && err.message) {
-                log.push(`Failed to compute level diff for player ${rsn}: ${err.message}`);
+                logger.log(`Failed to compute level diff for player ${rsn}: ${err.message}`);
             }
             return;
         }
@@ -299,7 +299,7 @@ export async function updateLevels(rsn: string, newLevels: Record<string, number
             const text = `**${rsn}** has gained `
                 + (levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`)
                 + ` in **${skill}** and is now level **${newLevels[skill]}**`;
-            log.push(text);
+            logger.log(text);
             await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, skill);
             break;
         }
@@ -308,7 +308,7 @@ export async function updateLevels(rsn: string, newLevels: Record<string, number
                 const levelsGained = diff[skill];
                 return `${levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`} in **${skill}** and is now level **${newLevels[skill]}**`;
             }).join('\n');
-            log.push(text);
+            logger.log(text);
             await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), `**${rsn}** has gained...\n${text}`, 'overall');
             break;
         }
@@ -342,7 +342,7 @@ export function updateKillCounts(rsn: string, killCounts: Record<string, number>
             }
         } catch (err) {
             if (err instanceof Error && err.message) {
-                log.push(`Failed to compute boss KC diff for player ${rsn}: ${err.message}`);
+                logger.log(`Failed to compute boss KC diff for player ${rsn}: ${err.message}`);
             }
             return;
         }
@@ -371,7 +371,7 @@ export function updateKillCounts(rsn: string, killCounts: Record<string, number>
                 : `**${rsn}** ${dopeKillVerb} **${bossName}** `
                         + (killCountIncrease === 1 ? 'again' : `**${killCountIncrease}** more times`)
                         + ` and is now at **${killCounts[bossID]}** kills`;
-            log.push(text);
+            logger.log(text);
             sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, bossName, { color: 10363483 });
             break;
         }
@@ -384,7 +384,7 @@ export function updateKillCounts(rsn: string, killCounts: Record<string, number>
                     ? `**${bossName}** for the first time!`
                     : `**${bossName}** ${killCountIncrease === 1 ? 'again' : `**${killCountIncrease}** more times`} and is now at **${killCounts[bossID]}**`;
             }).join('\n');
-            log.push(text);
+            logger.log(text);
             sendUpdateMessage(
                 state.getTrackingChannelsForPlayer(rsn),
                 `**${rsn}** has killed...\n${text}`,

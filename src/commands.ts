@@ -7,7 +7,8 @@ import { Message, Snowflake } from 'discord.js';
 import { loadJson, randChoice, randInt } from 'evanw555.js';
 
 import state from './state';
-import log from './log';
+import logger from './log';
+import capacityLog from './capacity-log';
 
 const config: ScapeBotConfig = loadJson('config/config.json');
 const constants: ScapeBotConstants = loadJson('static/constants.json');
@@ -126,7 +127,7 @@ const commands: Record<string, Command> = {
                     playerData = parsePlayerPayload(value);
                 } catch (err) {
                     if (err instanceof Error) {
-                        log.push(`Failed to parse hiscores payload for player ${rsn}: ${err.toString()}`);
+                        logger.log(`Failed to parse hiscores payload for player ${rsn}: ${err.toString()}`);
                     }
                     return;
                 }
@@ -150,7 +151,7 @@ const commands: Record<string, Command> = {
                     url: `${constants.hiScoresUrlTemplate}${encodeURI(rsn)}`
                 });
             }).catch((err) => {
-                log.push(`Error while fetching hiscores (check) for player ${rsn}: ${err.toString()}`);
+                logger.log(`Error while fetching hiscores (check) for player ${rsn}: ${err.toString()}`);
                 msg.channel.send(`Couldn't fetch hiscores for player **${rsn}** :pensive:\n\`${err.toString()}\``);
             });
         },
@@ -175,7 +176,7 @@ const commands: Record<string, Command> = {
                     playerData = parsePlayerPayload(value);
                 } catch (err) {
                     if (err instanceof Error) {
-                        log.push(`Failed to parse hiscores payload for player ${player}: ${err.toString()}`);
+                        logger.log(`Failed to parse hiscores payload for player ${player}: ${err.toString()}`);
                     }
                     return;
                 }
@@ -190,7 +191,7 @@ const commands: Record<string, Command> = {
                     color: 10363483
                 });
             }).catch((err) => {
-                log.push(`Error while fetching hiscores (check) for player ${player}: ${err.toString()}`);
+                logger.log(`Error while fetching hiscores (check) for player ${player}: ${err.toString()}`);
                 msg.channel.send(`Couldn't fetch hiscores for player **${player}** :pensive:\n\`${err.toString()}\``);
             });
         },
@@ -253,7 +254,7 @@ const commands: Record<string, Command> = {
     },
     log: {
         fn: (msg) => {
-            msg.channel.send(`\`\`\`${log.toLogArray().join('\n')}\`\`\``);
+            msg.channel.send(`\`\`\`${capacityLog.toLogArray().join('\n')}\`\`\``);
         },
         hidden: true,
         text: 'Prints the bot\'s log'
