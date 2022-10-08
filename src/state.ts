@@ -72,14 +72,12 @@ class State {
         // If this guild doesn't have a player set yet, initialize it
         if (!this._playersByGuild[guildId]) {
             this._playersByGuild[guildId] = new Set();
-            logger.log(`Created new player set for guild ${guildId}`);
         }
         // Add this player to the guild's player set
         this._playersByGuild[guildId].add(rsn);
         // If this player doesn't have a guild set yet, initialize it
         if (!this._guildsByPlayer[rsn]) {
             this._guildsByPlayer[rsn] = new Set();
-            logger.log(`Created new guild set for player ${rsn}`);
         }
         // Add this guild to the player's guild set
         this._guildsByPlayer[rsn].add(guildId);
