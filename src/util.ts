@@ -6,7 +6,7 @@ import { ScapeBotConstants } from './types';
 
 import logger from './log';
 import state from './state';
-import { writePlayerLevels } from './pg-storage';
+import { writePlayerBosses, writePlayerLevels } from './pg-storage';
 
 const constants: ScapeBotConstants = loadJson('static/constants.json');
 
@@ -324,7 +324,7 @@ export async function updateLevels(rsn: string, newLevels: Record<string, number
     }
 }
 
-export function updateKillCounts(rsn: string, killCounts: Record<string, number>, spoofedDiff?: Record<string, number>) {
+export async function updateKillCounts(rsn: string, killCounts: Record<string, number>, spoofedDiff?: Record<string, number>): Promise<void> {
     // If channel is set and user already has bosses tracked
     if (state.hasBosses(rsn)) {
         // Compute diff for each boss
@@ -400,8 +400,10 @@ export function updateKillCounts(rsn: string, killCounts: Record<string, number>
     }
     // If not spoofing the diff, update player's kill counts
     if (!spoofedDiff) {
-        state.setBosses(rsn, killCounts);
+        await writePlayerBosses(rsn, killCounts);
         state.setLastUpdated(rsn, new Date());
+        // TODO: Remove this once we rely completely on PG
+        state.setBosses(rsn, killCounts);
     }
 }
 

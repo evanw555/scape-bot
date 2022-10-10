@@ -7,7 +7,8 @@ import state from './state';
 
 const TABLES: Record<string, string> = {
     'weekly_xp_snapshots': 'CREATE TABLE weekly_xp_snapshots (rsn VARCHAR(12) PRIMARY KEY, xp BIGINT);',
-    'player_levels': 'CREATE TABLE player_levels (rsn VARCHAR(12), skill VARCHAR(12), level SMALLINT, PRIMARY KEY (rsn, skill));'
+    'player_levels': 'CREATE TABLE player_levels (rsn VARCHAR(12), skill VARCHAR(12), level SMALLINT, PRIMARY KEY (rsn, skill));',
+    'player_bosses': 'CREATE TABLE player_bosses (rsn VARCHAR(12), boss VARCHAR(32), score SMALLINT, PRIMARY KEY (rsn, boss));'
 }
 
 export async function initializeTables(): Promise<void> {
@@ -46,4 +47,10 @@ export async function writePlayerLevels(rsn: string, levels: Record<string, numb
     const client: PGClient = state.getPGClient();
     const values = Object.keys(levels).map(skill => [rsn, skill, levels[skill]]);
     await client.query(format('INSERT INTO player_levels VALUES %L ON CONFLICT (rsn, skill) DO UPDATE SET level = EXCLUDED.level;', values));
+}
+
+export async function writePlayerBosses(rsn: string, bosses: Record<string, number>): Promise<void> {
+    const client: PGClient = state.getPGClient();
+    const values = Object.keys(bosses).map(boss => [rsn, boss, bosses[boss]]);
+    await client.query(format('INSERT INTO player_bosses VALUES %L ON CONFLICT (rsn, boss) DO UPDATE SET score = EXCLUDED.score;', values));
 }
