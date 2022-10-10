@@ -1,16 +1,19 @@
 import { Snowflake } from 'discord.js';
-import { Client as PGClient, QueryResult } from 'pg';
+import { Client as PGClient } from 'pg';
 import format from 'pg-format';
+
 import logger from './log';
+import state from './state';
 
 const TABLES: Record<string, string> = {
     'weekly_xp_snapshots': 'CREATE TABLE weekly_xp_snapshots (rsn VARCHAR(12) PRIMARY KEY, xp BIGINT);',
-    'player_skills': 'CREATE TABLE player_skills (rsn VARCHAR(12), skill VARCHAR(12), xp INTEGER, PRIMARY KEY (rsn, skill));'
+    'player_levels': 'CREATE TABLE player_levels (rsn VARCHAR(12), skill VARCHAR(12), level SMALLINT, PRIMARY KEY (rsn, skill));'
 }
 
-export async function initializeTables(client: PGClient): Promise<void> {
+export async function initializeTables(): Promise<void> {
+    const client: PGClient = state.getPGClient();
     for (const [ tableName, tableSchema ] of Object.entries(TABLES)) {
-        if (await doesTableExist(client, tableName)) {
+        if (await doesTableExist(tableName)) {
             await logger.log(`✅ Table \`${tableName}\` exists`);
         } else {
             await client.query(tableSchema);
@@ -19,19 +22,28 @@ export async function initializeTables(client: PGClient): Promise<void> {
     }
 }
 
-export async function doesTableExist(client: PGClient, name: string): Promise<boolean> {
+export async function doesTableExist(name: string): Promise<boolean> {
+    const client: PGClient = state.getPGClient();
     return (await client.query<{ exists: boolean }>('SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = $1);', [name])).rows[0].exists;
 }
 
-export async function writeWeeklyXpSnapshots(client: PGClient, snapshots: Record<Snowflake, number>): Promise<void> {
+export async function writeWeeklyXpSnapshots(snapshots: Record<Snowflake, number>): Promise<void> {
+    const client: PGClient = state.getPGClient();
     await client.query(format('INSERT INTO weekly_xp_snapshots VALUES %L ON CONFLICT (rsn) DO UPDATE SET xp = EXCLUDED.xp;', Object.entries(snapshots)));
 }
 
-export async function fetchWeeklyXpSnapshots(client: PGClient): Promise<Record<Snowflake, number>> {
+export async function fetchWeeklyXpSnapshots(): Promise<Record<Snowflake, number>> {
+    const client: PGClient = state.getPGClient();
     const result: Record<Snowflake, number> = {};
     const res = await client.query<{rsn: string, xp: number}>('SELECT * FROM weekly_xp_snapshots;');
     for (const row of res.rows) {
         result[row.rsn] = row.xp;
     }
     return result;
+}
+
+export async function writePlayerLevels(rsn: string, levels: Record<string, number>): Promise<void> {
+    const client: PGClient = state.getPGClient();
+    const values = Object.keys(levels).map(skill => [rsn, skill, levels[skill]]);
+    await client.query(format('INSERT INTO player_levels VALUES %L ON CONFLICT (rsn, skill) DO UPDATE SET level = EXCLUDED.level;', values));
 }

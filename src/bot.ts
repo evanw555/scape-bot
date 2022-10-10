@@ -107,7 +107,7 @@ const weeklyTotalXpUpdate = async () => {
     // Get old total XP values
     let oldTotalXpValues: Record<string, number> | undefined;
     try {
-        oldTotalXpValues = await fetchWeeklyXpSnapshots(pgClient as PGClient);
+        oldTotalXpValues = await fetchWeeklyXpSnapshots();
     } catch (err) {
         logger.log(`Unable to fetch weekly XP snapshots from PG: \`${err}\``);
         return;
@@ -163,7 +163,7 @@ const weeklyTotalXpUpdate = async () => {
 
     // Commit the changes
     try {
-        await writeWeeklyXpSnapshots(pgClient as PGClient, newTotalXpValues);
+        await writeWeeklyXpSnapshots(newTotalXpValues);
     } catch (err) {
         logger.log(`Unable to write weekly XP snapshots to PG: \`${err}\``);
     }
@@ -205,16 +205,16 @@ client.on('ready', async () => {
     try {
         pgClient = new PGClient(auth.pg);
         await pgClient.connect();
-        logger.log(`PG client connected to \`${pgClient.host}:${pgClient.port}\``);
+        state.setPGClient(pgClient);
+        await logger.log(`PG client connected to \`${pgClient.host}:${pgClient.port}\``);
     } catch (err) {
         pgClient = undefined;
-        logger.log(`PG client failed to connect: \`${err}\``);
+        await logger.log(`PG client failed to connect: \`${err}\``);
+        process.exit(1);
     }
 
     // Ensure all necessary tables exist, initialize those that don't
-    if (pgClient) {
-        await initializeTables(pgClient);
-    }
+    await initializeTables();
 
     // Deserialize it and load it into the state object
     let downtimeMillis = 0;

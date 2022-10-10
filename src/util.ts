@@ -6,6 +6,7 @@ import { ScapeBotConstants } from './types';
 
 import logger from './log';
 import state from './state';
+import { writePlayerLevels } from './pg-storage';
 
 const constants: ScapeBotConstants = loadJson('static/constants.json');
 
@@ -316,8 +317,10 @@ export async function updateLevels(rsn: string, newLevels: Record<string, number
     }
     // If not spoofing the diff, update player's levels
     if (!spoofedDiff) {
-        state.setLevels(rsn, newLevels);
+        await writePlayerLevels(rsn, newLevels);
         state.setLastUpdated(rsn, new Date());
+        // TODO: Remove this once we rely completely on PG
+        state.setLevels(rsn, newLevels);
     }
 }
 

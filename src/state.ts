@@ -1,4 +1,5 @@
 import { Snowflake, TextBasedChannel } from 'discord.js';
+import { Client as PGClient } from 'pg';
 import { CircularQueue } from 'evanw555.js';
 import { SerializedGuildState, SerializedState } from './types';
 import { filterValueFromMap } from './util';
@@ -21,6 +22,8 @@ class State {
     private readonly _playersByGuild: Record<Snowflake, Set<Snowflake>>;
 
     private readonly _trackingChannelsByGuild: Record<Snowflake, TextBasedChannel>;
+
+    private _pgClient?: PGClient;
 
     constructor() {
         this._isValid = false;
@@ -276,6 +279,17 @@ class State {
             allGuildIds.add(guildId);
         }
         return Array.from(allGuildIds).sort();
+    }
+
+    setPGClient(pgCliet: PGClient): void {
+        this._pgClient = pgCliet;
+    }
+
+    getPGClient(): PGClient {
+        if (!this._pgClient) {
+            throw new Error('The PG client is not set in the state object!');
+        }
+        return this._pgClient;
     }
 
     /**
