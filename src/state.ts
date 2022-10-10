@@ -278,6 +278,13 @@ class State {
         return Array.from(allGuildIds).sort();
     }
 
+    /**
+     * TODO: This is just used on startup to troubleshoot some issues. Should it be removed?
+     */
+    toDebugString(): string {
+        return this.getAllGloballyTrackedPlayers().map(rsn => `**${rsn}:** ${this.getTrackingChannelsForPlayer(rsn).join(', ')}`).join('\n');
+    }
+
     serialize(): SerializedState {
         const guilds: Record<Snowflake, SerializedGuildState> = {};
         for (const guildId of this.getAllRelevantGuilds()) {

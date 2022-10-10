@@ -21,6 +21,7 @@ export async function sendRestartMessage(downtimeMillis: number): Promise<void> 
     const text = `ScapeBot online after ${getDurationString(downtimeMillis)} of downtime. In **${client.guilds.cache.size}** guild(s).\n`;
     await logger.log(text + timeoutManager.toStrings().join('\n') || '_none._');
     await logger.log(client.guilds.cache.toJSON().map((guild, i) => `**${i + 1}.** _${guild.name}_ with **${state.getAllTrackedPlayers(guild.id).length}** in ${state.getTrackingChannel(guild.id)}`).join('\n'));
+    await logger.log(state.toDebugString());
 }
 
 const timeoutCallbacks = {
