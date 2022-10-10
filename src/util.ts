@@ -85,16 +85,18 @@ export function computeDiff(before: Record<string, number>, after: Record<string
     // For each key, add the diff to the overall diff mapping
     const diff: Record<string, number> = {};
     keyUnion.forEach((kind) => {
-        if (before[kind] !== after[kind]) {
+        const beforeValue = before[kind] ?? 0;
+        const afterValue = after[kind] ?? 0;
+        if (beforeValue !== afterValue) {
             // TODO: the default isn't necessarily 0, it could be 1 for skills (but does that really matter?)
-            const thisDiff = (after[kind] ?? 0) - (before[kind] ?? 0);
+            const thisDiff = afterValue - beforeValue;
             // Fail silently if the negative diff is because the user has fallen off the hi scores
-            if (thisDiff < 0 && after[kind] === 1) {
+            if (thisDiff < 0 && afterValue === 1) {
                 throw new Error('');
             }
             // For bizarre cases, fail loudly
             if (typeof thisDiff !== 'number' || isNaN(thisDiff) || thisDiff < 0) {
-                throw new Error(`Invalid ${kind} diff, '${after[kind]}' minus '${before[kind]}' is '${thisDiff}'`);
+                throw new Error(`Invalid ${kind} diff, '${afterValue}' minus '${beforeValue}' is '${thisDiff}'`);
             }
             diff[kind] = thisDiff;
         }
