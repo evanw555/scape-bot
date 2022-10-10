@@ -11,7 +11,7 @@ const config: ScapeBotConfig = loadJson('config/config.json');
 
 import logger from './log';
 import state from './state';
-import { fetchWeeklyXpSnapshots, writeWeeklyXpSnapshots } from './pg-storage';
+import { doesTableExist, fetchWeeklyXpSnapshots, writeWeeklyXpSnapshots } from './pg-storage';
 
 const storage: FileStorage = new FileStorage('./data/');
 const commandReader: CommandReader = new CommandReader();
@@ -209,6 +209,16 @@ client.on('ready', async () => {
     } catch (err) {
         pgClient = undefined;
         logger.log(`PG client failed to connect: \`${err}\``);
+    }
+
+    // TODO: Logging to see how table existence checks work
+    if (pgClient) {
+        try {
+            const result = await doesTableExist(pgClient, 'weekly_xp_snapshots');
+            await logger.log(`\`${JSON.stringify(result)}\``);
+        } catch (err) {
+            await logger.log('Failed to do temp table existence check.');
+        }
     }
 
     // Deserialize it and load it into the state object
