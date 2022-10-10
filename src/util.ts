@@ -218,7 +218,7 @@ export function patchMissingLevels(rsn: string, levels: Record<string, number>, 
     const result: Record<string, number> = {};
     Object.keys(levels).forEach((skill) => {
         if (isNaN(levels[skill])) {
-            result[skill] = state.hasLevels(rsn) ? state.getLevels(rsn)[skill] : fallbackValue;
+            result[skill] = state.hasLevels(rsn) ? (state.getLevels(rsn)[skill] ?? fallbackValue) : fallbackValue;
         } else {
             result[skill] = levels[skill];
         }
@@ -234,7 +234,7 @@ export function patchMissingBosses(rsn: string, bosses: Record<string, number>, 
     const result: Record<string, number> = {};
     Object.keys(bosses).forEach((bossId) => {
         if (isNaN(bosses[bossId])) {
-            result[bossId] = state.hasBosses(rsn) ? state.getBosses(rsn)[bossId] : fallbackValue;
+            result[bossId] = state.hasBosses(rsn) ? (state.getBosses(rsn)[bossId] ?? fallbackValue) : fallbackValue;
         } else {
             result[bossId] = bosses[bossId];
         }

@@ -212,7 +212,7 @@ class State {
     }
 
     hasLevels(rsn: string): boolean {
-        return this._levels[rsn] !== undefined;
+        return rsn in this._levels;
     }
 
     getLevels(rsn: string): Record<string, number> {
@@ -224,7 +224,7 @@ class State {
     }
 
     hasBosses(rsn: string): boolean {
-        return this._bosses[rsn] !== undefined;
+        return rsn in this._bosses;
     }
 
     getBosses(rsn: string): Record<string, number> {
@@ -232,8 +232,7 @@ class State {
     }
 
     setBosses(rsn: string, bosses: Record<string, number>): void {
-        // Remove entries with zero kills to avoid bloating the state file
-        this._bosses[rsn] = filterValueFromMap(bosses, 0);
+        this._bosses[rsn] = bosses;
     }
 
     getBotCounter(botId: Snowflake): number {
