@@ -1,9 +1,11 @@
 import { Snowflake } from 'discord.js';
+import { Boss } from 'osrs-json-hiscores';
 import { Client as PGClient } from 'pg';
 import format from 'pg-format';
 
 import logger from './log';
 import state from './state';
+import { IndividualSkillName } from './types';
 
 const TABLES: Record<string, string> = {
     'weekly_xp_snapshots': 'CREATE TABLE weekly_xp_snapshots (rsn VARCHAR(12) PRIMARY KEY, xp BIGINT);',
@@ -55,6 +57,16 @@ export async function writePlayerLevels(rsn: string, levels: Record<string, numb
     await client.query(format('INSERT INTO player_levels VALUES %L ON CONFLICT (rsn, skill) DO UPDATE SET level = EXCLUDED.level;', values));
 }
 
+export async function fetchPlayerLevels(rsn: string): Promise<Partial<Record<IndividualSkillName, number>>> {
+    const client: PGClient = state.getPGClient();
+    const result: Partial<Record<IndividualSkillName, number>> = {};
+    const queryResult = await client.query<{rsn: string, skill: IndividualSkillName, level: number}>('SELECT * FROM player_levels WHERE rsn = $1', [rsn]);
+    for (const row of queryResult.rows) {
+        result[row.skill] = row.level;
+    }
+    return result;
+}
+
 export async function writePlayerBosses(rsn: string, bosses: Record<string, number>): Promise<void> {
     const client: PGClient = state.getPGClient();
     const values = Object.keys(bosses).map(boss => [rsn, boss, bosses[boss]]);
@@ -62,4 +74,14 @@ export async function writePlayerBosses(rsn: string, bosses: Record<string, numb
         return;
     }
     await client.query(format('INSERT INTO player_bosses VALUES %L ON CONFLICT (rsn, boss) DO UPDATE SET score = EXCLUDED.score;', values));
+}
+
+export async function fetchPlayerBosses(rsn: string): Promise<Partial<Record<Boss, number>>> {
+    const client: PGClient = state.getPGClient();
+    const result: Partial<Record<Boss, number>> = {};
+    const queryResult = await client.query<{rsn: string, boss: Boss, score: number}>('SELECT * FROM player_bosses WHERE rsn = $1', [rsn]);
+    for (const row of queryResult.rows) {
+        result[row.boss] = row.score;
+    }
+    return result;
 }

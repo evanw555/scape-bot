@@ -1,7 +1,7 @@
 import { Client, ClientUser, Guild, Intents, Options, TextBasedChannel, User } from 'discord.js';
 import { PlayerHiScores, ScapeBotAuth, ScapeBotConfig, SerializedState, TimeoutType } from './types';
 import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer } from './util';
-import { TimeoutManager, FileStorage, PastTimeoutStrategy, loadJson, randInt, getDurationString } from 'evanw555.js';
+import { TimeoutManager, FileStorage, PastTimeoutStrategy, loadJson, randInt, getDurationString, filterValueFromMap } from 'evanw555.js';
 import CommandReader from './command-reader';
 import { Client as PGClient } from 'pg';
 
@@ -10,8 +10,9 @@ const config: ScapeBotConfig = loadJson('config/config.json');
 
 import logger from './log';
 import state from './state';
-import { fetchWeeklyXpSnapshots, initializeTables, writeWeeklyXpSnapshots } from './pg-storage';
+import { fetchWeeklyXpSnapshots, initializeTables, writePlayerBosses, writePlayerLevels, writeWeeklyXpSnapshots } from './pg-storage';
 import { fetchHiScores } from './hiscores';
+import { DEFAULT_BOSS_SCORE, DEFAULT_SKILL_LEVEL } from './constants';
 
 const storage: FileStorage = new FileStorage('./data/');
 const commandReader: CommandReader = new CommandReader();
@@ -63,10 +64,18 @@ const deserializeState = async (serializedState: SerializedState): Promise<void>
 
     if (serializedState.levels) {
         state.setAllLevels(serializedState.levels);
+        // TODO: Temp logic to migrate data
+        for (const rsn of Object.keys(serializedState.levels)) {
+            await writePlayerLevels(rsn, filterValueFromMap(serializedState.levels[rsn], DEFAULT_SKILL_LEVEL));
+        }
     }
 
     if (serializedState.bosses) {
         state.setAllBosses(serializedState.bosses);
+        // TODO: Temp logic to migrate data
+        for (const rsn of Object.keys(serializedState.bosses)) {
+            await writePlayerBosses(rsn, filterValueFromMap(serializedState.bosses[rsn], DEFAULT_BOSS_SCORE));
+        }
     }
 
     if (serializedState.botCounters) {
