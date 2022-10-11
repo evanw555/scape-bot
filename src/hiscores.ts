@@ -89,10 +89,5 @@ export async function fetchHiScores(rsn: string): Promise<PlayerHiScores> {
         result.totalLevel = [0, ...Object.values(levels)].reduce((x, y) => x + y);
     }
 
-    // If there were missing bosses, this value won't be accurate (so don't include it)
-    if (Object.keys(bosses).length === Object.keys(bossesWithDefaults).length) {
-        result.totalBossKills = [0, ...Object.values(bosses)].reduce((x, y) => x + y);
-    }
-
     return result;
 }

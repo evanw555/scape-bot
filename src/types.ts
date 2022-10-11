@@ -70,7 +70,6 @@ export interface PlayerHiScores {
     totalXp?: number,
     baseLevel?: number,
     totalLevel?: number,
-    totalBossKills?: number,
     levels: Partial<Record<IndividualSkillName, number>>,
     levelsWithDefaults: Record<IndividualSkillName, number>,
     bosses: Partial<Record<Boss, number>>,
