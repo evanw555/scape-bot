@@ -68,7 +68,7 @@ export async function fetchHiScores(rsn: string): Promise<PlayerHiScores> {
                     throw new Error(`Invalid ${boss} boss, '${killCount}' parsed to ${killCount}.\nPayload: ${JSON.stringify(stats.bosses)}`);
                 }
                 bosses[boss] = killCount;
-                bossesWithDefaults[boss] = state.getBoss(rsn, boss);
+                bossesWithDefaults[boss] = killCount;
             }
         } else {
             throw new Error(`Raw hi-scores data for player "${rsn}" missing boss "${boss}"`);
@@ -95,11 +95,6 @@ export async function fetchHiScores(rsn: string): Promise<PlayerHiScores> {
     if (missingBosses.size === 0) {
         result.totalBossKills = Object.values(bosses).reduce((x, y) => x + y);
     }
-
-    // Attempt to patch over some of the missing data for this player (default to 1/0 if there's no pre-existing data)
-    // The purpose of doing this is to avoid negative skill/kc diffs (caused by weird behavior of the so-called 'API')
-    // const skills: Record<string, number> = patchMissingLevels(rsn, playerData.skills, 1);
-    // const bosses: Record<string, number> = patchMissingBosses(rsn, playerData.bosses, 0);
 
     return result;
 }

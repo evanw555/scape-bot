@@ -232,7 +232,7 @@ class State {
 
     getLevel(rsn: string, skill: IndividualSkillName): number {
         if (!this.hasLevel(rsn, skill)) {
-            throw new Error(`Cannot get ${skill} level for ${rsn}, it's missing from the state!`);
+            throw new Error(`Trying to get ${skill} level for ${rsn} without checking if it's in the state`);
         }
         return this._levels[rsn][skill] as number;
     }
@@ -270,7 +270,7 @@ class State {
 
     getBoss(rsn: string, boss: Boss): number {
         if (!this.hasBoss(rsn, boss)) {
-            throw new Error(`Cannot get ${boss} score for ${rsn}, it's missing from the state!`);
+            throw new Error(`Trying to get ${boss} score for ${rsn} without checking if it's in the state`);
         }
         return this._bosses[rsn][boss] as number;
     }
