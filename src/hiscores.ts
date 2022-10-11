@@ -22,7 +22,7 @@ export async function fetchHiScores(rsn: string): Promise<PlayerHiScores> {
     for (const skill of SKILLS_NO_OVERALL) {
         if (skill in stats.skills) {
             const skillPayload: Skill = stats.skills[skill];
-            if (skillPayload.level === -1 && skillPayload.xp === -1) {
+            if (skillPayload.level === -1 || skillPayload.xp === -1) {
                 // If this skill is for some reason omitted from the payload (bad rank? inactivity? why?), then fill it in with existing data if possible
                 if (state.hasLevel(rsn, skill)) {
                     levels[skill] = state.getLevel(rsn, skill);
@@ -50,7 +50,7 @@ export async function fetchHiScores(rsn: string): Promise<PlayerHiScores> {
     for (const boss of BOSSES) {
         if (boss in stats.bosses) {
             const bossPayload: Activity = stats.bosses[boss];
-            if (bossPayload.rank === -1 && bossPayload.score === -1) {
+            if (bossPayload.rank === -1 || bossPayload.score === -1) {
                 // If this boss is for some reason omitted for the payload, then fill it in with existing data if possible
                 if (state.hasBoss(rsn, boss)) {
                     bosses[boss] = state.getBoss(rsn, boss);
