@@ -1,8 +1,10 @@
 import { Client, ClientUser, Guild, Intents, Options, TextBasedChannel, User } from 'discord.js';
 import { PlayerHiScores, ScapeBotAuth, ScapeBotConfig, SerializedState, TimeoutType } from './types';
 import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer } from './util';
-import { TimeoutManager, FileStorage, PastTimeoutStrategy, loadJson, randInt, getDurationString, filterValueFromMap } from 'evanw555.js';
+import { TimeoutManager, FileStorage, PastTimeoutStrategy, loadJson, randInt, getDurationString } from 'evanw555.js';
+import { fetchAllPlayerBosses, fetchAllPlayerLevels, fetchWeeklyXpSnapshots, initializeTables, writeWeeklyXpSnapshots } from './pg-storage';
 import CommandReader from './command-reader';
+import { fetchHiScores } from './hiscores';
 import { Client as PGClient } from 'pg';
 
 const auth: ScapeBotAuth = loadJson('config/auth.json');
@@ -10,9 +12,6 @@ const config: ScapeBotConfig = loadJson('config/config.json');
 
 import logger from './log';
 import state from './state';
-import { fetchWeeklyXpSnapshots, initializeTables, writePlayerBosses, writePlayerLevels, writeWeeklyXpSnapshots } from './pg-storage';
-import { fetchHiScores } from './hiscores';
-import { DEFAULT_BOSS_SCORE, DEFAULT_SKILL_LEVEL } from './constants';
 
 const storage: FileStorage = new FileStorage('./data/');
 const commandReader: CommandReader = new CommandReader();
@@ -22,7 +21,8 @@ export async function sendRestartMessage(downtimeMillis: number): Promise<void> 
     const text = `ScapeBot online after ${getDurationString(downtimeMillis)} of downtime. In **${client.guilds.cache.size}** guild(s).\n`;
     await logger.log(text + timeoutManager.toStrings().join('\n') || '_none._');
     await logger.log(client.guilds.cache.toJSON().map((guild, i) => `**${i + 1}.** _${guild.name}_ with **${state.getAllTrackedPlayers(guild.id).length}** in ${state.getTrackingChannel(guild.id)}`).join('\n'));
-    await logger.log(state.toDebugString());
+    // TODO: Use this if you need to troubleshoot...
+    // await logger.log(state.toDebugString());
 }
 
 const timeoutCallbacks = {
@@ -62,25 +62,13 @@ const deserializeState = async (serializedState: SerializedState): Promise<void>
         });
     }
 
-    if (serializedState.levels) {
-        state.setAllLevels(serializedState.levels);
-        // TODO: Temp logic to migrate data
-        for (const rsn of Object.keys(serializedState.levels)) {
-            await writePlayerLevels(rsn, filterValueFromMap(serializedState.levels[rsn], DEFAULT_SKILL_LEVEL));
-        }
-    }
-
-    if (serializedState.bosses) {
-        state.setAllBosses(serializedState.bosses);
-        // TODO: Temp logic to migrate data
-        for (const rsn of Object.keys(serializedState.bosses)) {
-            await writePlayerBosses(rsn, filterValueFromMap(serializedState.bosses[rsn], DEFAULT_BOSS_SCORE));
-        }
-    }
-
     if (serializedState.botCounters) {
         state.setBotCounters(serializedState.botCounters);
     }
+
+    // TODO: Eventually, the whole "deserialize" thing won't be needed. We'll just need one method for loading up all stuff from PG on startup
+    state.setAllLevels(await fetchAllPlayerLevels());
+    state.setAllBosses(await fetchAllPlayerBosses());
 
     // Now that the state has been loaded, mark it as valid
     state.setValid(true);

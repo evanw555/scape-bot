@@ -47,8 +47,6 @@ export interface SerializedState {
     disabled?: boolean,
     guilds: Record<Snowflake, SerializedGuildState>,
     playersOffHiScores: string[],
-    levels: Record<string, Record<string, number>>,
-    bosses: Record<string, Record<string, number>>,
     botCounters: Record<Snowflake, number>
 }
 

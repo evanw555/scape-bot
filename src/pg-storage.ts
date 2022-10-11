@@ -57,12 +57,15 @@ export async function writePlayerLevels(rsn: string, levels: Record<string, numb
     await client.query(format('INSERT INTO player_levels VALUES %L ON CONFLICT (rsn, skill) DO UPDATE SET level = EXCLUDED.level;', values));
 }
 
-export async function fetchPlayerLevels(rsn: string): Promise<Partial<Record<IndividualSkillName, number>>> {
+export async function fetchAllPlayerLevels(): Promise<Record<string, Partial<Record<IndividualSkillName, number>>>> {
     const client: PGClient = state.getPGClient();
-    const result: Partial<Record<IndividualSkillName, number>> = {};
-    const queryResult = await client.query<{rsn: string, skill: IndividualSkillName, level: number}>('SELECT * FROM player_levels WHERE rsn = $1', [rsn]);
+    const result: Record<string, Partial<Record<IndividualSkillName, number>>> = {};
+    const queryResult = await client.query<{rsn: string, skill: IndividualSkillName, level: number}>('SELECT * FROM player_levels;');
     for (const row of queryResult.rows) {
-        result[row.skill] = row.level;
+        if (!result[row.rsn]) {
+            result[row.rsn] = {};
+        }
+        result[row.rsn][row.skill] = row.level;
     }
     return result;
 }
@@ -76,12 +79,15 @@ export async function writePlayerBosses(rsn: string, bosses: Record<string, numb
     await client.query(format('INSERT INTO player_bosses VALUES %L ON CONFLICT (rsn, boss) DO UPDATE SET score = EXCLUDED.score;', values));
 }
 
-export async function fetchPlayerBosses(rsn: string): Promise<Partial<Record<Boss, number>>> {
+export async function fetchAllPlayerBosses(): Promise<Record<string, Partial<Record<Boss, number>>>> {
     const client: PGClient = state.getPGClient();
-    const result: Partial<Record<Boss, number>> = {};
-    const queryResult = await client.query<{rsn: string, boss: Boss, score: number}>('SELECT * FROM player_bosses WHERE rsn = $1', [rsn]);
+    const result: Record<string, Partial<Record<Boss, number>>> = {};
+    const queryResult = await client.query<{rsn: string, boss: Boss, score: number}>('SELECT * FROM player_bosses;');
     for (const row of queryResult.rows) {
-        result[row.boss] = row.score;
+        if (!result[row.rsn]) {
+            result[row.rsn] = {};
+        }
+        result[row.rsn][row.boss] = row.score;
     }
     return result;
 }

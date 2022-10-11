@@ -353,8 +353,6 @@ class State {
             disabled: this._disabled,
             guilds,
             playersOffHiScores: Array.from(this._playersOffHiScores),
-            levels: this._levels,
-            bosses: this._bosses,
             botCounters: this._botCounters
         };
     }
