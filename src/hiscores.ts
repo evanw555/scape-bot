@@ -19,7 +19,6 @@ export async function fetchHiScores(rsn: string): Promise<PlayerHiScores> {
     
     const levels: Partial<Record<IndividualSkillName, number>> = {};
     const levelsWithDefaults: Partial<Record<IndividualSkillName, number>> = {};
-    const missingSkills: Set<IndividualSkillName> = new Set();
     for (const skill of SKILLS_NO_OVERALL) {
         if (skill in stats.skills) {
             const skillPayload: Skill = stats.skills[skill];
@@ -48,7 +47,6 @@ export async function fetchHiScores(rsn: string): Promise<PlayerHiScores> {
 
     const bosses: Partial<Record<Boss, number>> = {};
     const bossesWithDefaults: Partial<Record<Boss, number>> = {};
-    const missingBosses: Set<Boss> = new Set();
     for (const boss of BOSSES) {
         if (boss in stats.bosses) {
             const bossPayload: Activity = stats.bosses[boss];
@@ -85,15 +83,15 @@ export async function fetchHiScores(rsn: string): Promise<PlayerHiScores> {
     };
 
     // If there were missing skills, these values won't be accurate (so don't include them)
-    if (missingSkills.size === 0) {
+    if (Object.keys(levels).length === Object.keys(levelsWithDefaults).length) {
         result.totalXp = stats.skills.overall.xp;
         result.baseLevel = Math.min(...Object.values(levels));
-        result.totalLevel = Object.values(levels).reduce((x, y) => x + y);
+        result.totalLevel = [0, ...Object.values(levels)].reduce((x, y) => x + y);
     }
 
     // If there were missing bosses, this value won't be accurate (so don't include it)
-    if (missingBosses.size === 0) {
-        result.totalBossKills = Object.values(bosses).reduce((x, y) => x + y);
+    if (Object.keys(bosses).length === Object.keys(bossesWithDefaults).length) {
+        result.totalBossKills = [0, ...Object.values(bosses)].reduce((x, y) => x + y);
     }
 
     return result;
