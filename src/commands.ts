@@ -128,10 +128,9 @@ const commands: Record<string, Command> = {
                 const totalLevel: string = (data.totalLevel ?? '???').toString();
                 const baseLevel: string = (data.baseLevel ?? '???').toString();
                 messageText += `${SKILLS_NO_OVERALL.map(skill => `**${data.levels[skill] ?? '?'}** ${skill}`).join('\n')}\n\nTotal **${totalLevel}**\nBase **${baseLevel}**`;
-                // Create bosses message text
-                // TODO: This might rarely be true, depending on how the API works (it might return invalid data per-boss e.g. minimum 50 kills for each boss)
-                if (data.totalBossKills) {
-                    messageText += '\n\n' + BOSSES.map(boss => `**${data.bosses[boss] ?? '?'}** ${getBossName(boss)}`).join('\n');
+                // Create bosses message text if there are any bosses with kills
+                if (Object.keys(data.bosses).length > 0) {
+                    messageText += '\n\n' + BOSSES.filter(boss => boss in data.bosses).map(boss => `**${data.bosses[boss]}** ${getBossName(boss)}`).join('\n');
                 }
                 sendUpdateMessage([msg.channel], messageText, 'overall', {
                     title: rsn,
