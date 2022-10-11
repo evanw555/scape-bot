@@ -44,13 +44,22 @@ export async function fetchWeeklyXpSnapshots(): Promise<Record<Snowflake, number
 }
 
 export async function writePlayerLevels(rsn: string, levels: Record<string, number>): Promise<void> {
+    if (Object.keys(levels).length === 0) {
+        return;
+    }
     const client: PGClient = state.getPGClient();
     const values = Object.keys(levels).map(skill => [rsn, skill, levels[skill]]);
+    if (values.length === 0) {
+        return;
+    }
     await client.query(format('INSERT INTO player_levels VALUES %L ON CONFLICT (rsn, skill) DO UPDATE SET level = EXCLUDED.level;', values));
 }
 
 export async function writePlayerBosses(rsn: string, bosses: Record<string, number>): Promise<void> {
     const client: PGClient = state.getPGClient();
     const values = Object.keys(bosses).map(boss => [rsn, boss, bosses[boss]]);
+    if (values.length === 0) {
+        return;
+    }
     await client.query(format('INSERT INTO player_bosses VALUES %L ON CONFLICT (rsn, boss) DO UPDATE SET score = EXCLUDED.score;', values));
 }

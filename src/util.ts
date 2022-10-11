@@ -1,12 +1,15 @@
-import hiscores, { Player, Skill, SkillName, Activity, Boss, INVALID_FORMAT_ERROR } from 'osrs-json-hiscores';
-import { isValidBoss, sanitizeBossName, toSortedBosses, getBossName } from './boss-utility';
+import { Boss, BOSSES, INVALID_FORMAT_ERROR } from 'osrs-json-hiscores';
+import { isValidBoss, toSortedBosses, getBossName } from './boss-utility';
 import { TextBasedChannel } from 'discord.js';
 import { addReactsSync, loadJson, randChoice } from 'evanw555.js';
-import { ScapeBotConstants } from './types';
+import { IndividualSkillName, PlayerHiScores, ScapeBotConstants } from './types';
+import { writePlayerBosses, writePlayerLevels } from './pg-storage';
+import { fetchHiScores } from './hiscores';
+import { dumpState } from './bot';
+import { DEFAULT_BOSS_SCORE, DEFAULT_SKILL_LEVEL, SKILLS_NO_OVERALL } from './constants';
 
 import logger from './log';
 import state from './state';
-import { writePlayerBosses, writePlayerLevels } from './pg-storage';
 
 const constants: ScapeBotConstants = loadJson('static/constants.json');
 
@@ -75,18 +78,26 @@ export function camelize(str: string) {
     }).replace(/\s+/g, '');
 }
 
-export function computeDiff(before: Record<string, number>, after: Record<string, number>): Record<string, number> {
-    // Construct the union of all keys from before and after objects (this is needed in the case of new keys)
-    const keyUnion: Set<string> = new Set();
-    Object.keys(before)
-        .concat(Object.keys(after))
-        .forEach(key => keyUnion.add(key));
+/**
+ * Returns a diff of two maps.
+ *
+ * @param before map of number values
+ * @param after map of number values, must be a superset of before
+ * @param baselineValue for any key missing from the before map, default to this value
+ * @returns A map containing the diff for entries where the value has increased
+ */
+export function computeDiff<T extends string>(before: Partial<Record<T, number>>, after: Record<T, number>, baselineValue: number): Partial<Record<T, number>> {
+    // Validate that before's keys are a subset of after's
+    if (!Object.keys(before).every(key => key in after)) {
+        throw new Error(`Cannot compute diff, before ${Object.keys(before).join(',')} is not a subset of after ${Object.keys(after).join(',')}`);
+    }
 
     // For each key, add the diff to the overall diff mapping
-    const diff: Record<string, number> = {};
-    keyUnion.forEach((kind) => {
-        const beforeValue = before[kind] ?? 0;
-        const afterValue = after[kind] ?? 0;
+    const diff: Partial<Record<T, number>> = {};
+    const kinds: T[] = Object.keys(after) as T[];
+    for (const kind of kinds) {
+        const beforeValue: number = before[kind] ?? baselineValue;
+        const afterValue: number = after[kind];
         if (beforeValue !== afterValue) {
             // TODO: the default isn't necessarily 0, it could be 1 for skills (but does that really matter?)
             const thisDiff = afterValue - beforeValue;
@@ -100,7 +111,8 @@ export function computeDiff(before: Record<string, number>, after: Record<string
             }
             diff[kind] = thisDiff;
         }
-    });
+    }
+
     return diff;
 }
 
@@ -120,336 +132,243 @@ export function filterValueFromMap<T>(input: Record<string, T>, blacklistedValue
     return output;
 }
 
-export function updatePlayer(rsn: string, spoofedDiff?: Record<string, number>): void {
+export function filterMap<T>(input: Record<string, T>, keyWhitelist: string[]): Record<string, T> {
+    const result: Record<string, T> = {};
+    for (const key of keyWhitelist) {
+        if (key in input) {
+            result[key] = input[key];
+        }
+    }
+    return result;
+}
+
+export function toSortedSkillsNoOverall(skills: string[]): IndividualSkillName[] {
+    const skillSubset: Set<string> = new Set(skills);
+    return SKILLS_NO_OVERALL.filter((skill: IndividualSkillName) => skillSubset.has(skill));
+}
+
+export async function updatePlayer(rsn: string, spoofedDiff?: Record<string, number>): Promise<void> {
     // Retrieve the player's hiscores data
-    hiscores.getStats(rsn).then((value: Player) => {
-        const stats = value[value.mode];
-        // Check whether the player's overall hiscore state needs to be updated...
-        if (stats) {
-            if (stats.skills.overall.rank === -1 && state.isPlayerOnHiScores(rsn)) {
-                // If player was previously on the hiscores, take them off
-                state.removePlayerFromHiScores(rsn);
-                sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), `**${rsn}** has fallen off the hiscores`, 'unhappy', { color: 12919812 });
-            } else if (stats.skills.overall.rank !== -1 && !state.isPlayerOnHiScores(rsn)) {
-                // If player was previously off the hiscores, add them back on!
-                state.addPlayerToHiScores(rsn);
-                sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), `**${rsn}** has made it back onto the hiscores`, 'happy', { color: 16569404 });
-            }
-        }
-
-        // Parse the player's hiscores data
-        let playerData: Record<string, Record<string, number>>;
-        try {
-            playerData = parsePlayerPayload(value);
-        } catch (err) {
-            if (err instanceof Error) {
-                logger.log(`Failed to parse payload for player ${rsn}: ${err.toString()}`);
-            }
-            return;
-        }
-
-        // Attempt to patch over some of the missing data for this player (default to 1/0 if there's no pre-existing data)
-        // The purpose of doing this is to avoid negative skill/kc diffs (caused by weird behavior of the so-called 'API')
-        const skills: Record<string, number> = patchMissingLevels(rsn, playerData.skills, 1);
-        const bosses: Record<string, number> = patchMissingBosses(rsn, playerData.bosses, 0);
-
-        updateLevels(rsn, skills, spoofedDiff);
-        updateKillCounts(rsn, bosses, spoofedDiff);
-    }).catch((err) => {
+    let data: PlayerHiScores;
+    try {
+        data = await fetchHiScores(rsn);
+    } catch (err) {
         if ((err instanceof Error) && err.message === INVALID_FORMAT_ERROR) {
             // If the API has changed, disable the bot and send a message
-            // TODO: This will likely get dumped to disk if in the normal loop, but not if run by certain commands... change this?
             if (!state.isDisabled()) {
                 state.setDisabled(true);
-                sendUpdateMessage(state.getAllTrackingChannels(), 'The hiscores API has changed, the bot is now disabled. Please fix this, then re-enable the bot', 'wrench', { color: 7303023 });
+                await dumpState();
+                await sendUpdateMessage(state.getAllTrackingChannels(), 'The hiscores API has changed, the bot is now disabled. Please fix this, then re-enable the bot', 'wrench', { color: 7303023 });
             }
         } else {
-            logger.log(`Error while fetching player hiscores for ${rsn}: ${err.toString()}`);
+            logger.log(`Error while fetching player hiscores for ${rsn}: \`${err}\``);
         }
-    });
-}
-
-
-export function parsePlayerPayload(payload: Player): Record<string, Record<string, number>> {
-    const result: Record<string, Record<string, number>> = {
-        skills: {},
-        bosses: {}
-    };
-    const stats = payload[payload.mode];
-    if (stats) {
-        Object.keys(stats.skills).forEach((skill: string) => {
-            if (skill !== 'overall') {
-                const skillPayload: Skill = stats.skills[skill as SkillName];
-                if (skillPayload.level === -1 && skillPayload.xp === -1) {
-                    // If this skill is for some reason omitted from the payload (bad rank? inactivity? why?), then explicitly mark this using NaN
-                    result.skills[skill] = NaN;
-                } else {
-                    // Otherwise, parse the number as normal...
-                    const level: number = skillPayload.level;
-                    if (typeof level !== 'number' || isNaN(level) || level < 1) {
-                        throw new Error(`Invalid ${skill} level, '${level}' parsed to ${level}.\nPayload: ${JSON.stringify(stats.skills)}`);
-                    }
-                    result.skills[skill] = level;
-                }
-            }
-        });
-        Object.keys(stats.bosses).forEach((bossName: string) => {
-            const bossPayload: Activity = stats.bosses[bossName as Boss];
-            const bossID: string = sanitizeBossName(bossName);
-            if (bossPayload.rank === -1 && bossPayload.score === -1) {
-                // If this boss is for some reason omitted for the payload, then explicitly mark this using NaN
-                result.bosses[bossID] = NaN;
-            } else {
-                // Otherwise, parse the number as normal...
-                const killCount: number = bossPayload.score;
-                if (typeof killCount !== 'number' || isNaN(killCount)) {
-                    throw new Error(`Invalid ${bossID} boss, '${killCount}' parsed to ${killCount}.\nPayload: ${JSON.stringify(stats.bosses)}`);
-                }
-                result.bosses[bossID] = killCount;
-            }
-        });
+        return;
     }
-    return result;
-}
 
-/**
- * With a parsed skills payload as input, attempt to fill in missing levels (NaN) using pre-existing player skill information.
- * If such pre-existing skill information does not exist, then fall back onto some arbitrary number.
- */
-export function patchMissingLevels(rsn: string, levels: Record<string, number>, fallbackValue = NaN): Record<string, number> {
-    const result: Record<string, number> = {};
-    Object.keys(levels).forEach((skill) => {
-        if (isNaN(levels[skill])) {
-            result[skill] = state.hasLevels(rsn) ? (state.getLevels(rsn)[skill] ?? fallbackValue) : fallbackValue;
-        } else {
-            result[skill] = levels[skill];
-        }
-    });
-    return result;
-}
+    // Check whether the player's overall hiscore state needs to be updated...
+    if (!data.onHiScores && state.isPlayerOnHiScores(rsn)) {
+        // If player was previously on the hiscores, take them off
+        state.removePlayerFromHiScores(rsn);
+        await dumpState();
+        await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), `**${rsn}** has fallen off the hiscores`, 'unhappy', { color: 12919812 });
+    } else if (data.onHiScores && !state.isPlayerOnHiScores(rsn)) {
+        // If player was previously off the hiscores, add them back on!
+        state.addPlayerToHiScores(rsn);
+        await dumpState();
+        await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), `**${rsn}** has made it back onto the hiscores`, 'happy', { color: 16569404 });
+    }
 
-/**
- * With a parsed bosses payload as input, attempt to fill in missing killcounts (NaN) using pre-existing player kill count information.
- * If such pre-existing boss information does not exist, then fall back onto some arbitrary number.
- */
-export function patchMissingBosses(rsn: string, bosses: Record<string, number>, fallbackValue = NaN): Record<string, number> {
-    const result: Record<string, number> = {};
-    Object.keys(bosses).forEach((bossId) => {
-        if (isNaN(bosses[bossId])) {
-            result[bossId] = state.hasBosses(rsn) ? (state.getBosses(rsn)[bossId] ?? fallbackValue) : fallbackValue;
-        } else {
-            result[bossId] = bosses[bossId];
-        }
-    });
-    return result;
-}
-
-export function toSortedSkills(skills: string[]): string[] {
-    const skillSubset = new Set(skills);
-    return constants.skills.filter((skill: SkillName) => skillSubset.has(skill));
-}
-
-export async function updateLevels(rsn: string, newLevels: Record<string, number>, spoofedDiff?: Record<string, number>): Promise<void> {
-    // If channel is set and user already has levels tracked
+    // Check if levels have changes and send notifications
     if (state.hasLevels(rsn)) {
-        // Compute diff for each level
-        let diff: Record<string, number>;
-        try {
-            if (spoofedDiff) {
-                diff = {};
-                Object.keys(spoofedDiff).forEach((skill) => {
-                    if (validSkills.has(skill)) {
-                        diff[skill] = spoofedDiff[skill];
-                        newLevels[skill] += diff[skill];
-                    }
-                });
-            } else {
-                diff = computeDiff(state.getLevels(rsn), newLevels);
+        await updateLevels(rsn, data.levelsWithDefaults, spoofedDiff);
+    } else {
+        // If this player has no levels in the state, prime with initial data (NOT including assumed defaults)
+        state.setLevels(rsn, data.levels);
+        state.setLastUpdated(rsn, new Date());
+        await dumpState();
+        await writePlayerLevels(rsn, data.levels);
+    }
+
+    // Check if bosses have changes and send notifications
+    if (state.hasBosses(rsn)) {
+        await updateKillCounts(rsn, data.bossesWithDefaults, spoofedDiff);
+    } else {
+        // If this player has no bosses in the state, prime with initial data (NOT including assumed defaults)
+        state.setBosses(rsn, data.bosses);
+        state.setLastUpdated(rsn, new Date());
+        await dumpState();
+        await writePlayerBosses(rsn, data.bosses);
+    }
+}
+
+export async function updateLevels(rsn: string, newLevels: Record<IndividualSkillName, number>, spoofedDiff?: Record<string, number>): Promise<void> {
+    // We shouldn't be doing this if this player doesn't have any skill info in the state
+    if (!state.hasLevels(rsn)) {
+        return;
+    }
+
+    // Compute diff for each level
+    let diff: Partial<Record<IndividualSkillName, number>>;
+    try {
+        if (spoofedDiff) {
+            diff = {};
+            for (const skill of SKILLS_NO_OVERALL) {
+                if (skill in spoofedDiff) {
+                    diff[skill] = spoofedDiff[skill];
+                    newLevels[skill] += spoofedDiff[skill];
+                }
             }
-        } catch (err) {
-            if (err instanceof Error && err.message) {
-                logger.log(`Failed to compute level diff for player ${rsn}: ${err.message}`);
-            }
-            return;
+        } else {
+            diff = computeDiff(state.getLevels(rsn), newLevels, DEFAULT_SKILL_LEVEL);
         }
-        if (!diff) {
-            return;
+    } catch (err) {
+        if (err instanceof Error && err.message) {
+            logger.log(`Failed to compute level diff for player ${rsn}: ${err.message}`);
         }
-        // Send a message for any skill that is now 99 and remove it from the diff
-        for (const skill of toSortedSkills(Object.keys(diff))) {
-            const newLevel = newLevels[skill];
-            if (newLevel === 99) {
-                const levelsGained = diff[skill];
-                await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn),
-                `**${rsn}** has gained `
-                    + (levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`)
-                    + ` in **${skill}** and is now level **99**`,
-                skill, {
-                    header: '@everyone',
-                    is99: true,
-                    reacts: ['🇬', '🇿']
-                });
-                delete diff[skill];
-            }
-        }
-        // Send a message showing all the levels gained
-        switch (Object.keys(diff).length) {
-        case 0:
-            break;
-        case 1: {
-            const skill = Object.keys(diff)[0];
+        return;
+    }
+    if (!diff) {
+        return;
+    }
+    // Send a message for any skill that is now 99 and remove it from the diff
+    const updatedSkills: IndividualSkillName[] = toSortedSkillsNoOverall(Object.keys(diff));
+    for (const skill of updatedSkills) {
+        const newLevel = newLevels[skill];
+        if (newLevel === 99) {
             const levelsGained = diff[skill];
-            const text = `**${rsn}** has gained `
+            await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn),
+            `**${rsn}** has gained `
                 + (levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`)
-                + ` in **${skill}** and is now level **${newLevels[skill]}**`;
-            logger.log(text);
-            await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, skill);
-            break;
-        }
-        default: {
-            const text = toSortedSkills(Object.keys(diff)).map((skill) => {
-                const levelsGained = diff[skill];
-                return `${levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`} in **${skill}** and is now level **${newLevels[skill]}**`;
-            }).join('\n');
-            logger.log(text);
-            await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), `**${rsn}** has gained...\n${text}`, 'overall');
-            break;
-        }
+                + ` in **${skill}** and is now level **99**`,
+            skill, {
+                header: '@everyone',
+                is99: true,
+                reacts: ['🇬', '🇿']
+            });
+            delete diff[skill];
         }
     }
+    // Send a message showing all the levels gained
+    switch (updatedSkills.length) {
+    case 0:
+        break;
+    case 1: {
+        const skill = updatedSkills[0];
+        const levelsGained = diff[skill];
+        const text = `**${rsn}** has gained `
+            + (levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`)
+            + ` in **${skill}** and is now level **${newLevels[skill]}**`;
+        logger.log(text);
+        await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, skill);
+        break;
+    }
+    default: {
+        const text = updatedSkills.map((skill) => {
+            const levelsGained = diff[skill];
+            return `${levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`} in **${skill}** and is now level **${newLevels[skill]}**`;
+        }).join('\n');
+        logger.log(text);
+        await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), `**${rsn}** has gained...\n${text}`, 'overall');
+        break;
+    }
+    }
+
     // If not spoofing the diff, update player's levels
     if (!spoofedDiff) {
-        await writePlayerLevels(rsn, newLevels);
-        state.setLastUpdated(rsn, new Date());
-        // TODO: Remove this once we rely completely on PG
+        // Write only updated skills to PG
+        await writePlayerLevels(rsn, filterMap(newLevels, updatedSkills));
+
         state.setLevels(rsn, newLevels);
+        state.setLastUpdated(rsn, new Date());
+        await dumpState();
     }
 }
 
-export async function updateKillCounts(rsn: string, killCounts: Record<string, number>, spoofedDiff?: Record<string, number>): Promise<void> {
-    // If channel is set and user already has bosses tracked
-    if (state.hasBosses(rsn)) {
-        // Compute diff for each boss
-        let diff: Record<string, number>;
-        try {
-            if (spoofedDiff) {
-                diff = {};
-                Object.keys(spoofedDiff).forEach((bossID) => {
-                    if (isValidBoss(bossID)) {
-                        diff[bossID] = spoofedDiff[bossID];
-                        // I noticed we fallback on 'NaN' to designate a boss KC that is missing or not yet
-                        // in the hiscores, but this means your first positive boss KC total will sum to 'NaN'. 
-                        killCounts[bossID] = (killCounts[bossID] || 0) + diff[bossID];
-                    }
-                });
-            } else {
-                diff = computeDiff(state.getBosses(rsn), killCounts);
-            }
-        } catch (err) {
-            if (err instanceof Error && err.message) {
-                logger.log(`Failed to compute boss KC diff for player ${rsn}: ${err.message}`);
-            }
-            return;
-        }
-        if (!diff) {
-            return;
-        }
-        // Send a message showing all the incremented boss KCs
-        const dopeKillVerbs = [
-            'has killed',
-            'killed',
-            'has slain',
-            'slew',
-            'slaughtered',
-            'butchered'
-        ];
-        const dopeKillVerb: string = randChoice(...dopeKillVerbs);
-        switch (Object.keys(diff).length) {
-        case 0:
-            break;
-        case 1: {
-            const bossID = Object.keys(diff)[0];
-            const killCountIncrease = diff[bossID];
-            const bossName = getBossName(bossID as Boss);
-            const text = killCounts[bossID] === 1
-                ? `**${rsn}** has slain **${bossName}** for the first time!`
-                : `**${rsn}** ${dopeKillVerb} **${bossName}** `
-                        + (killCountIncrease === 1 ? 'again' : `**${killCountIncrease}** more times`)
-                        + ` and is now at **${killCounts[bossID]}** kills`;
-            logger.log(text);
-            sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, bossName, { color: 10363483 });
-            break;
-        }
-        default: {
-            const sortedBosses = toSortedBosses(Object.keys(diff));
-            const text = sortedBosses.map((bossID) => {
-                const killCountIncrease = diff[bossID];
-                const bossName = getBossName(bossID as Boss);
-                return killCounts[bossID] === 1
-                    ? `**${bossName}** for the first time!`
-                    : `**${bossName}** ${killCountIncrease === 1 ? 'again' : `**${killCountIncrease}** more times`} and is now at **${killCounts[bossID]}**`;
-            }).join('\n');
-            logger.log(text);
-            sendUpdateMessage(
-                state.getTrackingChannelsForPlayer(rsn),
-                `**${rsn}** has killed...\n${text}`,
-                getBossName(sortedBosses[0] as Boss),
-                { color: 10363483 }
-            );
-            break;
-        }
-        }
+export async function updateKillCounts(rsn: string, killCounts: Record<Boss, number>, spoofedDiff?: Record<string, number>): Promise<void> {
+    // We shouldn't be doing this if this player doesn't have any boss info in the state
+    if (!state.hasBosses(rsn)) {
+        return;
     }
+
+    // Compute diff for each boss
+    let diff: Partial<Record<Boss, number>>;
+    try {
+        if (spoofedDiff) {
+            diff = {};
+            for (const boss of BOSSES) {
+                if (boss in spoofedDiff) {
+                    diff[boss] = spoofedDiff[boss];
+                    killCounts[boss] += spoofedDiff[boss];
+                }
+            }
+        } else {
+            diff = computeDiff(state.getBosses(rsn), killCounts, DEFAULT_BOSS_SCORE);
+        }
+    } catch (err) {
+        if (err instanceof Error && err.message) {
+            logger.log(`Failed to compute boss KC diff for player ${rsn}: ${err.message}`);
+        }
+        return;
+    }
+    if (!diff) {
+        return;
+    }
+    // Send a message showing all the incremented boss KCs
+    const dopeKillVerbs = [
+        'has killed',
+        'killed',
+        'has slain',
+        'slew',
+        'slaughtered',
+        'butchered'
+    ];
+    const dopeKillVerb: string = randChoice(...dopeKillVerbs);
+    const updatedBosses: Boss[] = toSortedBosses(Object.keys(diff));
+    switch (updatedBosses.length) {
+    case 0:
+        break;
+    case 1: {
+        const boss = updatedBosses[0];
+        const killCountIncrease = diff[boss];
+        const bossName = getBossName(boss);
+        const text = killCounts[boss] === 1
+            ? `**${rsn}** has slain **${bossName}** for the first time!`
+            : `**${rsn}** ${dopeKillVerb} **${bossName}** `
+                    + (killCountIncrease === 1 ? 'again' : `**${killCountIncrease}** more times`)
+                    + ` and is now at **${killCounts[boss]}** kills`;
+        logger.log(text);
+        sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, bossName, { color: 10363483 });
+        break;
+    }
+    default: {
+        const text = updatedBosses.map((boss) => {
+            const killCountIncrease = diff[boss];
+            const bossName = getBossName(boss);
+            return killCounts[boss] === 1
+                ? `**${bossName}** for the first time!`
+                : `**${bossName}** ${killCountIncrease === 1 ? 'again' : `**${killCountIncrease}** more times`} and is now at **${killCounts[boss]}**`;
+        }).join('\n');
+        logger.log(text);
+        sendUpdateMessage(
+            state.getTrackingChannelsForPlayer(rsn),
+            `**${rsn}** has killed...\n${text}`,
+            getBossName(updatedBosses[0]),
+            { color: 10363483 }
+        );
+        break;
+    }
+    }
+
     // If not spoofing the diff, update player's kill counts
     if (!spoofedDiff) {
-        await writePlayerBosses(rsn, killCounts);
-        state.setLastUpdated(rsn, new Date());
-        // TODO: Remove this once we rely completely on PG
+        // Write only updated bosses to PG
+        await writePlayerBosses(rsn, filterMap(killCounts, updatedBosses));
+
         state.setBosses(rsn, killCounts);
+        state.setLastUpdated(rsn, new Date());
+        await dumpState();
     }
-}
-
-export function updatePlayers(players: string[]): void {
-    if (players) {
-        players.forEach((rsn) => {
-            updatePlayer(rsn);
-        });
-    }
-}
-
-export function getDurationString(milliseconds: number) {
-    if (milliseconds === 0) {
-        return 'no time at all';
-    }
-    if (milliseconds === 1) {
-        return '1 millisecond';
-    }
-    if (milliseconds < 1000) {
-        return `${milliseconds} milliseconds`;
-    }
-    const seconds = Math.floor(milliseconds / 1000);
-    if (seconds === 1) {
-        return '1 second';
-    }
-    if (seconds < 60) {
-        return `${seconds} seconds`;
-    }
-    const minutes = Math.floor(seconds / 60);
-    if (minutes === 1) {
-        return '1 minute';
-    }
-    if (minutes < 60) {
-        return `${minutes} minutes`;
-    }
-    const hours = Math.floor(minutes / 60);
-    if (hours === 1) {
-        return '1 hour';
-    }
-    if (hours < 48) {
-        return `${hours} hours`;
-    }
-    const days = Math.floor(hours / 24);
-    return `${days} days`;
 }
 
 export function getQuantityWithUnits(quantity: number): string {

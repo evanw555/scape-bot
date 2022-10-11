@@ -1,8 +1,8 @@
 import { Snowflake, TextBasedChannel } from 'discord.js';
 import { Client as PGClient } from 'pg';
 import { CircularQueue } from 'evanw555.js';
-import { SerializedGuildState, SerializedState } from './types';
-import { filterValueFromMap } from './util';
+import { IndividualSkillName, SerializedGuildState, SerializedState } from './types';
+import { Boss } from 'osrs-json-hiscores';
 
 import logger from './log';
 
@@ -11,8 +11,8 @@ class State {
     private _timestamp?: Date;
     private _disabled?: boolean;
     private readonly _playersOffHiScores: Set<string>;
-    private readonly _levels: Record<string, Record<string, number>>;
-    private readonly _bosses: Record<string, Record<string, number>>;
+    private readonly _levels: Record<string, Partial<Record<IndividualSkillName, number>>>;
+    private readonly _bosses: Record<string, Partial<Record<Boss, number>>>;
     private readonly _botCounters: Record<Snowflake, number>;
     private readonly _lastUpdate: Record<string, Date>;
     private _adminId?: Snowflake;
@@ -199,40 +199,80 @@ class State {
         return this._adminId !== undefined && this._adminId === adminId;
     }
 
+    hasLevels(rsn: string): boolean {
+        return rsn in this._levels;
+    }
+
+    /**
+     * NOTE: This only contains values that are definitively known via the API (does NOT contain assumed defaults)
+     */
+    getLevels(rsn: string): Partial<Record<IndividualSkillName, number>> {
+        return this._levels[rsn];
+    }
+
+    /**
+     * NOTE: It is expected that the input map only contains values that are definitively known via the API (does NOT contain assumed defaults) 
+     */
+    setLevels(rsn: string, levels: Record<string, number>): void {
+        this._levels[rsn] = levels;
+    }
+
+    /**
+     * NOTE: It is expected that the input map only contains values that are definitively known via the API (does NOT contain assumed defaults) 
+     */
     setAllLevels(levels: Record<string, Record<string, number>>): void {
         Object.entries(levels).forEach(([rsn, value]) => {
             this.setLevels(rsn, value);
         });
     }
 
-    setAllBosses(bosses: Record<string, Record<string, number>>): void {
-        Object.entries(bosses).forEach(([rsn, value]) => {
-            this.setBosses(rsn, value);
-        });
+    hasLevel(rsn: string, skill: string): boolean {
+        return this.hasLevels(rsn) && skill in this._levels[rsn];
     }
 
-    hasLevels(rsn: string): boolean {
-        return rsn in this._levels;
-    }
-
-    getLevels(rsn: string): Record<string, number> {
-        return this._levels[rsn];
-    }
-
-    setLevels(rsn: string, levels: Record<string, number>): void {
-        this._levels[rsn] = levels;
+    getLevel(rsn: string, skill: IndividualSkillName): number {
+        if (!this.hasLevel(rsn, skill)) {
+            throw new Error(`Cannot get ${skill} level for ${rsn}, it's missing from the state!`);
+        }
+        return this._levels[rsn][skill] as number;
     }
 
     hasBosses(rsn: string): boolean {
         return rsn in this._bosses;
     }
 
-    getBosses(rsn: string): Record<string, number> {
+    /**
+     * NOTE: This only contains values that are definitively known via the API (does NOT contain assumed defaults)
+     */
+    getBosses(rsn: string): Partial<Record<Boss, number>> {
         return this._bosses[rsn];
     }
 
+    /**
+     * NOTE: It is expected that the input map only contains values that are definitively known via the API (does NOT contain assumed defaults) 
+     */
     setBosses(rsn: string, bosses: Record<string, number>): void {
         this._bosses[rsn] = bosses;
+    }
+
+    /**
+     * NOTE: It is expected that the input map only contains values that are definitively known via the API (does NOT contain assumed defaults) 
+     */
+    setAllBosses(bosses: Record<string, Record<string, number>>): void {
+        Object.entries(bosses).forEach(([rsn, value]) => {
+            this.setBosses(rsn, value);
+        });
+    }
+
+    hasBoss(rsn: string, boss: string): boolean {
+        return this.hasBosses(rsn) && boss in this._bosses[rsn];
+    }
+
+    getBoss(rsn: string, boss: Boss): number {
+        if (!this.hasBoss(rsn, boss)) {
+            throw new Error(`Cannot get ${boss} score for ${rsn}, it's missing from the state!`);
+        }
+        return this._bosses[rsn][boss] as number;
     }
 
     getBotCounter(botId: Snowflake): number {

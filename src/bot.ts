@@ -1,8 +1,7 @@
-import { Client, ClientUser, DMChannel, Guild, Intents, Options, TextBasedChannel, User } from 'discord.js';
-import { ScapeBotAuth, ScapeBotConfig, SerializedState, TimeoutType } from './types';
-import { updatePlayer, sendUpdateMessage, getQuantityWithUnits, getThumbnail, getDurationString, getNextFridayEvening } from './util';
-import hiscores, { Player } from 'osrs-json-hiscores';
-import { TimeoutManager, FileStorage, PastTimeoutStrategy, loadJson, randInt } from 'evanw555.js';
+import { Client, ClientUser, Guild, Intents, Options, TextBasedChannel, User } from 'discord.js';
+import { PlayerHiScores, ScapeBotAuth, ScapeBotConfig, SerializedState, TimeoutType } from './types';
+import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer } from './util';
+import { TimeoutManager, FileStorage, PastTimeoutStrategy, loadJson, randInt, getDurationString } from 'evanw555.js';
 import CommandReader from './command-reader';
 import { Client as PGClient } from 'pg';
 
@@ -11,7 +10,8 @@ const config: ScapeBotConfig = loadJson('config/config.json');
 
 import logger from './log';
 import state from './state';
-import { doesTableExist, fetchWeeklyXpSnapshots, initializeTables, writeWeeklyXpSnapshots } from './pg-storage';
+import { fetchWeeklyXpSnapshots, initializeTables, writeWeeklyXpSnapshots } from './pg-storage';
+import { fetchHiScores } from './hiscores';
 
 const storage: FileStorage = new FileStorage('./data/');
 const commandReader: CommandReader = new CommandReader();
@@ -77,7 +77,7 @@ const deserializeState = async (serializedState: SerializedState): Promise<void>
     state.setValid(true);
 };
 
-const dumpState = async (): Promise<void> => {
+export async function dumpState(): Promise<void> {
     if (state.isValid()) {
         state.setTimestamp(new Date());
         return storage.write('state.json', JSON.stringify(state.serialize(), null, 2));
@@ -117,8 +117,8 @@ const weeklyTotalXpUpdate = async () => {
     const newTotalXpValues: Record<string, number> = {};
     for (const rsn of state.getAllGloballyTrackedPlayers()) {
         try {
-            const player: Player = await hiscores.getStats(rsn);
-            const totalXp: number = player[player.mode]?.skills.overall.xp ?? 0;
+            const data: PlayerHiScores = await fetchHiScores(rsn);
+            const totalXp: number = data.totalXp ?? 0;
             // Use some arbitrary threshold like 10xp to ensure inactive users aren't included
             if (totalXp > 10) {
                 newTotalXpValues[rsn] = totalXp;
@@ -235,13 +235,11 @@ client.on('ready', async () => {
 
     // Regardless of whether loading the players/channel was successful, start the update loop
     // TODO: Use timeout manager
-    setInterval(() => {
+    setInterval(async () => {
         if (!state.isDisabled()) {
             const nextPlayer = state.nextTrackedPlayer();
             if (nextPlayer) {
-                updatePlayer(nextPlayer);
-                // TODO: do this somewhere else!
-                dumpState();
+                await updatePlayer(nextPlayer);
             } else {
                 // No players being tracked
             }

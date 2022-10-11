@@ -1,5 +1,5 @@
 import { camelize } from './util';
-import { FORMATTED_BOSS_NAMES, Boss } from 'osrs-json-hiscores';
+import { FORMATTED_BOSS_NAMES, Boss, BOSSES } from 'osrs-json-hiscores';
 
 /**
  * Boss name with capitalization and spacing
@@ -14,9 +14,9 @@ import { FORMATTED_BOSS_NAMES, Boss } from 'osrs-json-hiscores';
 const validBossNames = new Set(Object.values(FORMATTED_BOSS_NAMES));
 const validBossIDs = new Set(Object.keys(FORMATTED_BOSS_NAMES));
 
-export function toSortedBosses(bosses: string[]): string[] {
+export function toSortedBosses(bosses: string[]): Boss[] {
     const bossSubset = new Set(bosses);
-    return [...validBossIDs].filter(bossID => bossSubset.has(bossID));
+    return BOSSES.filter(boss => bossSubset.has(boss));
 }
 
 /**

@@ -1,14 +1,16 @@
-import { updatePlayer, parsePlayerPayload, sendUpdateMessage, toSortedSkills, patchMissingLevels, patchMissingBosses } from './util';
-import hiscores, { FORMATTED_BOSS_NAMES, Player, Boss } from 'osrs-json-hiscores';
+import { sendUpdateMessage, updatePlayer } from './util';
+import { FORMATTED_BOSS_NAMES, Boss, BOSSES } from 'osrs-json-hiscores';
 import { exec } from 'child_process';
-import { toSortedBosses, sanitizeBossName, getBossName, isValidBoss } from './boss-utility';
-import { AnyObject, Command, ScapeBotConfig, ScapeBotConstants } from './types';
+import { sanitizeBossName, getBossName, isValidBoss } from './boss-utility';
+import { AnyObject, Command, PlayerHiScores, ScapeBotConfig, ScapeBotConstants } from './types';
 import { Message, Snowflake } from 'discord.js';
 import { loadJson, randChoice, randInt } from 'evanw555.js';
+import { fetchHiScores } from './hiscores';
 
 import state from './state';
 import logger from './log';
 import capacityLog from './capacity-log';
+import { SKILLS_NO_OVERALL } from './constants';
 
 const config: ScapeBotConfig = loadJson('config/config.json');
 const constants: ScapeBotConstants = loadJson('static/constants.json');
@@ -113,39 +115,24 @@ const commands: Record<string, Command> = {
         text: 'Lists all the players currently being tracked'
     },
     check: {
-        fn: (msg, rawArgs) => {
+        fn: async (msg, rawArgs) => {
             const rsn = rawArgs && rawArgs.toLowerCase();
             if (!rsn || !rsn.trim()) {
                 msg.channel.send('Invalid username');
                 return;
             }
             // Retrieve the player's hiscores data
-            hiscores.getStats(rsn).then((value: Player) => {
-                // Parse the player's hiscores data
-                let playerData: Record<string, Record<string, number>>;
-                try {
-                    playerData = parsePlayerPayload(value);
-                } catch (err) {
-                    if (err instanceof Error) {
-                        logger.log(`Failed to parse hiscores payload for player ${rsn}: ${err.toString()}`);
-                    }
-                    return;
-                }
+            fetchHiScores(rsn).then((data: PlayerHiScores) => {
                 let messageText = '';
                 // Create skills message text
-                const currentLevels: Record<string, number> = patchMissingLevels(rsn, playerData.skills);
-                const skills = toSortedSkills(Object.keys(currentLevels));
-                const baseLevel = Math.min(...Object.values(currentLevels).filter((x) => !isNaN(x)));
-                const totalLevel = Object.values(currentLevels).filter((x) => !isNaN(x)).reduce((x: number, y: number) => { return x + y; });
-                const totalLevelText = Object.values(currentLevels).some((x) => isNaN(x)) ? `${totalLevel} (?)` : totalLevel;
-                messageText += `${skills.map(skill => `**${isNaN(currentLevels[skill]) ? '?' : currentLevels[skill]}** ${skill}`).join('\n')}\n\nTotal **${totalLevelText}**\nBase **${baseLevel}**`;
+                const totalLevel: string = (data.totalLevel ?? '???').toString();
+                const baseLevel: string = (data.baseLevel ?? '???').toString();
+                messageText += `${SKILLS_NO_OVERALL.map(skill => `**${data.levels[skill] ?? '?'}** ${skill}`).join('\n')}\n\nTotal **${totalLevel}**\nBase **${baseLevel}**`;
                 // Create bosses message text
-                const killCounts = playerData.bosses;
-                const kcBosses = toSortedBosses(Object.keys(killCounts)).filter(boss => killCounts[boss]);
-                if (kcBosses.length) {
-                    messageText += '\n\n';
+                // TODO: This might rarely be true, depending on how the API works (it might return invalid data per-boss e.g. minimum 50 kills for each boss)
+                if (data.totalBossKills) {
+                    messageText += '\n\n' + BOSSES.map(boss => `**${data.bosses[boss] ?? '?'}** ${getBossName(boss)}`).join('\n');
                 }
-                messageText += `${kcBosses.map(boss => `**${killCounts[boss]}** ${getBossName(boss as Boss)}`).join('\n')}`;
                 sendUpdateMessage([msg.channel], messageText, 'overall', {
                     title: rsn,
                     url: `${constants.hiScoresUrlTemplate}${encodeURI(rsn)}`
@@ -159,40 +146,32 @@ const commands: Record<string, Command> = {
         failIfDisabled: true
     },
     kc: {
-        fn: (msg, rawArgs, player, boss) => {
-            if (!player || !player.trim() || !boss || !boss.trim()) {
+        fn: (msg, rawArgs, rsn, bossArg) => {
+            if (!rsn || !rsn.trim() || !bossArg || !bossArg.trim()) {
                 msg.channel.send('`kc` command must look like `kc [player] [boss]`');
                 return;
             }
-            if (!isValidBoss(boss)) {
-                msg.channel.send(`'${boss}' is not a valid boss`);
+            // TODO: Can we refactor our utility to use more osrs-json-hiscores constants?
+            if (!isValidBoss(bossArg)) {
+                msg.channel.send(`\`${bossArg}\` is not a valid boss`);
                 return;
             }
+            const boss: Boss = sanitizeBossName(bossArg);
             // Retrieve the player's hiscores data
-            hiscores.getStats(player).then((value: Player) => {
-                // Parse the player's hiscores data
-                let playerData;
-                try {
-                    playerData = parsePlayerPayload(value);
-                } catch (err) {
-                    if (err instanceof Error) {
-                        logger.log(`Failed to parse hiscores payload for player ${player}: ${err.toString()}`);
-                    }
-                    return;
-                }
+            fetchHiScores(rsn).then((data: PlayerHiScores) => {
                 // Create boss message text
-                const killCounts: Record<string, number> = patchMissingBosses(player, playerData.bosses);
-                const bossID = sanitizeBossName(boss);
-                const bossName = getBossName(bossID);
-                const messageText = `**${player}** has killed **${bossName}** **${killCounts[bossID]}** times`;
-                sendUpdateMessage([msg.channel], messageText, bossID, {
-                    title: bossName,
-                    url: `${constants.osrsWikiBaseUrl}${encodeURIComponent(bossName)}`,
+                const messageText = boss in data.bosses
+                    ? `**${rsn}** has killed **${getBossName(boss)}** **${data.bosses[boss]}** times`
+                    : `I don't know how many **${getBossName(boss)}** kills **${rsn}** has`;
+                // TODO: Should we change how we map boss names to thumbnails? Seems like there are currently 3 formats...
+                sendUpdateMessage([msg.channel], messageText, getBossName(boss), {
+                    title: getBossName(boss),
+                    url: `${constants.osrsWikiBaseUrl}${encodeURIComponent(getBossName(boss))}`,
                     color: 10363483
                 });
             }).catch((err) => {
-                logger.log(`Error while fetching hiscores (check) for player ${player}: ${err.toString()}`);
-                msg.channel.send(`Couldn't fetch hiscores for player **${player}** :pensive:\n\`${err.toString()}\``);
+                logger.log(`Error while fetching hiscores (check) for player ${rsn}: ${err.toString()}`);
+                msg.channel.send(`Couldn't fetch hiscores for player **${rsn}** :pensive:\n\`${err.toString()}\``);
             });
         },
         text: 'Show kill count of a boss for some player',
@@ -313,9 +292,8 @@ const commands: Record<string, Command> = {
         fn: (msg, rawArgs, player) => {
             if (player) {
                 const possibleKeys = Object.keys(FORMATTED_BOSS_NAMES)
-                    .concat(constants.skills)
-                    .concat(constants.skills) // Add it again to make it more likely (there are too many bosses)
-                    .filter(skill => skill != 'overall');
+                    .concat(SKILLS_NO_OVERALL)
+                    .concat(SKILLS_NO_OVERALL); // Add it again to make it more likely (there are too many bosses)
                 const numUpdates: number = randInt(1, 6);
                 const spoofedDiff: Record<string, number> = {};
                 for (let i = 0; i < numUpdates; i++) {
