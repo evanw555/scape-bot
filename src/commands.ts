@@ -2,21 +2,19 @@ import { sendUpdateMessage, updatePlayer } from './util';
 import { FORMATTED_BOSS_NAMES, Boss, BOSSES } from 'osrs-json-hiscores';
 import { exec } from 'child_process';
 import { sanitizeBossName, getBossName, isValidBoss } from './boss-utility';
-import { AnyObject, Command, PlayerHiScores, ScapeBotConfig, ScapeBotConstants } from './types';
+import { AnyObject, Command, PlayerHiScores } from './types';
 import { Message, Snowflake } from 'discord.js';
-import { loadJson, randChoice, randInt } from 'evanw555.js';
+import { randChoice, randInt } from 'evanw555.js';
 import { fetchHiScores } from './hiscores';
-
-import state from './state';
-import logger from './log';
 import capacityLog from './capacity-log';
 import { SKILLS_NO_OVERALL } from './constants';
 import { deleteTrackedPlayer, insertTrackedPlayer, updateTrackingChannel } from './pg-storage';
 
-const config: ScapeBotConfig = loadJson('config/config.json');
-const constants: ScapeBotConstants = loadJson('static/constants.json');
+import { CONSTANTS, CONFIG } from './constants';
+import state from './instances/state';
+import logger from './instances/logger';
 
-const validSkills = new Set<string>(constants.skills);
+const validSkills = new Set<string>(CONSTANTS.skills);
 
 const getHelpText = (hidden?: boolean) => {
     const commandKeys = Object.keys(commands)
@@ -142,7 +140,7 @@ const commands: Record<string, Command> = {
                 }
                 sendUpdateMessage([msg.channel], messageText, 'overall', {
                     title: rsn,
-                    url: `${constants.hiScoresUrlTemplate}${encodeURI(rsn)}`
+                    url: `${CONSTANTS.hiScoresUrlTemplate}${encodeURI(rsn)}`
                 });
             }).catch((err) => {
                 logger.log(`Error while fetching hiscores (check) for player ${rsn}: ${err.toString()}`);
@@ -173,7 +171,7 @@ const commands: Record<string, Command> = {
                 // TODO: Should we change how we map boss names to thumbnails? Seems like there are currently 3 formats...
                 sendUpdateMessage([msg.channel], messageText, getBossName(boss), {
                     title: getBossName(boss),
-                    url: `${constants.osrsWikiBaseUrl}${encodeURIComponent(getBossName(boss))}`,
+                    url: `${CONSTANTS.osrsWikiBaseUrl}${encodeURIComponent(getBossName(boss))}`,
                     color: 10363483
                 });
             }).catch((err) => {
@@ -218,7 +216,7 @@ const commands: Record<string, Command> = {
 
             if (state.isTrackingAnyPlayers(guildId)) {
                 const sortedPlayers = state.getAllTrackedPlayers(guildId);
-                msg.channel.send(`${sortedPlayers.map(rsn => `**${rsn}**: last updated **${state.getLastUpdated(rsn)?.toLocaleTimeString('en-US', { timeZone: config.timeZone })}**`).join('\n')}`);
+                msg.channel.send(`${sortedPlayers.map(rsn => `**${rsn}**: last updated **${state.getLastUpdated(rsn)?.toLocaleTimeString('en-US', { timeZone: CONFIG.timeZone })}**`).join('\n')}`);
             } else {
                 msg.channel.send('Currently not tracking any players');
             }

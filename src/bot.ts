@@ -1,17 +1,15 @@
 import { Client, ClientUser, Guild, Intents, Options, TextBasedChannel, User } from 'discord.js';
-import { PlayerHiScores, ScapeBotAuth, ScapeBotConfig, SerializedState, TimeoutType } from './types';
+import { PlayerHiScores, SerializedState, TimeoutType } from './types';
 import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer } from './util';
-import { TimeoutManager, FileStorage, PastTimeoutStrategy, loadJson, randInt, getDurationString } from 'evanw555.js';
-import { fetchAllPlayerBosses, fetchAllPlayerLevels, fetchAllTrackedPlayers, fetchAllTrackingChannels, fetchWeeklyXpSnapshots, initializeTables, insertTrackedPlayer, updateTrackingChannel, writeWeeklyXpSnapshots } from './pg-storage';
+import { TimeoutManager, FileStorage, PastTimeoutStrategy, randInt, getDurationString } from 'evanw555.js';
+import { fetchAllPlayerBosses, fetchAllPlayerLevels, fetchAllTrackedPlayers, fetchAllTrackingChannels, fetchWeeklyXpSnapshots, initializeTables, writeWeeklyXpSnapshots } from './pg-storage';
 import CommandReader from './command-reader';
 import { fetchHiScores } from './hiscores';
 import { Client as PGClient } from 'pg';
 
-const auth: ScapeBotAuth = loadJson('config/auth.json');
-const config: ScapeBotConfig = loadJson('config/config.json');
-
-import logger from './log';
-import state from './state';
+import { AUTH, CONFIG } from './constants';
+import state from './instances/state';
+import logger from './instances/logger';
 
 const storage: FileStorage = new FileStorage('./data/');
 const commandReader: CommandReader = new CommandReader();
@@ -167,14 +165,14 @@ const weeklyTotalXpUpdate = async () => {
 
 client.on('ready', async () => {
     logger.log(`Logged in as: ${client.user?.tag}`);
-    logger.log(`Config=${JSON.stringify(config)}`);
+    logger.log(`Config=${JSON.stringify(CONFIG)}`);
 
     // Fetch guilds to load them into the cache
     await client.guilds.fetch();
 
     // Determine the admin user and the admin user's DM channel
-    if (auth.adminUserId) {
-        const admin: User = await client.users.fetch(auth.adminUserId);
+    if (AUTH.adminUserId) {
+        const admin: User = await client.users.fetch(AUTH.adminUserId);
         if (admin) {
             state.setAdminId(admin.id);
             const adminDmChannel: TextBasedChannel = await admin.createDM();
@@ -199,7 +197,7 @@ client.on('ready', async () => {
 
     // Attempt to initialize the PG client
     try {
-        pgClient = new PGClient(auth.pg);
+        pgClient = new PGClient(AUTH.pg);
         await pgClient.connect();
         state.setPGClient(pgClient);
         await logger.log(`PG client connected to \`${pgClient.host}:${pgClient.port}\``);
@@ -240,7 +238,7 @@ client.on('ready', async () => {
                 // No players being tracked
             }
         }
-    }, config.refreshInterval);
+    }, CONFIG.refreshInterval);
 
     // Start the weekly loop if the right timeout isn't already scheduled (get next Friday at 5:10pm)
     if (!timeoutManager.hasTimeout(TimeoutType.WeeklyXpUpdate)) {
@@ -270,4 +268,4 @@ client.on('messageCreate', (msg) => {
 });
 
 // Login!!!
-client.login(auth.token);
+client.login(AUTH.token);

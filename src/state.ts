@@ -4,9 +4,9 @@ import { CircularQueue } from 'evanw555.js';
 import { IndividualSkillName, SerializedGuildState, SerializedState } from './types';
 import { Boss } from 'osrs-json-hiscores';
 
-import logger from './log';
+import logger from './instances/logger';
 
-class State {
+export default class State {
     private _isValid: boolean;
     private _timestamp?: Date;
     private _disabled?: boolean;
@@ -356,5 +356,3 @@ class State {
         };
     }
 }
-
-export default new State();

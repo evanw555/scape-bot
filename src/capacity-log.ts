@@ -1,7 +1,7 @@
 import { loadJson } from "evanw555.js";
 import { ScapeBotConfig } from "./types";
 
-const config: ScapeBotConfig = loadJson('config/config.json');
+import { CONFIG } from './constants';
 
 interface LogEntry {
     date: Date;
@@ -40,10 +40,10 @@ class CapacityLog {
      * @returns serialized log entries
      */
     toLogArray(maxChars?: number): string[] {
-        return this._list.map(entry => `[${entry.date.toLocaleString('en-US', { timeZone: config.timeZone })}] ${entry.value}`);
+        return this._list.map(entry => `[${entry.date.toLocaleString('en-US', { timeZone: CONFIG.timeZone })}] ${entry.value}`);
     }
 }
 
-const capacityLog: CapacityLog = new CapacityLog(config.logCapacity, config.logMaxEntryLength);
+const capacityLog: CapacityLog = new CapacityLog(CONFIG.logCapacity, CONFIG.logMaxEntryLength);
 
 export default capacityLog;

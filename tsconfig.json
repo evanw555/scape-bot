@@ -6,13 +6,18 @@
       "outDir": "build",
       "esModuleInterop": true,
       "sourceMap": true,
-      "strict": true
+      "strict": true,
+      "types": [
+        "node",
+        "mocha"
+      ]
     },
     "include": [
         "src/**/*"
     ],
     "exclude": [
         "node_modules",
-        "build"
+        "build",
+        "tests"
     ]
 }

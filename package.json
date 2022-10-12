@@ -1,8 +1,8 @@
 {
     "name": "scape-bot",
-    "version": "0.1.45",
+    "version": "0.1.46",
     "description": "A Discord bot for tracking experience gains and skilling tasks.",
-    "main": "bot.js",
+    "main": "build/bot.js",
     "author": "Evan Williams",
     "repository": "https://github.com/evanw555/scape-bot.git",
     "engines": {
@@ -11,9 +11,11 @@
     "scripts": {
         "build": "tsc --build",
         "prestart": "npm run build",
-        "start": "node build/bot.js"
+        "start": "node build/bot.js",
+        "test": "mocha -r ts-node/register 'tests/**/*.ts'"
     },
     "dependencies": {
+        "chai": "4.3.6",
         "discord.js": "13.6.0",
         "evanw555.js": "evanw555/evanw555.js",
         "osrs-json-hiscores": "^2.10.0",
@@ -21,11 +23,16 @@
         "pg-format": "1.0.4"
     },
     "devDependencies": {
-        "@typescript-eslint/eslint-plugin": "^5.16.0",
-        "@typescript-eslint/parser": "^5.16.0",
+        "@types/chai": "4.3.3",
+        "@types/mocha": "^9.1.1",
+        "@types/node": "^17.0.35",
         "@types/pg": "8.6.5",
         "@types/pg-format": "1.0.2",
+        "@typescript-eslint/eslint-plugin": "^5.16.0",
+        "@typescript-eslint/parser": "^5.16.0",
         "eslint": "^8.12.0",
+        "mocha": "10.0.0",
+        "ts-node": "10.9.1",
         "typescript": "^4.6.3"
     }
 }

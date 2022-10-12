@@ -2,10 +2,10 @@ import { Snowflake } from 'discord.js';
 import { Boss } from 'osrs-json-hiscores';
 import { Client as PGClient } from 'pg';
 import format from 'pg-format';
-
-import logger from './log';
-import state from './state';
 import { IndividualSkillName } from './types';
+
+import state from './instances/state';
+import logger from './instances/logger';
 
 const TABLES: Record<string, string> = {
     'weekly_xp_snapshots': 'CREATE TABLE weekly_xp_snapshots (rsn VARCHAR(12) PRIMARY KEY, xp BIGINT);',

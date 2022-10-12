@@ -1,38 +1,37 @@
 import { Boss, BOSSES, INVALID_FORMAT_ERROR } from 'osrs-json-hiscores';
 import { isValidBoss, toSortedBosses, getBossName } from './boss-utility';
 import { TextBasedChannel } from 'discord.js';
-import { addReactsSync, loadJson, randChoice } from 'evanw555.js';
-import { IndividualSkillName, PlayerHiScores, ScapeBotConstants } from './types';
+import { addReactsSync, randChoice } from 'evanw555.js';
+import { IndividualSkillName, PlayerHiScores } from './types';
 import { writePlayerBosses, writePlayerLevels } from './pg-storage';
 import { fetchHiScores } from './hiscores';
 import { dumpState } from './bot';
 import { DEFAULT_BOSS_SCORE, DEFAULT_SKILL_LEVEL, SKILLS_NO_OVERALL } from './constants';
 
-import logger from './log';
-import state from './state';
+import { CONSTANTS } from './constants';
+import state from './instances/state';
+import logger from './instances/logger';
 
-const constants: ScapeBotConstants = loadJson('static/constants.json');
-
-const validSkills: Set<string> = new Set(constants.skills);
-const validMiscThumbnails: Set<string> = new Set(constants.miscThumbnails);
+const validSkills: Set<string> = new Set(CONSTANTS.skills);
+const validMiscThumbnails: Set<string> = new Set(CONSTANTS.miscThumbnails);
 
 export function getThumbnail(name: string, options?: { is99?: boolean }) {
     if (validSkills.has(name)) {
         const skill = name;
         return {
-            url: `${constants.baseThumbnailUrl}${options?.is99 ? constants.level99Path : ''}${skill}${constants.imageFileExtension}`
+            url: `${CONSTANTS.baseThumbnailUrl}${options?.is99 ? CONSTANTS.level99Path : ''}${skill}${CONSTANTS.imageFileExtension}`
         };
     } 
     if (isValidBoss(name)) {
         const boss = name;
         const thumbnailBoss = boss.replace(/[^a-zA-Z ]/g, '').replace(/ /g,'_').toLowerCase();
         return {
-            url: `${constants.baseThumbnailUrl}${thumbnailBoss}${constants.imageFileExtension}`
+            url: `${CONSTANTS.baseThumbnailUrl}${thumbnailBoss}${CONSTANTS.imageFileExtension}`
         };
     }
     if (validMiscThumbnails.has(name)) {
         return {
-            url: `${constants.baseThumbnailUrl}${constants.miscThumbnailPath}${name}${constants.imageFileExtension}`
+            url: `${CONSTANTS.baseThumbnailUrl}${CONSTANTS.miscThumbnailPath}${name}${CONSTANTS.imageFileExtension}`
         };
     }
     return;

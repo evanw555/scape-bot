@@ -2,7 +2,7 @@ import hiscores, { Activity, Boss, BOSSES, Player, Skill, Stats } from "osrs-jso
 import { DEFAULT_BOSS_SCORE, DEFAULT_SKILL_LEVEL, SKILLS_NO_OVERALL } from "./constants";
 import { IndividualSkillName, PlayerHiScores } from "./types";
 
-import state from "./state";
+import state from './instances/state';
 
 export async function fetchHiScores(rsn: string): Promise<PlayerHiScores> {
     const rawPlayerInfo: Player = await hiscores.getStats(rsn);
