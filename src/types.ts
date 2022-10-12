@@ -45,7 +45,6 @@ export interface SerializedGuildState {
 export interface SerializedState {
     timestamp?: string,
     disabled?: boolean,
-    guilds: Record<Snowflake, SerializedGuildState>,
     playersOffHiScores: string[],
     botCounters: Record<Snowflake, number>
 }

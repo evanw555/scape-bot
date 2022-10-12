@@ -11,6 +11,7 @@ import state from './state';
 import logger from './log';
 import capacityLog from './capacity-log';
 import { SKILLS_NO_OVERALL } from './constants';
+import { deleteTrackedPlayer, insertTrackedPlayer, updateTrackingChannel } from './pg-storage';
 
 const config: ScapeBotConfig = loadJson('config/config.json');
 const constants: ScapeBotConstants = loadJson('static/constants.json');
@@ -38,62 +39,69 @@ const commands: Record<string, Command> = {
         text: 'Shows help'
     },
     track: {
-        fn: (msg, rawArgs) => {
+        fn: async (msg, rawArgs) => {
             const guildId: Snowflake | null = msg.guildId;
             if (!guildId) {
-                msg.reply('This command can only be used in a guild text channel!');
+                await msg.reply('This command can only be used in a guild text channel!');
                 return;
             }
 
             const rsn = rawArgs && rawArgs.toLowerCase();
             if (!rsn || !rsn.trim()) {
-                msg.channel.send('Invalid username');
+                await msg.channel.send('Invalid username');
                 return;
             }
             if (state.isTrackingPlayer(guildId, rsn)) {
-                msg.channel.send('That player is already being tracked');
+                await msg.channel.send('That player is already being tracked');
             } else {
+                await insertTrackedPlayer(guildId, rsn);
                 state.addTrackedPlayer(guildId, rsn);
-                updatePlayer(rsn);
-                msg.channel.send(`Now tracking player **${rsn}**`);
+                await updatePlayer(rsn);
+                await msg.channel.send(`Now tracking player **${rsn}**`);
             }
         },
         text: 'Tracks a player and gives updates when they level up',
         failIfDisabled: true
     },
     remove: {
-        fn: (msg, rawArgs) => {
+        fn: async (msg, rawArgs) => {
             const guildId: Snowflake | null = msg.guildId;
             if (!guildId) {
-                msg.reply('This command can only be used in a guild text channel!');
+                await msg.reply('This command can only be used in a guild text channel!');
                 return;
             }
 
             const rsn = rawArgs && rawArgs.toLowerCase();
             if (!rsn || !rsn.trim()) {
-                msg.channel.send('Invalid username');
+                await msg.channel.send('Invalid username');
                 return;
             }
             if (state.isTrackingPlayer(guildId, rsn)) {
+                await deleteTrackedPlayer(guildId, rsn);
                 state.removeTrackedPlayer(guildId, rsn);
-                msg.channel.send(`No longer tracking player **${rsn}**`);
+                await msg.channel.send(`No longer tracking player **${rsn}**`);
             } else {
-                msg.channel.send('That player is not currently being tracked');
+                await msg.channel.send('That player is not currently being tracked');
             }
         },
         text: 'Stops tracking a player',
         failIfDisabled: true
     },
     clear: {
-        fn: (msg) => {
+        fn: async (msg) => {
             const guildId: Snowflake | null = msg.guildId;
             if (!guildId) {
-                msg.reply('This command can only be used in a guild text channel!');
+                await msg.reply('This command can only be used in a guild text channel!');
                 return;
             }
 
+            // TODO: Can we add a batch delete operation?
+            for (const rsn of state.getAllTrackedPlayers(guildId)) {
+                await deleteTrackedPlayer(guildId, rsn);
+            }
+
             state.clearAllTrackedPlayers(guildId);
-            msg.channel.send('No longer tracking any players');
+            await msg.channel.send('No longer tracking any players');
         },
         text: 'Stops tracking all players',
         failIfDisabled: true
@@ -177,15 +185,16 @@ const commands: Record<string, Command> = {
         failIfDisabled: true
     },
     channel: {
-        fn: (msg) => {
+        fn: async (msg) => {
             const guildId: Snowflake | null = msg.guildId;
             if (!guildId) {
-                msg.reply('This command can only be used in a guild text channel!');
+                await msg.reply('This command can only be used in a guild text channel!');
                 return;
             }
 
+            await updateTrackingChannel(guildId, msg.channelId);
             state.setTrackingChannel(guildId, msg.channel);
-            msg.channel.send('Player experience updates will now be sent to this channel');
+            await msg.channel.send('Player experience updates will now be sent to this channel');
         },
         text: 'All player updates will be sent to the channel where this command is issued',
         privileged: true,

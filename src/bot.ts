@@ -2,7 +2,7 @@ import { Client, ClientUser, Guild, Intents, Options, TextBasedChannel, User } f
 import { PlayerHiScores, ScapeBotAuth, ScapeBotConfig, SerializedState, TimeoutType } from './types';
 import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer } from './util';
 import { TimeoutManager, FileStorage, PastTimeoutStrategy, loadJson, randInt, getDurationString } from 'evanw555.js';
-import { fetchAllPlayerBosses, fetchAllPlayerLevels, fetchWeeklyXpSnapshots, initializeTables, insertTrackedPlayer, updateTrackingChannel, writeWeeklyXpSnapshots } from './pg-storage';
+import { fetchAllPlayerBosses, fetchAllPlayerLevels, fetchAllTrackedPlayers, fetchAllTrackingChannels, fetchWeeklyXpSnapshots, initializeTables, insertTrackedPlayer, updateTrackingChannel, writeWeeklyXpSnapshots } from './pg-storage';
 import CommandReader from './command-reader';
 import { fetchHiScores } from './hiscores';
 import { Client as PGClient } from 'pg';
@@ -42,32 +42,6 @@ const deserializeState = async (serializedState: SerializedState): Promise<void>
         state.setDisabled(serializedState.disabled);
     }
 
-    if (serializedState.guilds) {
-        for (const [ guildId, serializedGuildState ] of Object.entries(serializedState.guilds)) {
-            for (const rsn of serializedGuildState.players) {
-                state.addTrackedPlayer(guildId, rsn);
-                // TODO: Temp logic to migrate data
-                try {
-                    await insertTrackedPlayer(guildId, rsn);
-                } catch (err) {
-                    logger.log('Failed to write tracked player: ' + err);
-                }
-            }
-            if (serializedGuildState.trackingChannelId) {
-                const trackingChannel = (await client.channels.fetch(serializedGuildState.trackingChannelId) as TextBasedChannel);
-                if (trackingChannel) {
-                    state.setTrackingChannel(guildId, trackingChannel);
-                    // TODO: Temp logic to migrate data
-                    try {
-                        await updateTrackingChannel(guildId, trackingChannel.id);
-                    } catch (err) {
-                        logger.log('Failed to write tracking channel: ' + err);
-                    }
-                }
-            }
-        }
-    }
-
     if (serializedState.playersOffHiScores) {
         serializedState.playersOffHiScores.forEach((rsn) => {
             state.removePlayerFromHiScores(rsn);
@@ -79,6 +53,19 @@ const deserializeState = async (serializedState: SerializedState): Promise<void>
     }
 
     // TODO: Eventually, the whole "deserialize" thing won't be needed. We'll just need one method for loading up all stuff from PG on startup
+    const trackedPlayers = await fetchAllTrackedPlayers();
+    for (const [ guildId, players ] of Object.entries(trackedPlayers)) {
+        for (const rsn of players) {
+            state.addTrackedPlayer(guildId, rsn);
+        }
+    }
+    const trackingChannels = await fetchAllTrackingChannels();
+    for (const [ guildId, trackingChannelId ] of Object.entries(trackingChannels)) {
+        const trackingChannel = (await client.channels.fetch(trackingChannelId) as TextBasedChannel);
+        if (trackingChannel) {
+            state.setTrackingChannel(guildId, trackingChannel);
+        }
+    }
     state.setAllLevels(await fetchAllPlayerLevels());
     state.setAllBosses(await fetchAllPlayerBosses());
 

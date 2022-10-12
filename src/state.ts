@@ -351,7 +351,6 @@ class State {
         return {
             timestamp: this._timestamp?.toJSON(),
             disabled: this._disabled,
-            guilds,
             playersOffHiScores: Array.from(this._playersOffHiScores),
             botCounters: this._botCounters
         };
