@@ -10,7 +10,12 @@ import { IndividualSkillName } from './types';
 const TABLES: Record<string, string> = {
     'weekly_xp_snapshots': 'CREATE TABLE weekly_xp_snapshots (rsn VARCHAR(12) PRIMARY KEY, xp BIGINT);',
     'player_levels': 'CREATE TABLE player_levels (rsn VARCHAR(12), skill VARCHAR(12), level SMALLINT, PRIMARY KEY (rsn, skill));',
-    'player_bosses': 'CREATE TABLE player_bosses (rsn VARCHAR(12), boss VARCHAR(32), score SMALLINT, PRIMARY KEY (rsn, boss));'
+    'player_bosses': 'CREATE TABLE player_bosses (rsn VARCHAR(12), boss VARCHAR(32), score SMALLINT, PRIMARY KEY (rsn, boss));',
+    'tracked_players': 'CREATE TABLE tracked_players (guild_id BIGINT, rsn VARCHAR(12), PRIMARY KEY (guild_id, rsn));',
+    'tracking_channels': 'CREATE TABLE tracking_channels (guild_id BIGINT PRIMARY KEY, channel_id BIGINT);'
+    // 'players_on_hiscores': '',
+    // 'bot_counters': '',
+    // 'timestamp': ''
 }
 
 export async function initializeTables(): Promise<void> {
@@ -90,4 +95,47 @@ export async function fetchAllPlayerBosses(): Promise<Record<string, Partial<Rec
         result[row.rsn][row.boss] = row.score;
     }
     return result;
+}
+
+export async function fetchAllTrackedPlayers(): Promise<Record<Snowflake, string[]>> {
+    const client: PGClient = state.getPGClient();
+    const result: Record<Snowflake, string[]> = {};
+    const queryResult = await client.query<{guild_id: Snowflake, rsn: string}>('SELECT * FROM tracked_players;');
+    for (const row of queryResult.rows) {
+        if (!result[row.guild_id]) {
+            result[row.guild_id] = [];
+        }
+        result[row.guild_id].push(row.rsn);
+    }
+    return result;
+}
+
+export async function insertTrackedPlayer(guildId: Snowflake, rsn: string): Promise<void> {
+    const client: PGClient = state.getPGClient();
+    await client.query('INSERT INTO tracked_players VALUES ($1, $2) ON CONFLICT (guild_id, rsn) DO NOTHING;', [guildId, rsn]);
+}
+
+export async function deleteTrackedPlayer(guildId: Snowflake, rsn: string): Promise<void> {
+    const client: PGClient = state.getPGClient();
+    await client.query('DELETE FROM tracked_players WHERE guild_id = $1 AND rsn = $2;', [guildId, rsn]);
+}
+
+export async function fetchAllTrackingChannels(): Promise<Record<Snowflake, Snowflake>> {
+    const client: PGClient = state.getPGClient();
+    const result: Record<Snowflake, Snowflake> = {};
+    const queryResult = await client.query<{guild_id: Snowflake, channel_id: Snowflake}>('SELECT * FROM tracking_channels;');
+    for (const row of queryResult.rows) {
+        result[row.guild_id] = row.channel_id;
+    }
+    return result;
+}
+
+export async function updateTrackingChannel(guildId: Snowflake, channelId: Snowflake): Promise<void> {
+    const client: PGClient = state.getPGClient();
+    await client.query('INSERT INTO tracking_channels VALUES ($1, $2) ON CONFLICT (guild_id) DO UPDATE SET channel_id = EXCLUDED.channel_id;', [guildId, channelId]);
+}
+
+export async function deleteTrackingChannel(guildId: Snowflake, channelId: Snowflake): Promise<void> {
+    const client: PGClient = state.getPGClient();
+    await client.query('DELETE FROM tracking_channels WHERE guild_id = $1 AND channel_id = $2;', [guildId, channelId]);
 }

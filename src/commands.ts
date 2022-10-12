@@ -129,7 +129,7 @@ const commands: Record<string, Command> = {
                 const baseLevel: string = (data.baseLevel ?? '???').toString();
                 messageText += `${SKILLS_NO_OVERALL.map(skill => `**${data.levels[skill] ?? '?'}** ${skill}`).join('\n')}\n\nTotal **${totalLevel}**\nBase **${baseLevel}**`;
                 // Create bosses message text if there are any bosses with one or more kills
-                if (Object.keys(data.bosses).length > 0 && BOSSES.some(boss => data.bosses[boss])) {
+                if (BOSSES.some(boss => data.bosses[boss])) {
                     messageText += '\n\n' + BOSSES.filter(boss => data.bosses[boss]).map(boss => `**${data.bosses[boss]}** ${getBossName(boss)}`).join('\n');
                 }
                 sendUpdateMessage([msg.channel], messageText, 'overall', {

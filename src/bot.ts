@@ -2,7 +2,7 @@ import { Client, ClientUser, Guild, Intents, Options, TextBasedChannel, User } f
 import { PlayerHiScores, ScapeBotAuth, ScapeBotConfig, SerializedState, TimeoutType } from './types';
 import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer } from './util';
 import { TimeoutManager, FileStorage, PastTimeoutStrategy, loadJson, randInt, getDurationString } from 'evanw555.js';
-import { fetchAllPlayerBosses, fetchAllPlayerLevels, fetchWeeklyXpSnapshots, initializeTables, writeWeeklyXpSnapshots } from './pg-storage';
+import { fetchAllPlayerBosses, fetchAllPlayerLevels, fetchWeeklyXpSnapshots, initializeTables, insertTrackedPlayer, updateTrackingChannel, writeWeeklyXpSnapshots } from './pg-storage';
 import CommandReader from './command-reader';
 import { fetchHiScores } from './hiscores';
 import { Client as PGClient } from 'pg';
@@ -46,11 +46,23 @@ const deserializeState = async (serializedState: SerializedState): Promise<void>
         for (const [ guildId, serializedGuildState ] of Object.entries(serializedState.guilds)) {
             for (const rsn of serializedGuildState.players) {
                 state.addTrackedPlayer(guildId, rsn);
+                // TODO: Temp logic to migrate data
+                try {
+                    await insertTrackedPlayer(guildId, rsn);
+                } catch (err) {
+                    logger.log('Failed to write tracked player: ' + err);
+                }
             }
             if (serializedGuildState.trackingChannelId) {
                 const trackingChannel = (await client.channels.fetch(serializedGuildState.trackingChannelId) as TextBasedChannel);
                 if (trackingChannel) {
                     state.setTrackingChannel(guildId, trackingChannel);
+                    // TODO: Temp logic to migrate data
+                    try {
+                        await updateTrackingChannel(guildId, trackingChannel.id);
+                    } catch (err) {
+                        logger.log('Failed to write tracking channel: ' + err);
+                    }
                 }
             }
         }
