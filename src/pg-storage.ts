@@ -13,7 +13,7 @@ const TABLES: Record<string, string> = {
     'player_bosses': 'CREATE TABLE player_bosses (rsn VARCHAR(12), boss VARCHAR(32), score SMALLINT, PRIMARY KEY (rsn, boss));',
     'tracked_players': 'CREATE TABLE tracked_players (guild_id BIGINT, rsn VARCHAR(12), PRIMARY KEY (guild_id, rsn));',
     'tracking_channels': 'CREATE TABLE tracking_channels (guild_id BIGINT PRIMARY KEY, channel_id BIGINT);',
-    'player_hiscore_status': 'CREATE TABLE player_hiscore_status (rsn VARCHAR(12) PRIMARY KEY, on BOOLEAN);',
+    'player_hiscore_status': 'CREATE TABLE player_hiscore_status (rsn VARCHAR(12) PRIMARY KEY, on_hiscores BOOLEAN);',
     'bot_counters': 'CREATE TABLE bot_counters (user_id BIGINT PRIMARY KEY, counter INTEGER);'
 }
 
@@ -139,15 +139,15 @@ export async function deleteTrackingChannel(guildId: Snowflake, channelId: Snowf
     await client.query('DELETE FROM tracking_channels WHERE guild_id = $1 AND channel_id = $2;', [guildId, channelId]);
 }
 
-export async function fetchAllPlayersWithHiScoreStatus(on: boolean): Promise<string[]> {
+export async function fetchAllPlayersWithHiScoreStatus(onHiScores: boolean): Promise<string[]> {
     const client: PGClient = state.getPGClient();
-    const queryResult = await client.query<{rsn: string, on: boolean}>('SELECT * FROM player_hiscore_status WHERE on = $1;', [on]);
+    const queryResult = await client.query<{rsn: string, on_hiscores: boolean}>('SELECT * FROM player_hiscore_status WHERE on_hiscores = $1;', [onHiScores]);
     return queryResult.rows.map(row => row.rsn);
 }
 
-export async function writePlayerHiScoreStatus(rsn: string, on: boolean): Promise<void> {
+export async function writePlayerHiScoreStatus(rsn: string, onHiScores: boolean): Promise<void> {
     const client: PGClient = state.getPGClient();
-    await client.query('INSERT INTO player_hiscore_status VALUES ($1, $2) ON CONFLICT (rsn, on) DO UPDATE SET on = EXCLUDED.on;', [rsn, on]);
+    await client.query('INSERT INTO player_hiscore_status VALUES ($1, $2) ON CONFLICT (rsn, on_hiscores) DO UPDATE SET on_hiscores = EXCLUDED.on_hiscores;', [rsn, onHiScores]);
 }
 
 export async function fetchBotCounters(): Promise<Record<Snowflake, number>> {

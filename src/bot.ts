@@ -249,12 +249,13 @@ client.on('ready', async () => {
     sendRestartMessage();
 });
 
-client.on('messageCreate', (msg) => {
+client.on('messageCreate', async (msg) => {
     // Only process messages from other users mentio
     if (msg.mentions.has(client.user as ClientUser) && msg.author.id !== client.user?.id) {
         // If the message was sent by another bot, troll epic style 😈
         if (msg.author.bot) {
             state.incrementBotCounter(msg.author.id);
+            await writeBotCounter(msg.author.id, state.getBotCounter(msg.author.id));
             // Wait up to 1.5 seconds before sending the message to make it feel more organic
             setTimeout(() => {
                 const replyText = `**<@${msg.author.id}>** has gained a level in **botting** and is now level **${state.getBotCounter(msg.author.id)}**`;

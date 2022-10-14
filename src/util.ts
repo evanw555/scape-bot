@@ -3,7 +3,7 @@ import { isValidBoss, toSortedBosses, getBossName } from './boss-utility';
 import { TextBasedChannel } from 'discord.js';
 import { addReactsSync, randChoice } from 'evanw555.js';
 import { IndividualSkillName, PlayerHiScores } from './types';
-import { writePlayerBosses, writePlayerLevels } from './pg-storage';
+import { writePlayerBosses, writePlayerHiScoreStatus, writePlayerLevels } from './pg-storage';
 import { fetchHiScores } from './hiscores';
 import { dumpState } from './bot';
 import { DEFAULT_BOSS_SCORE, DEFAULT_SKILL_LEVEL, SKILLS_NO_OVERALL } from './constants';
@@ -170,11 +170,13 @@ export async function updatePlayer(rsn: string, spoofedDiff?: Record<string, num
         // If player was previously on the hiscores, take them off
         state.removePlayerFromHiScores(rsn);
         await dumpState();
+        await writePlayerHiScoreStatus(rsn, false);
         await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), `**${rsn}** has fallen off the hiscores`, 'unhappy', { color: 12919812 });
     } else if (data.onHiScores && !state.isPlayerOnHiScores(rsn)) {
         // If player was previously off the hiscores, add them back on!
         state.addPlayerToHiScores(rsn);
         await dumpState();
+        await writePlayerHiScoreStatus(rsn, true);
         await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), `**${rsn}** has made it back onto the hiscores`, 'happy', { color: 16569404 });
     }
 
