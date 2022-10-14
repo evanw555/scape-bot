@@ -147,7 +147,7 @@ export async function fetchAllPlayersWithHiScoreStatus(onHiScores: boolean): Pro
 
 export async function writePlayerHiScoreStatus(rsn: string, onHiScores: boolean): Promise<void> {
     const client: PGClient = state.getPGClient();
-    await client.query('INSERT INTO player_hiscore_status VALUES ($1, $2) ON CONFLICT (rsn, on_hiscores) DO UPDATE SET on_hiscores = EXCLUDED.on_hiscores;', [rsn, onHiScores]);
+    await client.query('INSERT INTO player_hiscore_status VALUES ($1, $2) ON CONFLICT (rsn) DO UPDATE SET on_hiscores = EXCLUDED.on_hiscores;', [rsn, onHiScores]);
 }
 
 export async function fetchBotCounters(): Promise<Record<Snowflake, number>> {
