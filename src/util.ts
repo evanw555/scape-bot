@@ -2,16 +2,17 @@ import { Boss, BOSSES, INVALID_FORMAT_ERROR } from 'osrs-json-hiscores';
 import { isValidBoss, toSortedBosses, getBossName } from './boss-utility';
 import { TextBasedChannel } from 'discord.js';
 import { addReactsSync, randChoice } from 'evanw555.js';
-import { IndividualSkillName, PlayerHiScores } from './types';
-import { writeMiscProperty, writePlayerBosses, writePlayerHiScoreStatus, writePlayerLevels } from './pg-storage';
+import { IndividualClueType, IndividualSkillName, PlayerHiScores } from './types';
+import { writeMiscProperty, writePlayerBosses, writePlayerClues, writePlayerHiScoreStatus, writePlayerLevels } from './pg-storage';
 import { fetchHiScores } from './hiscores';
-import { DEFAULT_BOSS_SCORE, DEFAULT_SKILL_LEVEL, SKILLS_NO_OVERALL } from './constants';
+import { CLUES_NO_ALL, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, SKILLS_NO_OVERALL } from './constants';
 
 import { CONSTANTS } from './constants';
 import state from './instances/state';
 import logger from './instances/logger';
 
 const validSkills: Set<string> = new Set(CONSTANTS.skills);
+const validClues: Set<string> = new Set(CLUES_NO_ALL);
 const validMiscThumbnails: Set<string> = new Set(CONSTANTS.miscThumbnails);
 
 export function getThumbnail(name: string, options?: { is99?: boolean }) {
@@ -20,7 +21,13 @@ export function getThumbnail(name: string, options?: { is99?: boolean }) {
         return {
             url: `${CONSTANTS.baseThumbnailUrl}${options?.is99 ? CONSTANTS.level99Path : ''}${skill}${CONSTANTS.imageFileExtension}`
         };
-    } 
+    }
+    if (validClues.has(name)) {
+        const clue = name;
+        return {
+            url: `${CONSTANTS.baseThumbnailUrl}${CONSTANTS.clueThumbnailPath}${clue}${CONSTANTS.imageFileExtension}`
+        };
+    }
     if (isValidBoss(name)) {
         const boss = name;
         const thumbnailBoss = boss.replace(/[^a-zA-Z ]/g, '').replace(/ /g,'_').toLowerCase();
@@ -145,6 +152,11 @@ export function toSortedSkillsNoOverall(skills: string[]): IndividualSkillName[]
     return SKILLS_NO_OVERALL.filter((skill: IndividualSkillName) => skillSubset.has(skill));
 }
 
+export function toSortedCluesNoAll(clues: string[]): IndividualClueType[] {
+    const clueSubSet: Set<string> = new Set(clues);
+    return CLUES_NO_ALL.filter((clue: IndividualClueType) => clueSubSet.has(clue));
+}
+
 export async function updatePlayer(rsn: string, spoofedDiff?: Record<string, number>): Promise<void> {
     // Retrieve the player's hiscores data
     let data: PlayerHiScores;
@@ -195,6 +207,16 @@ export async function updatePlayer(rsn: string, spoofedDiff?: Record<string, num
         state.setBosses(rsn, data.bosses);
         state.setLastUpdated(rsn, new Date());
         await writePlayerBosses(rsn, data.bosses);
+    }
+
+    // Check if clues have changes and send notifications
+    if (state.hasClues(rsn)) {
+        await updateClues(rsn, data.cluesWithDefaults, spoofedDiff);
+    } else {
+        // If this player has no clues in the state, prime with initial data (NOT including assumed defaults)
+        state.setClues(rsn, data.clues);
+        state.setLastUpdated(rsn, new Date());
+        await writePlayerClues(rsn, data.clues);
     }
 }
 
@@ -347,6 +369,7 @@ export async function updateKillCounts(rsn: string, killCounts: Record<Boss, num
         sendUpdateMessage(
             state.getTrackingChannelsForPlayer(rsn),
             `**${rsn}** has killed...\n${text}`,
+            // Show the first boss in the list as the icon
             getBossName(updatedBosses[0]),
             { color: 10363483 }
         );
@@ -359,6 +382,75 @@ export async function updateKillCounts(rsn: string, killCounts: Record<Boss, num
         // Write only updated bosses to PG
         await writePlayerBosses(rsn, filterMap(killCounts, updatedBosses));
         state.setBosses(rsn, killCounts);
+        state.setLastUpdated(rsn, new Date());
+    }
+}
+
+export async function updateClues(rsn: string, newClues: Record<IndividualClueType, number>, spoofedDiff?: Record<string, number>): Promise<void> {
+    // We shouldn't be doing this if this player doesn't have any clue info in the state
+    if (!state.hasBosses(rsn)) {
+        return;
+    }
+
+    // Compute diff for each clue
+    let diff: Partial<Record<IndividualClueType, number>>;
+    try {
+        if (spoofedDiff) {
+            diff = {};
+            for (const clue of CLUES_NO_ALL) {
+                if (clue in spoofedDiff) {
+                    diff[clue] = spoofedDiff[clue];
+                    newClues[clue] += spoofedDiff[clue];
+                }
+            }
+        } else {
+            diff = computeDiff(state.getClues(rsn), newClues, DEFAULT_CLUE_SCORE);
+        }
+    } catch (err) {
+        if (err instanceof Error && err.message) {
+            logger.log(`Failed to compute clue score diff for player ${rsn}: ${err.message}`);
+        }
+        return;
+    }
+    if (!diff) {
+        return;
+    }
+    // Send a message showing the updated clues
+    const updatedClues: IndividualClueType[] = toSortedCluesNoAll(Object.keys(diff));
+    switch (updatedClues.length) {
+    case 0:
+        break;
+    case 1: {
+        const clue = updatedClues[0];
+        const scoreGained = diff[clue];
+        const text = `**${rsn}** has completed `
+            + (scoreGained === 1 ? 'another' : `**${scoreGained}** more`)
+            + ` **${clue}** `
+            + (scoreGained === 1 ? 'clue' : 'clues')
+            + ` for a total of **${newClues[clue]}**`;
+        logger.log(text);
+        await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, clue);
+        break;
+    }
+    default: {
+        const text = updatedClues.map((clue) => {
+            const scoreGained = diff[clue];
+            return `${scoreGained === 1 ? 'another' : `**${scoreGained}** more`} **${clue}** ${scoreGained === 1 ? 'clue' : 'clues'} for a total of **${newClues[clue]}**`;
+        }).join('\n');
+        logger.log(text);
+        await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn),
+            `**${rsn}** has completed...\n${text}`,
+            // Show the highest level clue as the icon
+            updatedClues[updatedClues.length - 1]);
+        break;
+    }
+    }
+
+    // If not spoofing the diff, update player's clue scores
+    if (!spoofedDiff) {
+        // Write only updated clues to PG
+        await writePlayerClues(rsn, filterMap(newClues, updatedClues));
+        state.setClues(rsn, newClues);
         state.setLastUpdated(rsn, new Date());
     }
 }

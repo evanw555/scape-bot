@@ -2,7 +2,7 @@ import { Client, ClientUser, Guild, Intents, Options, TextBasedChannel, User } f
 import { PlayerHiScores, TimeoutType } from './types';
 import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer } from './util';
 import { TimeoutManager, FileStorage, PastTimeoutStrategy, randInt, getDurationString, sleep } from 'evanw555.js';
-import { fetchAllPlayerBosses, fetchAllPlayerLevels, fetchAllPlayersWithHiScoreStatus, fetchAllTrackedPlayers, fetchAllTrackingChannels, fetchBotCounters, fetchMiscProperty, fetchWeeklyXpSnapshots, initializeTables, writeBotCounter, writeMiscProperty, writePlayerHiScoreStatus, writeWeeklyXpSnapshots } from './pg-storage';
+import { fetchAllPlayerBosses, fetchAllPlayerClues, fetchAllPlayerLevels, fetchAllPlayersWithHiScoreStatus, fetchAllTrackedPlayers, fetchAllTrackingChannels, fetchBotCounters, fetchMiscProperty, fetchWeeklyXpSnapshots, initializeTables, writeBotCounter, writeMiscProperty, writePlayerHiScoreStatus, writeWeeklyXpSnapshots } from './pg-storage';
 import CommandReader from './command-reader';
 import { fetchHiScores } from './hiscores';
 import { Client as PGClient } from 'pg';
@@ -50,6 +50,7 @@ const loadState = async (): Promise<void> => {
     }
     state.setAllLevels(await fetchAllPlayerLevels());
     state.setAllBosses(await fetchAllPlayerBosses());
+    state.setAllClues(await fetchAllPlayerClues());
     state.setBotCounters(await fetchBotCounters());
     state.setDisabled((await fetchMiscProperty('disabled') ?? 'false') === 'true');
     state.setTimestamp(new Date(await fetchMiscProperty('timestamp') ?? new Date()))

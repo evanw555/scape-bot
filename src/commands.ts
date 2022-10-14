@@ -7,7 +7,7 @@ import { Message, Snowflake } from 'discord.js';
 import { randChoice, randInt } from 'evanw555.js';
 import { fetchHiScores } from './hiscores';
 import capacityLog from './capacity-log';
-import { SKILLS_NO_OVERALL } from './constants';
+import { CLUES_NO_ALL, SKILLS_NO_OVERALL } from './constants';
 import { deleteTrackedPlayer, insertTrackedPlayer, updateTrackingChannel } from './pg-storage';
 
 import { CONSTANTS, CONFIG } from './constants';
@@ -137,6 +137,10 @@ const commands: Record<string, Command> = {
                 // Create bosses message text if there are any bosses with one or more kills
                 if (BOSSES.some(boss => data.bosses[boss])) {
                     messageText += '\n\n' + BOSSES.filter(boss => data.bosses[boss]).map(boss => `**${data.bosses[boss]}** ${getBossName(boss)}`).join('\n');
+                }
+                // Create clues messag etext if there are any clues with a score of one or greater
+                if (CLUES_NO_ALL.some(clue => data.clues[clue])) {
+                    messageText += '\n\n' + CLUES_NO_ALL.filter(clue => data.clues[clue]).map(clue => `**${data.clues[clue]}** ${clue}`).join('\n');
                 }
                 sendUpdateMessage([msg.channel], messageText, 'overall', {
                     title: rsn,

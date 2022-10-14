@@ -1,7 +1,7 @@
 import { Snowflake, TextBasedChannel } from 'discord.js';
 import { Client as PGClient } from 'pg';
 import { CircularQueue } from 'evanw555.js';
-import { IndividualSkillName } from './types';
+import { IndividualClueType, IndividualSkillName } from './types';
 import { Boss } from 'osrs-json-hiscores';
 
 import logger from './instances/logger';
@@ -13,6 +13,7 @@ export default class State {
     private readonly _playersOffHiScores: Set<string>;
     private readonly _levels: Record<string, Partial<Record<IndividualSkillName, number>>>;
     private readonly _bosses: Record<string, Partial<Record<Boss, number>>>;
+    private readonly _clues: Record<string, Partial<Record<IndividualClueType, number>>>;
     private readonly _botCounters: Record<Snowflake, number>;
     private readonly _lastUpdate: Record<string, Date>;
     private _adminId?: Snowflake;
@@ -28,8 +29,11 @@ export default class State {
     constructor() {
         this._isValid = false;
         this._playersOffHiScores = new Set<string>();
+
         this._levels = {};
         this._bosses = {};
+        this._clues = {};
+
         this._botCounters = {};
         this._lastUpdate = {};
 
@@ -213,17 +217,17 @@ export default class State {
     /**
      * NOTE: It is expected that the input map only contains values that are definitively known via the API (does NOT contain assumed defaults) 
      */
-    setLevels(rsn: string, levels: Record<string, number>): void {
+    setLevels(rsn: string, levels: Partial<Record<IndividualSkillName, number>>): void {
         this._levels[rsn] = levels;
     }
 
     /**
      * NOTE: It is expected that the input map only contains values that are definitively known via the API (does NOT contain assumed defaults) 
      */
-    setAllLevels(levels: Record<string, Record<string, number>>): void {
-        Object.entries(levels).forEach(([rsn, value]) => {
-            this.setLevels(rsn, value);
-        });
+    setAllLevels(allLevels: Record<string, Record<string, number>>): void {
+        for (const [rsn, levels] of Object.entries(allLevels)) {
+            this.setLevels(rsn, levels);
+        };
     }
 
     hasLevel(rsn: string, skill: string): boolean {
@@ -249,19 +253,19 @@ export default class State {
     }
 
     /**
-     * NOTE: It is expected that the input map only contains values that are definitively known via the API (does NOT contain assumed defaults) 
+     * NOTE: It is expected that the input map only contains values that are definitively known via the API (does NOT contain assumed defaults)
      */
-    setBosses(rsn: string, bosses: Record<string, number>): void {
+    setBosses(rsn: string, bosses: Partial<Record<Boss, number>>): void {
         this._bosses[rsn] = bosses;
     }
 
     /**
-     * NOTE: It is expected that the input map only contains values that are definitively known via the API (does NOT contain assumed defaults) 
+     * NOTE: It is expected that the input map only contains values that are definitively known via the API (does NOT contain assumed defaults)
      */
-    setAllBosses(bosses: Record<string, Record<string, number>>): void {
-        Object.entries(bosses).forEach(([rsn, value]) => {
+    setAllBosses(allBosses: Record<string, Partial<Record<Boss, number>>>): void {
+        for (const [rsn, value] of Object.entries(allBosses)) {
             this.setBosses(rsn, value);
-        });
+        }
     }
 
     hasBoss(rsn: string, boss: string): boolean {
@@ -273,6 +277,44 @@ export default class State {
             throw new Error(`Trying to get ${boss} score for ${rsn} without checking if it's in the state`);
         }
         return this._bosses[rsn][boss] as number;
+    }
+
+    hasClues(rsn: string): boolean {
+        return rsn in this._clues;
+    }
+
+    /**
+     * NOTE: This only contains values that are definitively known via the API (does NOT contain assumed defaults)
+     */
+    getClues(rsn: string): Partial<Record<IndividualClueType, number>> {
+        return this._clues[rsn];
+    }
+
+    /**
+     * NOTE: It is expected that the input map only contains values that are definitively known via the API (does NOT contain assumed defaults) 
+     */
+    setClues(rsn: string, clues: Partial<Record<IndividualClueType, number>>): void {
+        this._clues[rsn] = clues;
+    }
+
+    /**
+     * NOTE: It is expected that the input map only contains values that are definitively known via the API (does NOT contain assumed defaults) 
+     */
+    setAllClues(allClues: Record<string, Partial<Record<IndividualClueType, number>>>): void {
+        for (const [rsn, clues] of Object.entries(allClues)) {
+            this.setClues(rsn, clues);
+        }
+    }
+
+    hasClue(rsn: string, clue: IndividualClueType): boolean {
+        return this.hasClues(rsn) && clue in this._clues[rsn];
+    }
+
+    getClue(rsn: string, clue: IndividualClueType): number {
+        if (!this.hasClue(rsn, clue)) {
+            throw new Error(`Trying to get ${clue} score for ${rsn} without checking if it's in the state`);
+        }
+        return this._clues[rsn][clue] as number;
     }
 
     getBotCounter(botId: Snowflake): number {

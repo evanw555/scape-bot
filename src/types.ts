@@ -1,5 +1,5 @@
 import { Message, Snowflake } from 'discord.js';
-import { Boss, SkillName } from 'osrs-json-hiscores';
+import { Boss, ClueType, SkillName } from 'osrs-json-hiscores';
 import { ClientConfig } from 'pg';
 
 export enum TimeoutType {
@@ -30,12 +30,14 @@ export interface ScapeBotConstants {
     baseThumbnailUrl: string,
     level99Path: string,
     miscThumbnailPath: string,
+    clueThumbnailPath: string,
     imageFileExtension: string,
     hiScoresUrlTemplate: string,
     osrsWikiBaseUrl: string
 }
 
 export type IndividualSkillName = Exclude<SkillName, 'overall'>;
+export type IndividualClueType = Exclude<ClueType, 'all'>;
 
 export interface SerializedGuildState {
     trackingChannelId?: Snowflake,
@@ -67,5 +69,8 @@ export interface PlayerHiScores {
     levels: Partial<Record<IndividualSkillName, number>>,
     levelsWithDefaults: Record<IndividualSkillName, number>,
     bosses: Partial<Record<Boss, number>>,
-    bossesWithDefaults: Record<Boss, number>
+    bossesWithDefaults: Record<Boss, number>,
+    clues: Partial<Record<IndividualClueType, number>>,
+    cluesWithDefaults: Record<IndividualClueType, number>
+
 }

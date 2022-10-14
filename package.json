@@ -1,6 +1,6 @@
 {
     "name": "scape-bot",
-    "version": "0.1.54",
+    "version": "0.2.0",
     "description": "A Discord bot for tracking experience gains and skilling tasks.",
     "main": "build/bot.js",
     "author": "Evan Williams",

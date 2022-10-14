@@ -2,7 +2,7 @@ import { Snowflake } from 'discord.js';
 import { Boss } from 'osrs-json-hiscores';
 import { Client as PGClient } from 'pg';
 import format, { string } from 'pg-format';
-import { IndividualSkillName, MiscFlagName } from './types';
+import { IndividualClueType, IndividualSkillName, MiscFlagName } from './types';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -11,6 +11,7 @@ const TABLES: Record<string, string> = {
     'weekly_xp_snapshots': 'CREATE TABLE weekly_xp_snapshots (rsn VARCHAR(12) PRIMARY KEY, xp BIGINT);',
     'player_levels': 'CREATE TABLE player_levels (rsn VARCHAR(12), skill VARCHAR(12), level SMALLINT, PRIMARY KEY (rsn, skill));',
     'player_bosses': 'CREATE TABLE player_bosses (rsn VARCHAR(12), boss VARCHAR(32), score SMALLINT, PRIMARY KEY (rsn, boss));',
+    'player_clues': 'CREATE TABLE player_clues (rsn VARCHAR(12), clue VARCHAR(12), score SMALLINT, PRIMARY KEY (rsn, clue));',
     'tracked_players': 'CREATE TABLE tracked_players (guild_id BIGINT, rsn VARCHAR(12), PRIMARY KEY (guild_id, rsn));',
     'tracking_channels': 'CREATE TABLE tracking_channels (guild_id BIGINT PRIMARY KEY, channel_id BIGINT);',
     'player_hiscore_status': 'CREATE TABLE player_hiscore_status (rsn VARCHAR(12) PRIMARY KEY, on_hiscores BOOLEAN);',
@@ -95,6 +96,28 @@ export async function fetchAllPlayerBosses(): Promise<Record<string, Partial<Rec
             result[row.rsn] = {};
         }
         result[row.rsn][row.boss] = row.score;
+    }
+    return result;
+}
+
+export async function writePlayerClues(rsn: string, clues: Record<string, number>): Promise<void> {
+    const client: PGClient = state.getPGClient();
+    const values = Object.keys(clues).map(clue => [rsn, clue, clues[clue]]);
+    if (values.length === 0) {
+        return;
+    }
+    await client.query(format('INSERT INTO player_clues VALUES %L ON CONFLICT (rsn, clue) DO UPDATE SET score = EXCLUDED.score;', values));
+}
+
+export async function fetchAllPlayerClues(): Promise<Record<string, Partial<Record<IndividualClueType, number>>>> {
+    const client: PGClient = state.getPGClient();
+    const result: Record<string, Partial<Record<IndividualClueType, number>>> = {};
+    const queryResult = await client.query<{rsn: string, clue: IndividualClueType, score: number}>('SELECT * FROM player_clues;');
+    for (const row of queryResult.rows) {
+        if (!result[row.rsn]) {
+            result[row.rsn] = {};
+        }
+        result[row.rsn][row.clue] = row.score;
     }
     return result;
 }

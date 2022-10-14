@@ -1,6 +1,6 @@
 import hiscores, { Activity, Boss, BOSSES, Player, Skill, Stats } from "osrs-json-hiscores";
-import { DEFAULT_BOSS_SCORE, DEFAULT_SKILL_LEVEL, SKILLS_NO_OVERALL } from "./constants";
-import { IndividualSkillName, PlayerHiScores } from "./types";
+import { CLUES_NO_ALL, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, SKILLS_NO_OVERALL } from "./constants";
+import { IndividualClueType, IndividualSkillName, PlayerHiScores } from "./types";
 
 import state from './instances/state';
 
@@ -12,7 +12,6 @@ export async function fetchHiScores(rsn: string): Promise<PlayerHiScores> {
     if (!stats) {
         throw new Error(`Raw hi-scores data for player "${rsn}" doesn't contain stats for mode "${rawPlayerInfo.mode}"`);
     }
-
 
     // Attempt to patch over some of the missing data for this player (default to 1/0 if there's no pre-existing data)
     // The purpose of doing this is to avoid negative skill/kc diffs (caused by weird behavior of the so-called 'API')
@@ -63,7 +62,7 @@ export async function fetchHiScores(rsn: string): Promise<PlayerHiScores> {
                 // Otherwise, parse the number as normal...
                 const killCount: number = bossPayload.score;
                 if (typeof killCount !== 'number' || isNaN(killCount)) {
-                    throw new Error(`Invalid ${boss} boss, '${killCount}' parsed to ${killCount}.\nPayload: ${JSON.stringify(stats.bosses)}`);
+                    throw new Error(`Invalid ${boss} score, '${killCount}' parsed to ${killCount}.\nPayload: ${JSON.stringify(stats.bosses)}`);
                 }
                 bosses[boss] = killCount;
                 bossesWithDefaults[boss] = killCount;
@@ -73,13 +72,41 @@ export async function fetchHiScores(rsn: string): Promise<PlayerHiScores> {
         }
     }
 
+    const clues: Partial<Record<IndividualClueType, number>> = {};
+    const cluesWithDefaults: Partial<Record<IndividualClueType, number>> = {};
+    for (const clue of CLUES_NO_ALL) {
+        if (clue in stats.clues) {
+            const cluePayload: Activity = stats.clues[clue];
+            if (cluePayload.rank === -1 || cluePayload.score === -1) {
+                // If this clue is for some reason omitted for the payload, then fill it in with existing data if possible
+                if (state.hasClue(rsn, clue)) {
+                    clues[clue] = state.getClue(rsn, clue);
+                    cluesWithDefaults[clue] = state.getClue(rsn, clue);
+                } else {
+                    // Can't fill in with existing data, so default to zero score and mark as missing
+                    cluesWithDefaults[clue] = DEFAULT_CLUE_SCORE;
+                }
+            } else {
+                // Otherwise, parse the number as normal...
+                const score: number = cluePayload.score;
+                if (typeof score !== 'number' || isNaN(score)) {
+                    throw new Error(`Invalid ${clue} score, '${score}' parsed to ${score}.\nPayload: ${JSON.stringify(stats.clues)}`);
+                }
+                clues[clue] = score;
+                cluesWithDefaults[clue] = score;
+            }
+        }
+    }
+
     const result: PlayerHiScores = {
         onHiScores: stats.skills.overall.rank !== -1,
         totalXp: stats.skills.overall.xp,
         levels,
         levelsWithDefaults: levelsWithDefaults as Record<IndividualSkillName, number>,
         bosses,
-        bossesWithDefaults: bossesWithDefaults as Record<Boss, number>
+        bossesWithDefaults: bossesWithDefaults as Record<Boss, number>,
+        clues,
+        cluesWithDefaults: cluesWithDefaults as Record<IndividualClueType, number>
     };
 
     // If there were missing skills, these values won't be accurate (so don't include them)
