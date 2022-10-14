@@ -35,10 +35,6 @@ const loadState = async (): Promise<void> => {
     for (const [ guildId, players ] of Object.entries(trackedPlayers)) {
         for (const rsn of players) {
             state.addTrackedPlayer(guildId, rsn);
-            // TODO: Temp logic to migrate data
-            if (state.isPlayerOnHiScores(rsn)) {
-                await writePlayerHiScoreStatus(rsn, true);
-            }
         }
     }
     const trackingChannels = await fetchAllTrackingChannels();
