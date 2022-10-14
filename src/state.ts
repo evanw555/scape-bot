@@ -289,21 +289,6 @@ export default class State {
         this._botCounters[botId] = (this._botCounters[botId] ?? 0) + delta;
     }
 
-    hasTimestamp(): boolean {
-        return this._timestamp !== undefined;
-    }
-
-    getTimestamp(): Date {
-        if (!this._timestamp) {
-            throw new Error('Timestamp does not exist');
-        }
-        return this._timestamp;
-    }
-
-    setTimestamp(timestamp: Date): void {
-        this._timestamp = timestamp;
-    }
-
     /**
      * TODO: Is there a better way to do this?
      * 
