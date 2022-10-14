@@ -1,7 +1,7 @@
 import { Client, ClientUser, Guild, Intents, Options, TextBasedChannel, User } from 'discord.js';
 import { PlayerHiScores, TimeoutType } from './types';
 import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer } from './util';
-import { TimeoutManager, FileStorage, PastTimeoutStrategy, randInt, getDurationString } from 'evanw555.js';
+import { TimeoutManager, FileStorage, PastTimeoutStrategy, randInt, getDurationString, sleep } from 'evanw555.js';
 import { fetchAllPlayerBosses, fetchAllPlayerLevels, fetchAllPlayersWithHiScoreStatus, fetchAllTrackedPlayers, fetchAllTrackingChannels, fetchBotCounters, fetchMiscProperty, fetchWeeklyXpSnapshots, initializeTables, writeBotCounter, writeMiscProperty, writePlayerHiScoreStatus, writeWeeklyXpSnapshots } from './pg-storage';
 import CommandReader from './command-reader';
 import { fetchHiScores } from './hiscores';
@@ -150,56 +150,64 @@ const weeklyTotalXpUpdate = async () => {
 };
 
 client.on('ready', async () => {
-    logger.log(`Logged in as: ${client.user?.tag}`);
-    logger.log(`Config=${JSON.stringify(CONFIG)}`);
-
-    // Fetch guilds to load them into the cache
-    await client.guilds.fetch();
-
-    // Determine the admin user and the admin user's DM channel
-    if (AUTH.adminUserId) {
-        const admin: User = await client.users.fetch(AUTH.adminUserId);
-        if (admin) {
-            state.setAdminId(admin.id);
-            const adminDmChannel: TextBasedChannel = await admin.createDM();
-            logger.log(`Determined admin user: ${admin.username}`);
-            logger.addOutput(async (text: string) => {
-                await adminDmChannel.send(text);
-            });
-        } else {
-            logger.log('Could not fetch the admin user!');
-        }
-    } else {
-        logger.log('No admin user ID was specified in auth.json!');
-    }
-
-    // Attempt to initialize the PG client
     try {
+        logger.log(`Logged in as: ${client.user?.tag}`);
+        logger.log(`Config=${JSON.stringify(CONFIG)}`);
+
+        // Fetch guilds to load them into the cache
+        await client.guilds.fetch();
+
+        // Determine the admin user and the admin user's DM channel
+        if (AUTH.adminUserId) {
+            const admin: User = await client.users.fetch(AUTH.adminUserId);
+            if (admin) {
+                state.setAdminId(admin.id);
+                const adminDmChannel: TextBasedChannel = await admin.createDM();
+                logger.log(`Determined admin user: ${admin.username}`);
+                logger.addOutput(async (text: string) => {
+                    await adminDmChannel.send(text);
+                });
+            } else {
+                logger.log('Could not fetch the admin user!');
+            }
+        } else {
+            logger.log('No admin user ID was specified in auth.json!');
+        }
+
+        // Attempt to initialize the PG client
         pgClient = new PGClient(AUTH.pg);
         await pgClient.connect();
         state.setPGClient(pgClient);
         await logger.log(`PG client connected to \`${pgClient.host}:${pgClient.port}\``);
+
+        // Ensure all necessary tables exist, initialize those that don't
+        await initializeTables();
+
+        // Deserialize it and load it into the state object
+        await loadState();
+        let downtimeMillis = 0;
+        if (state.hasTimestamp()) {
+            downtimeMillis = new Date().getTime() - state.getTimestamp().getTime();
+        }
+
+        // Log how many guilds are missing tracking channels
+        const guildsWithoutTrackingChannels: Guild[] = client.guilds.cache.toJSON()
+            .filter(guild => !state.hasTrackingChannel(guild.id));
+        if (guildsWithoutTrackingChannels.length > 0) {
+            logger.log(`This bot is in **${client.guilds.cache.size}** guilds, but a tracking channel is missing for **${guildsWithoutTrackingChannels.length}** of them`);
+        }
+
+        // Start the weekly loop if the right timeout isn't already scheduled (get next Friday at 5:10pm)
+        if (!timeoutManager.hasTimeout(TimeoutType.WeeklyXpUpdate)) {
+            await timeoutManager.registerTimeout(TimeoutType.WeeklyXpUpdate, getNextFridayEvening(), { pastStrategy: PastTimeoutStrategy.Invoke });
+        }
+
+        // Notify the admin that the bot has restarted
+        sendRestartMessage(downtimeMillis);
     } catch (err) {
-        pgClient = undefined;
-        await logger.log(`PG client failed to connect: \`${err}\``);
+        await logger.log(`Failed to boot:\n\`\`\`\n${(err as Error).stack}\n\`\`\`\nThe bot will reboot in 30 seconds...`);
+        await sleep(30000);
         process.exit(1);
-    }
-
-    // Ensure all necessary tables exist, initialize those that don't
-    await initializeTables();
-
-    // Deserialize it and load it into the state object
-    await loadState();
-    let downtimeMillis = 0;
-    if (state.hasTimestamp()) {
-        downtimeMillis = new Date().getTime() - state.getTimestamp().getTime();
-    }
-
-    // Log how many guilds are missing tracking channels
-    const guildsWithoutTrackingChannels: Guild[] = client.guilds.cache.toJSON()
-        .filter(guild => !state.hasTrackingChannel(guild.id));
-    if (guildsWithoutTrackingChannels.length > 0) {
-        logger.log(`This bot is in **${client.guilds.cache.size}** guilds, but a tracking channel is missing for **${guildsWithoutTrackingChannels.length}** of them`);
     }
 
     // Regardless of whether loading the players/channel was successful, start the update loop
@@ -215,14 +223,6 @@ client.on('ready', async () => {
             }
         }
     }, CONFIG.refreshInterval);
-
-    // Start the weekly loop if the right timeout isn't already scheduled (get next Friday at 5:10pm)
-    if (!timeoutManager.hasTimeout(TimeoutType.WeeklyXpUpdate)) {
-        await timeoutManager.registerTimeout(TimeoutType.WeeklyXpUpdate, getNextFridayEvening(), { pastStrategy: PastTimeoutStrategy.Invoke });
-    }
-
-    // Notify the admin that the bot has restarted
-    sendRestartMessage(downtimeMillis);
 });
 
 client.on('messageCreate', async (msg) => {
