@@ -3,9 +3,8 @@ import { isValidBoss, toSortedBosses, getBossName } from './boss-utility';
 import { TextBasedChannel } from 'discord.js';
 import { addReactsSync, randChoice } from 'evanw555.js';
 import { IndividualSkillName, PlayerHiScores } from './types';
-import { writePlayerBosses, writePlayerHiScoreStatus, writePlayerLevels } from './pg-storage';
+import { writeMiscProperty, writePlayerBosses, writePlayerHiScoreStatus, writePlayerLevels } from './pg-storage';
 import { fetchHiScores } from './hiscores';
-import { dumpState } from './bot';
 import { DEFAULT_BOSS_SCORE, DEFAULT_SKILL_LEVEL, SKILLS_NO_OVERALL } from './constants';
 
 import { CONSTANTS } from './constants';
@@ -156,7 +155,7 @@ export async function updatePlayer(rsn: string, spoofedDiff?: Record<string, num
             // If the API has changed, disable the bot and send a message
             if (!state.isDisabled()) {
                 state.setDisabled(true);
-                await dumpState();
+                await writeMiscProperty('disabled', 'true');
                 await sendUpdateMessage(state.getAllTrackingChannels(), 'The hiscores API has changed, the bot is now disabled. Please fix this, then re-enable the bot', 'wrench', { color: 7303023 });
             }
         } else {
@@ -169,13 +168,11 @@ export async function updatePlayer(rsn: string, spoofedDiff?: Record<string, num
     if (!data.onHiScores && state.isPlayerOnHiScores(rsn)) {
         // If player was previously on the hiscores, take them off
         state.removePlayerFromHiScores(rsn);
-        await dumpState();
         await writePlayerHiScoreStatus(rsn, false);
         await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), `**${rsn}** has fallen off the hiscores`, 'unhappy', { color: 12919812 });
     } else if (data.onHiScores && !state.isPlayerOnHiScores(rsn)) {
         // If player was previously off the hiscores, add them back on!
         state.addPlayerToHiScores(rsn);
-        await dumpState();
         await writePlayerHiScoreStatus(rsn, true);
         await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), `**${rsn}** has made it back onto the hiscores`, 'happy', { color: 16569404 });
     }
@@ -187,7 +184,6 @@ export async function updatePlayer(rsn: string, spoofedDiff?: Record<string, num
         // If this player has no levels in the state, prime with initial data (NOT including assumed defaults)
         state.setLevels(rsn, data.levels);
         state.setLastUpdated(rsn, new Date());
-        await dumpState();
         await writePlayerLevels(rsn, data.levels);
     }
 
@@ -198,7 +194,6 @@ export async function updatePlayer(rsn: string, spoofedDiff?: Record<string, num
         // If this player has no bosses in the state, prime with initial data (NOT including assumed defaults)
         state.setBosses(rsn, data.bosses);
         state.setLastUpdated(rsn, new Date());
-        await dumpState();
         await writePlayerBosses(rsn, data.bosses);
     }
 }
@@ -279,10 +274,8 @@ export async function updateLevels(rsn: string, newLevels: Record<IndividualSkil
     if (!spoofedDiff) {
         // Write only updated skills to PG
         await writePlayerLevels(rsn, filterMap(newLevels, updatedSkills));
-
         state.setLevels(rsn, newLevels);
         state.setLastUpdated(rsn, new Date());
-        await dumpState();
     }
 }
 
@@ -365,10 +358,8 @@ export async function updateKillCounts(rsn: string, killCounts: Record<Boss, num
     if (!spoofedDiff) {
         // Write only updated bosses to PG
         await writePlayerBosses(rsn, filterMap(killCounts, updatedBosses));
-
         state.setBosses(rsn, killCounts);
         state.setLastUpdated(rsn, new Date());
-        await dumpState();
     }
 }
 

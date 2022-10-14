@@ -1,8 +1,8 @@
 import { Client, ClientUser, Guild, Intents, Options, TextBasedChannel, User } from 'discord.js';
-import { PlayerHiScores, SerializedState, TimeoutType } from './types';
+import { PlayerHiScores, TimeoutType } from './types';
 import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer } from './util';
-import { TimeoutManager, FileStorage, PastTimeoutStrategy, randInt } from 'evanw555.js';
-import { fetchAllPlayerBosses, fetchAllPlayerLevels, fetchAllTrackedPlayers, fetchAllTrackingChannels, fetchWeeklyXpSnapshots, initializeTables, writeBotCounter, writePlayerHiScoreStatus, writeWeeklyXpSnapshots } from './pg-storage';
+import { TimeoutManager, FileStorage, PastTimeoutStrategy, randInt, getDurationString } from 'evanw555.js';
+import { fetchAllPlayerBosses, fetchAllPlayerLevels, fetchAllPlayersWithHiScoreStatus, fetchAllTrackedPlayers, fetchAllTrackingChannels, fetchBotCounters, fetchMiscProperty, fetchWeeklyXpSnapshots, initializeTables, writeBotCounter, writeMiscProperty, writePlayerHiScoreStatus, writeWeeklyXpSnapshots } from './pg-storage';
 import CommandReader from './command-reader';
 import { fetchHiScores } from './hiscores';
 import { Client as PGClient } from 'pg';
@@ -15,8 +15,8 @@ const storage: FileStorage = new FileStorage('./data/');
 const commandReader: CommandReader = new CommandReader();
 let pgClient: PGClient | undefined;
 
-export async function sendRestartMessage(): Promise<void> {
-    const text = `ScapeBot online in **${client.guilds.cache.size}** guild(s).\n`;
+export async function sendRestartMessage(downtimeMillis: number): Promise<void> {
+    const text = `ScapeBot online after **${getDurationString(downtimeMillis)}** of downtime. In **${client.guilds.cache.size}** guild(s).\n`;
     await logger.log(text + timeoutManager.toStrings().join('\n') || '_none._');
     await logger.log(client.guilds.cache.toJSON().map((guild, i) => `**${i + 1}.** _${guild.name}_ with **${state.getAllTrackedPlayers(guild.id).length}** in ${state.getTrackingChannel(guild.id)}`).join('\n'));
     // TODO: Use this if you need to troubleshoot...
@@ -31,27 +31,7 @@ const timeoutCallbacks = {
 };
 const timeoutManager = new TimeoutManager<TimeoutType>(storage, timeoutCallbacks);
 
-const deserializeState = async (serializedState: SerializedState): Promise<void> => {
-    if (serializedState.disabled) {
-        state.setDisabled(serializedState.disabled);
-    }
-
-    if (serializedState.playersOffHiScores) {
-        for (const rsn of serializedState.playersOffHiScores) {
-            state.removePlayerFromHiScores(rsn);
-            // TODO: temp logic to migrate data
-            await writePlayerHiScoreStatus(rsn, false);
-        }
-    }
-
-    if (serializedState.botCounters) {
-        state.setBotCounters(serializedState.botCounters);
-        // TODO: temp logic to migrate data
-        for (const [userId, counter] of Object.entries(serializedState.botCounters)) {
-            await writeBotCounter(userId, counter);
-        }
-    }
-
+const loadState = async (): Promise<void> => {
     // TODO: Eventually, the whole "deserialize" thing won't be needed. We'll just need one method for loading up all stuff from PG on startup
     const trackedPlayers = await fetchAllTrackedPlayers();
     for (const [ guildId, players ] of Object.entries(trackedPlayers)) {
@@ -70,17 +50,18 @@ const deserializeState = async (serializedState: SerializedState): Promise<void>
             state.setTrackingChannel(guildId, trackingChannel);
         }
     }
+    const playersOffHiScores: string[] = await fetchAllPlayersWithHiScoreStatus(false);
+    for (const rsn of playersOffHiScores) {
+        state.removePlayerFromHiScores(rsn);
+    }
     state.setAllLevels(await fetchAllPlayerLevels());
     state.setAllBosses(await fetchAllPlayerBosses());
+    state.setBotCounters(await fetchBotCounters());
+    state.setDisabled((await fetchMiscProperty('disabled') ?? 'false') === 'true');
+    state.setTimestamp(new Date(await fetchMiscProperty('timestamp') ?? new Date()))
 
     // Now that the state has been loaded, mark it as valid
     state.setValid(true);
-};
-
-export async function dumpState(): Promise<void> {
-    if (state.isValid()) {
-        return storage.write('state.json', JSON.stringify(state.serialize(), null, 2));
-    }
 };
 
 // Initialize Discord Bot
@@ -192,14 +173,6 @@ client.on('ready', async () => {
         logger.log('No admin user ID was specified in auth.json!');
     }
 
-    // Read the serialized state from disk
-    let serializedState: SerializedState | undefined;
-    try {
-        serializedState = await storage.readJson('state.json') as SerializedState;
-    } catch (err) {
-        logger.log('Failed to read the state from disk!');
-    }
-
     // Attempt to initialize the PG client
     try {
         pgClient = new PGClient(AUTH.pg);
@@ -216,8 +189,10 @@ client.on('ready', async () => {
     await initializeTables();
 
     // Deserialize it and load it into the state object
-    if (serializedState) {
-        await deserializeState(serializedState);
+    await loadState();
+    let downtimeMillis = 0;
+    if (state.hasTimestamp()) {
+        downtimeMillis = new Date().getTime() - state.getTimestamp().getTime();
     }
 
     // Log how many guilds are missing tracking channels
@@ -234,6 +209,7 @@ client.on('ready', async () => {
             const nextPlayer = state.nextTrackedPlayer();
             if (nextPlayer) {
                 await updatePlayer(nextPlayer);
+                await writeMiscProperty('timestamp', new Date().toJSON());
             } else {
                 // No players being tracked
             }
@@ -246,7 +222,7 @@ client.on('ready', async () => {
     }
 
     // Notify the admin that the bot has restarted
-    sendRestartMessage();
+    sendRestartMessage(downtimeMillis);
 });
 
 client.on('messageCreate', async (msg) => {

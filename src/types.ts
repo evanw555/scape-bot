@@ -42,12 +42,7 @@ export interface SerializedGuildState {
     players: string[]
 }
 
-export interface SerializedState {
-    timestamp?: string,
-    disabled?: boolean,
-    playersOffHiScores: string[],
-    botCounters: Record<Snowflake, number>
-}
+export type MiscFlagName = 'timestamp' | 'disabled';
 
 export interface Command {
     fn: (msg: Message, rawArgs: string, ...args: string[]) => void,

@@ -350,39 +350,40 @@ const commands: Record<string, Command> = {
         text: 'Kills the bot',
         privileged: true
     },
-    state: {
-        fn: (msg: Message, rawArgs: string) => {
-            // TODO: We should be a bit stricter with our type guards for state
-            let selectedState: AnyObject = state.serialize();
-            // We have to use rawArgs because the args are made lower-case...
-            const selector: string = rawArgs.trim();
-            if (selector) {
-                // If a selector was specified, select a specific part of the state
-                const selectors: string[] = selector.split('.');
-                for (const s of selectors) {
-                    if (Object.prototype.hasOwnProperty.call(selectedState, s)) {
-                        selectedState = selectedState[s];
-                    } else {
-                        msg.reply(`\`${selector}\` is not a valid state selector! (failed at \`${s}\`)`);
-                        return;
-                    }
-                }
-            } else {
-                // In case we're looking at the root state, truncate the large objects
-                // TODO: we could make this more general
-                selectedState.levels = `Map with ${Object.keys(selectedState.levels).length} entries, truncated to save space.`;
-                selectedState.bosses = `Map with ${Object.keys(selectedState.bosses).length} entries, truncated to save space.`;
-            }
-            // Reply to the user with the state (or with an error message)
-            msg.reply(`\`\`\`${JSON.stringify(selectedState, null, 2)}\`\`\``)
-                .catch((reason) => {
-                    msg.reply(`Could not serialize state:\n\`\`\`${reason.toString()}\`\`\``);
-                });
-        },
-        hidden: true,
-        text: 'Prints the bot\'s state',
-        privileged: true
-    },
+    // TODO: We need to re-enable this somehow, perhaps we can just create a view into the state object?
+    // state: {
+    //     fn: (msg: Message, rawArgs: string) => {
+    //         // TODO: We should be a bit stricter with our type guards for state
+    //         let selectedState: AnyObject = state.serialize();
+    //         // We have to use rawArgs because the args are made lower-case...
+    //         const selector: string = rawArgs.trim();
+    //         if (selector) {
+    //             // If a selector was specified, select a specific part of the state
+    //             const selectors: string[] = selector.split('.');
+    //             for (const s of selectors) {
+    //                 if (Object.prototype.hasOwnProperty.call(selectedState, s)) {
+    //                     selectedState = selectedState[s];
+    //                 } else {
+    //                     msg.reply(`\`${selector}\` is not a valid state selector! (failed at \`${s}\`)`);
+    //                     return;
+    //                 }
+    //             }
+    //         } else {
+    //             // In case we're looking at the root state, truncate the large objects
+    //             // TODO: we could make this more general
+    //             selectedState.levels = `Map with ${Object.keys(selectedState.levels).length} entries, truncated to save space.`;
+    //             selectedState.bosses = `Map with ${Object.keys(selectedState.bosses).length} entries, truncated to save space.`;
+    //         }
+    //         // Reply to the user with the state (or with an error message)
+    //         msg.reply(`\`\`\`${JSON.stringify(selectedState, null, 2)}\`\`\``)
+    //             .catch((reason) => {
+    //                 msg.reply(`Could not serialize state:\n\`\`\`${reason.toString()}\`\`\``);
+    //             });
+    //     },
+    //     hidden: true,
+    //     text: 'Prints the bot\'s state',
+    //     privileged: true
+    // },
     enable: {
         fn: (msg: Message) => {
             msg.reply('Enabling the bot... If the API format is still not supported, the bot will disable itself.');

@@ -1,7 +1,7 @@
 import { Snowflake, TextBasedChannel } from 'discord.js';
 import { Client as PGClient } from 'pg';
 import { CircularQueue } from 'evanw555.js';
-import { IndividualSkillName, SerializedGuildState, SerializedState } from './types';
+import { IndividualSkillName } from './types';
 import { Boss } from 'osrs-json-hiscores';
 
 import logger from './instances/logger';
@@ -289,6 +289,21 @@ export default class State {
         this._botCounters[botId] = (this._botCounters[botId] ?? 0) + delta;
     }
 
+    hasTimestamp(): boolean {
+        return this._timestamp !== undefined;
+    }
+
+    getTimestamp(): Date {
+        if (!this._timestamp) {
+            throw new Error('Timestamp does not exist');
+        }
+        return this._timestamp;
+    }
+
+    setTimestamp(timestamp: Date): void {
+        this._timestamp = timestamp;
+    }
+
     /**
      * TODO: Is there a better way to do this?
      * 
@@ -321,23 +336,5 @@ export default class State {
      */
     toDebugString(): string {
         return this.getAllGloballyTrackedPlayers().map(rsn => `**${rsn}:** ${this.getTrackingChannelsForPlayer(rsn).join(', ')}`).join('\n');
-    }
-
-    serialize(): SerializedState {
-        const guilds: Record<Snowflake, SerializedGuildState> = {};
-        for (const guildId of this.getAllRelevantGuilds()) {
-            guilds[guildId] = {
-                players: this.getAllTrackedPlayers(guildId)
-            };
-            if (this._trackingChannelsByGuild[guildId]) {
-                guilds[guildId].trackingChannelId = this._trackingChannelsByGuild[guildId].id;
-            }
-        }
-        return {
-            timestamp: this._timestamp?.toJSON(),
-            disabled: this._disabled,
-            playersOffHiScores: Array.from(this._playersOffHiScores),
-            botCounters: this._botCounters
-        };
     }
 }

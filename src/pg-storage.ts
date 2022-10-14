@@ -1,8 +1,8 @@
 import { Snowflake } from 'discord.js';
 import { Boss } from 'osrs-json-hiscores';
 import { Client as PGClient } from 'pg';
-import format from 'pg-format';
-import { IndividualSkillName } from './types';
+import format, { string } from 'pg-format';
+import { IndividualSkillName, MiscFlagName } from './types';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -14,19 +14,22 @@ const TABLES: Record<string, string> = {
     'tracked_players': 'CREATE TABLE tracked_players (guild_id BIGINT, rsn VARCHAR(12), PRIMARY KEY (guild_id, rsn));',
     'tracking_channels': 'CREATE TABLE tracking_channels (guild_id BIGINT PRIMARY KEY, channel_id BIGINT);',
     'player_hiscore_status': 'CREATE TABLE player_hiscore_status (rsn VARCHAR(12) PRIMARY KEY, on_hiscores BOOLEAN);',
-    'bot_counters': 'CREATE TABLE bot_counters (user_id BIGINT PRIMARY KEY, counter INTEGER);'
+    'bot_counters': 'CREATE TABLE bot_counters (user_id BIGINT PRIMARY KEY, counter INTEGER);',
+    'misc_properties': 'CREATE TABLE misc_properties (name VARCHAR(32) PRIMARY KEY, value VARCHAR(2048);'
 }
 
 export async function initializeTables(): Promise<void> {
     const client: PGClient = state.getPGClient();
+    const results: string[] = [];
     for (const [ tableName, tableSchema ] of Object.entries(TABLES)) {
         if (await doesTableExist(tableName)) {
-            await logger.log(`✅ Table \`${tableName}\` exists`);
+            results.push(`✅ Table \`${tableName}\` exists`);
         } else {
             await client.query(tableSchema);
-            await logger.log(`⚠️ Table \`${tableName}\` created`);
+            results.push(`⚠️ Table \`${tableName}\` created`);
         }
     }
+    await logger.log(results.join('\n'));
 }
 
 export async function doesTableExist(name: string): Promise<boolean> {
@@ -163,4 +166,24 @@ export async function fetchBotCounters(): Promise<Record<Snowflake, number>> {
 export async function writeBotCounter(userId: Snowflake, counter: number): Promise<void> {
     const client: PGClient = state.getPGClient();
     await client.query('INSERT INTO bot_counters VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET counter = EXCLUDED.counter;', [userId, counter]);
+}
+
+export async function fetchMiscProperty(name: MiscFlagName): Promise<string | null> {
+    const client: PGClient = state.getPGClient();
+    try {
+        const queryResult = await client.query<{name: string, value: string}>('SELECT * FROM misc_properties WHERE name = $1;', [name]);
+        if (queryResult.rowCount === 0) {
+            await logger.log(`PG ERROR: No rows found for misc property \`${name}\``);
+            return null;
+        }
+        return queryResult.rows[0].value;
+    } catch (err) {
+        await logger.log(`PG ERROR: Unable to fetch misc property \`${name}\`: \`${err}\``);
+        return null;
+    }
+}
+
+export async function writeMiscProperty(name: MiscFlagName, value: string): Promise<void> {
+    const client: PGClient = state.getPGClient();
+    await client.query('INSERT INTO misc_properties VALUES ($1, $2) ON CONFLICT (name) DO UPDATE SET value = EXCLUDED.value;', [name, value]);
 }
