@@ -11,9 +11,7 @@ import { AUTH, CONFIG } from './constants';
 import state from './instances/state';
 import logger from './instances/logger';
 
-const storage: FileStorage = new FileStorage('./data/');
 const commandReader: CommandReader = new CommandReader();
-let pgClient: PGClient | undefined;
 
 export async function sendRestartMessage(downtimeMillis: number): Promise<void> {
     const text = `ScapeBot online after **${getDurationString(downtimeMillis)}** of downtime. In **${client.guilds.cache.size}** guild(s).\n`;
@@ -29,7 +27,7 @@ const timeoutCallbacks = {
         await weeklyTotalXpUpdate();
     }
 };
-const timeoutManager = new TimeoutManager<TimeoutType>(storage, timeoutCallbacks);
+const timeoutManager = new TimeoutManager<TimeoutType>(new FileStorage('./data/'), timeoutCallbacks);
 
 const loadState = async (): Promise<void> => {
     // TODO: Eventually, the whole "deserialize" thing won't be needed. We'll just need one method for loading up all stuff from PG on startup
@@ -154,9 +152,6 @@ client.on('ready', async () => {
         logger.log(`Logged in as: ${client.user?.tag}`);
         logger.log(`Config=${JSON.stringify(CONFIG)}`);
 
-        // Fetch guilds to load them into the cache
-        await client.guilds.fetch();
-
         // Determine the admin user and the admin user's DM channel
         if (AUTH.adminUserId) {
             const admin: User = await client.users.fetch(AUTH.adminUserId);
@@ -168,14 +163,17 @@ client.on('ready', async () => {
                     await adminDmChannel.send(text);
                 });
             } else {
-                logger.log('Could not fetch the admin user!');
+                await logger.log('Could not fetch the admin user!');
             }
         } else {
-            logger.log('No admin user ID was specified in auth.json!');
+            await logger.log('No admin user ID was specified in auth.json!');
         }
 
+        // Fetch guilds to load them into the cache
+        await client.guilds.fetch();
+
         // Attempt to initialize the PG client
-        pgClient = new PGClient(AUTH.pg);
+        const pgClient = new PGClient(AUTH.pg);
         await pgClient.connect();
         state.setPGClient(pgClient);
         await logger.log(`PG client connected to \`${pgClient.host}:${pgClient.port}\``);
@@ -194,7 +192,7 @@ client.on('ready', async () => {
         const guildsWithoutTrackingChannels: Guild[] = client.guilds.cache.toJSON()
             .filter(guild => !state.hasTrackingChannel(guild.id));
         if (guildsWithoutTrackingChannels.length > 0) {
-            logger.log(`This bot is in **${client.guilds.cache.size}** guilds, but a tracking channel is missing for **${guildsWithoutTrackingChannels.length}** of them`);
+            await logger.log(`This bot is in **${client.guilds.cache.size}** guilds, but a tracking channel is missing for **${guildsWithoutTrackingChannels.length}** of them`);
         }
 
         // Start the weekly loop if the right timeout isn't already scheduled (get next Friday at 5:10pm)
