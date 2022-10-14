@@ -441,7 +441,8 @@ export async function updateClues(rsn: string, newClues: Record<IndividualClueTy
         await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn),
             `**${rsn}** has completed...\n${text}`,
             // Show the highest level clue as the icon
-            updatedClues[updatedClues.length - 1]);
+            updatedClues[updatedClues.length - 1],
+            { color: 16551994 });
         break;
     }
     }
