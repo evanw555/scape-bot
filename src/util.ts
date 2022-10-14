@@ -429,7 +429,7 @@ export async function updateClues(rsn: string, newClues: Record<IndividualClueTy
             + (scoreGained === 1 ? 'clue' : 'clues')
             + ` for a total of **${newClues[clue]}**`;
         logger.log(text);
-        await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, clue);
+        await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, clue, { color: 16551994 });
         break;
     }
     default: {
