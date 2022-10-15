@@ -277,7 +277,6 @@ export async function updateLevels(rsn: string, newLevels: Record<IndividualSkil
         const text = `**${rsn}** has gained `
             + (levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`)
             + ` in **${skill}** and is now level **${newLevels[skill]}**`;
-        logger.log(text);
         await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, skill);
         break;
     }
@@ -286,7 +285,6 @@ export async function updateLevels(rsn: string, newLevels: Record<IndividualSkil
             const levelsGained = diff[skill];
             return `${levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`} in **${skill}** and is now level **${newLevels[skill]}**`;
         }).join('\n');
-        logger.log(text);
         await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), `**${rsn}** has gained...\n${text}`, 'overall');
         break;
     }
@@ -294,6 +292,9 @@ export async function updateLevels(rsn: string, newLevels: Record<IndividualSkil
 
     // If not spoofing the diff, update player's levels
     if (!spoofedDiff) {
+        if (updatedSkills.length > 0) {
+            await logger.log(`**${rsn}** update: \`${JSON.stringify(diff)}\``);
+        }
         // Write only updated skills to PG
         await writePlayerLevels(rsn, filterMap(newLevels, updatedSkills));
         state.setLevels(rsn, newLevels);
@@ -353,7 +354,6 @@ export async function updateKillCounts(rsn: string, killCounts: Record<Boss, num
             : `**${rsn}** ${dopeKillVerb} **${bossName}** `
                     + (killCountIncrease === 1 ? 'again' : `**${killCountIncrease}** more times`)
                     + ` and is now at **${killCounts[boss]}** kills`;
-        logger.log(text);
         sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, bossName, { color: 10363483 });
         break;
     }
@@ -365,7 +365,6 @@ export async function updateKillCounts(rsn: string, killCounts: Record<Boss, num
                 ? `**${bossName}** for the first time!`
                 : `**${bossName}** ${killCountIncrease === 1 ? 'again' : `**${killCountIncrease}** more times`} and is now at **${killCounts[boss]}**`;
         }).join('\n');
-        logger.log(text);
         sendUpdateMessage(
             state.getTrackingChannelsForPlayer(rsn),
             `**${rsn}** has killed...\n${text}`,
@@ -379,6 +378,9 @@ export async function updateKillCounts(rsn: string, killCounts: Record<Boss, num
 
     // If not spoofing the diff, update player's kill counts
     if (!spoofedDiff) {
+        if (updatedBosses.length > 0) {
+            await logger.log(`**${rsn}** update: \`${JSON.stringify(diff)}\``);
+        }
         // Write only updated bosses to PG
         await writePlayerBosses(rsn, filterMap(killCounts, updatedBosses));
         state.setBosses(rsn, killCounts);
@@ -428,7 +430,6 @@ export async function updateClues(rsn: string, newClues: Record<IndividualClueTy
             + ` **${clue}** `
             + (scoreGained === 1 ? 'clue' : 'clues')
             + ` for a total of **${newClues[clue]}**`;
-        logger.log(text);
         await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, clue, { color: 16551994 });
         break;
     }
@@ -437,7 +438,6 @@ export async function updateClues(rsn: string, newClues: Record<IndividualClueTy
             const scoreGained = diff[clue];
             return `${scoreGained === 1 ? 'another' : `**${scoreGained}** more`} **${clue}** ${scoreGained === 1 ? 'clue' : 'clues'} for a total of **${newClues[clue]}**`;
         }).join('\n');
-        logger.log(text);
         await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn),
             `**${rsn}** has completed...\n${text}`,
             // Show the highest level clue as the icon
@@ -449,6 +449,9 @@ export async function updateClues(rsn: string, newClues: Record<IndividualClueTy
 
     // If not spoofing the diff, update player's clue scores
     if (!spoofedDiff) {
+        if (updatedClues.length > 0) {
+            await logger.log(`**${rsn}** update: \`${JSON.stringify(diff)}\``);
+        }
         // Write only updated clues to PG
         await writePlayerClues(rsn, filterMap(newClues, updatedClues));
         state.setClues(rsn, newClues);
