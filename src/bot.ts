@@ -84,7 +84,7 @@ const weeklyTotalXpUpdate = async () => {
     try {
         oldTotalXpValues = await fetchWeeklyXpSnapshots();
     } catch (err) {
-        logger.log(`Unable to fetch weekly XP snapshots from PG: \`${err}\``);
+        await logger.log(`Unable to fetch weekly XP snapshots from PG: \`${err}\``);
         return;
     }
 
@@ -140,8 +140,13 @@ const weeklyTotalXpUpdate = async () => {
     try {
         await writeWeeklyXpSnapshots(newTotalXpValues);
     } catch (err) {
-        logger.log(`Unable to write weekly XP snapshots to PG: \`${err}\``);
+        await logger.log(`Unable to write weekly XP snapshots to PG: \`${err}\``);
     }
+
+    // Log all the data used to compute these values
+    await logger.log(`Old Total XP:\n\`\`\`${JSON.stringify(oldTotalXpValues, null, 2)}\`\`\``);
+    await logger.log(`New Total XP:\n\`\`\`${JSON.stringify(newTotalXpValues, null, 2)}\`\`\``);
+    await logger.log(`Total XP Diff:\n\`\`\`${JSON.stringify(totalXpDiffs, null, 2)}\`\`\``);
 };
 
 client.on('ready', async () => {
