@@ -5,7 +5,7 @@ import { addReactsSync, randChoice } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName, PlayerHiScores } from './types';
 import { writeMiscProperty, writePlayerBosses, writePlayerClues, writePlayerHiScoreStatus, writePlayerLevels } from './pg-storage';
 import { fetchHiScores } from './hiscores';
-import { CLUES_NO_ALL, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, SKILLS_NO_OVERALL } from './constants';
+import { BOSS_EMBED_COLOR, CLUES_NO_ALL, CLUE_EMBED_COLOR, COMPLETE_VERB_BOSSES, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, DOPE_COMPLETE_VERBS, DOPE_KILL_VERBS, GRAY_EMBED_COLOR, RED_EMBED_COLOR, SKILLS_NO_OVERALL, SKILL_EMBED_COLOR, YELLOW_EMBED_COLOR } from './constants';
 
 import { CONSTANTS } from './constants';
 import state from './instances/state';
@@ -65,7 +65,7 @@ export async function sendUpdateMessage(channels: TextBasedChannel[], text: stri
             embeds: [ {
                 description: text,
                 thumbnail: getThumbnail(name, options),
-                color: options?.color ?? 6316287,
+                color: options?.color ?? SKILL_EMBED_COLOR,
                 title: options?.title,
                 url: options?.url
             } ]
@@ -168,7 +168,10 @@ export async function updatePlayer(rsn: string, spoofedDiff?: Record<string, num
             if (!state.isDisabled()) {
                 state.setDisabled(true);
                 await writeMiscProperty('disabled', 'true');
-                await sendUpdateMessage(state.getAllTrackingChannels(), 'The hiscores API has changed, the bot is now disabled. Please fix this, then re-enable the bot', 'wrench', { color: 7303023 });
+                await sendUpdateMessage(state.getAllTrackingChannels(),
+                    'The hiscores API has changed, the bot is now disabled. Please fix this, then re-enable the bot',
+                    'wrench',
+                    { color: GRAY_EMBED_COLOR });
             }
         } else {
             logger.log(`Error while fetching player hiscores for ${rsn}: \`${err}\``);
@@ -181,12 +184,12 @@ export async function updatePlayer(rsn: string, spoofedDiff?: Record<string, num
         // If player was previously on the hiscores, take them off
         state.removePlayerFromHiScores(rsn);
         await writePlayerHiScoreStatus(rsn, false);
-        await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), `**${rsn}** has fallen off the hiscores`, 'unhappy', { color: 12919812 });
+        await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), `**${rsn}** has fallen off the hiscores`, 'unhappy', { color: RED_EMBED_COLOR });
     } else if (data.onHiScores && !state.isPlayerOnHiScores(rsn)) {
         // If player was previously off the hiscores, add them back on!
         state.addPlayerToHiScores(rsn);
         await writePlayerHiScoreStatus(rsn, true);
-        await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), `**${rsn}** has made it back onto the hiscores`, 'happy', { color: 16569404 });
+        await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), `**${rsn}** has made it back onto the hiscores`, 'happy', { color: YELLOW_EMBED_COLOR });
     }
 
     // Check if levels have changes and send notifications
@@ -302,7 +305,7 @@ export async function updateLevels(rsn: string, newLevels: Record<IndividualSkil
     }
 }
 
-export async function updateKillCounts(rsn: string, killCounts: Record<Boss, number>, spoofedDiff?: Record<string, number>): Promise<void> {
+export async function updateKillCounts(rsn: string, newScores: Record<Boss, number>, spoofedDiff?: Record<string, number>): Promise<void> {
     // We shouldn't be doing this if this player doesn't have any boss info in the state
     if (!state.hasBosses(rsn)) {
         return;
@@ -316,11 +319,11 @@ export async function updateKillCounts(rsn: string, killCounts: Record<Boss, num
             for (const boss of BOSSES) {
                 if (boss in spoofedDiff) {
                     diff[boss] = spoofedDiff[boss];
-                    killCounts[boss] += spoofedDiff[boss];
+                    newScores[boss] += spoofedDiff[boss];
                 }
             }
         } else {
-            diff = computeDiff(state.getBosses(rsn), killCounts, DEFAULT_BOSS_SCORE);
+            diff = computeDiff(state.getBosses(rsn), newScores, DEFAULT_BOSS_SCORE);
         }
     } catch (err) {
         if (err instanceof Error && err.message) {
@@ -331,64 +334,57 @@ export async function updateKillCounts(rsn: string, killCounts: Record<Boss, num
     if (!diff) {
         return;
     }
-    // Send a message showing all the incremented boss KCs
-    const dopeKillVerbs = [
-        'has killed',
-        'killed',
-        'has slain',
-        'slew',
-        'slaughtered',
-        'butchered'
-    ];
-    const dopeKillVerb: string = randChoice(...dopeKillVerbs);
+    // Send a message showing all the incremented boss scores
     const updatedBosses: Boss[] = toSortedBosses(Object.keys(diff));
+    // Only use a kill verb if all the updated bosses are "killable" bosses, else use a complete verb
+    const verb: string = updatedBosses.some(boss => COMPLETE_VERB_BOSSES.has(boss)) ? randChoice(...DOPE_COMPLETE_VERBS) : randChoice(...DOPE_KILL_VERBS);
     switch (updatedBosses.length) {
     case 0:
         break;
     case 1: {
-        const boss = updatedBosses[0];
-        const killCountIncrease = diff[boss];
+        const boss: Boss = updatedBosses[0];
+        const scoreIncrease = diff[boss];
         const bossName = getBossName(boss);
-        const text = killCounts[boss] === 1
-            ? `**${rsn}** has slain **${bossName}** for the first time!`
-            : `**${rsn}** ${dopeKillVerb} **${bossName}** `
-                    + (killCountIncrease === 1 ? 'again' : `**${killCountIncrease}** more times`)
-                    + ` and is now at **${killCounts[boss]}** kills`;
-        sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, bossName, { color: 10363483 });
+        const text = newScores[boss] === 1
+            ? `**${rsn}** ${verb} **${bossName}** for the first time!`
+            : `**${rsn}** ${verb} **${bossName}** `
+                    + (scoreIncrease === 1 ? 'again' : `**${scoreIncrease}** more times`)
+                    + ` for a total of **${newScores[boss]}**`;
+        sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, bossName, { color: BOSS_EMBED_COLOR });
         break;
     }
     default: {
         const text = updatedBosses.map((boss) => {
-            const killCountIncrease = diff[boss];
-            const bossName = getBossName(boss);
-            return killCounts[boss] === 1
-                ? `**${bossName}** for the first time!`
-                : `**${bossName}** ${killCountIncrease === 1 ? 'again' : `**${killCountIncrease}** more times`} and is now at **${killCounts[boss]}**`;
+        const scoreIncrease = diff[boss];
+        const bossName = getBossName(boss);
+        return newScores[boss] === 1
+            ? `**${bossName}** for the first time!`
+            : `**${bossName}** ${scoreIncrease === 1 ? 'again' : `**${scoreIncrease}** more times`} for a total of **${newScores[boss]}**`;
         }).join('\n');
         sendUpdateMessage(
             state.getTrackingChannelsForPlayer(rsn),
-            `**${rsn}** has killed...\n${text}`,
+            `**${rsn}** ${verb}...\n${text}`,
             // Show the first boss in the list as the icon
             getBossName(updatedBosses[0]),
-            { color: 10363483 }
+            { color: BOSS_EMBED_COLOR }
         );
         break;
     }
     }
 
-    // If not spoofing the diff, update player's kill counts
+    // If not spoofing the diff, update player's boss scores
     if (!spoofedDiff) {
         if (updatedBosses.length > 0) {
             await logger.log(`**${rsn}** update: \`${JSON.stringify(diff)}\``);
         }
         // Write only updated bosses to PG
-        await writePlayerBosses(rsn, filterMap(killCounts, updatedBosses));
-        state.setBosses(rsn, killCounts);
+        await writePlayerBosses(rsn, filterMap(newScores, updatedBosses));
+        state.setBosses(rsn, newScores);
         state.setLastUpdated(rsn, new Date());
     }
 }
 
-export async function updateClues(rsn: string, newClues: Record<IndividualClueType, number>, spoofedDiff?: Record<string, number>): Promise<void> {
+export async function updateClues(rsn: string, newScores: Record<IndividualClueType, number>, spoofedDiff?: Record<string, number>): Promise<void> {
     // We shouldn't be doing this if this player doesn't have any clue info in the state
     if (!state.hasBosses(rsn)) {
         return;
@@ -402,11 +398,11 @@ export async function updateClues(rsn: string, newClues: Record<IndividualClueTy
             for (const clue of CLUES_NO_ALL) {
                 if (clue in spoofedDiff) {
                     diff[clue] = spoofedDiff[clue];
-                    newClues[clue] += spoofedDiff[clue];
+                    newScores[clue] += spoofedDiff[clue];
                 }
             }
         } else {
-            diff = computeDiff(state.getClues(rsn), newClues, DEFAULT_CLUE_SCORE);
+            diff = computeDiff(state.getClues(rsn), newScores, DEFAULT_CLUE_SCORE);
         }
     } catch (err) {
         if (err instanceof Error && err.message) {
@@ -429,20 +425,20 @@ export async function updateClues(rsn: string, newClues: Record<IndividualClueTy
             + (scoreGained === 1 ? 'another' : `**${scoreGained}** more`)
             + ` **${clue}** `
             + (scoreGained === 1 ? 'clue' : 'clues')
-            + ` for a total of **${newClues[clue]}**`;
-        await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, clue, { color: 16551994 });
+            + ` for a total of **${newScores[clue]}**`;
+        await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, clue, { color: CLUE_EMBED_COLOR });
         break;
     }
     default: {
         const text = updatedClues.map((clue) => {
             const scoreGained = diff[clue];
-            return `${scoreGained === 1 ? 'another' : `**${scoreGained}** more`} **${clue}** ${scoreGained === 1 ? 'clue' : 'clues'} for a total of **${newClues[clue]}**`;
+            return `${scoreGained === 1 ? 'another' : `**${scoreGained}** more`} **${clue}** ${scoreGained === 1 ? 'clue' : 'clues'} for a total of **${newScores[clue]}**`;
         }).join('\n');
         await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn),
             `**${rsn}** has completed...\n${text}`,
             // Show the highest level clue as the icon
             updatedClues[updatedClues.length - 1],
-            { color: 16551994 });
+            { color: CLUE_EMBED_COLOR });
         break;
     }
     }
@@ -453,8 +449,8 @@ export async function updateClues(rsn: string, newClues: Record<IndividualClueTy
             await logger.log(`**${rsn}** update: \`${JSON.stringify(diff)}\``);
         }
         // Write only updated clues to PG
-        await writePlayerClues(rsn, filterMap(newClues, updatedClues));
-        state.setClues(rsn, newClues);
+        await writePlayerClues(rsn, filterMap(newScores, updatedClues));
+        state.setClues(rsn, newScores);
         state.setLastUpdated(rsn, new Date());
     }
 }
