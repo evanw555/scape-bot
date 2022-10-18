@@ -253,7 +253,7 @@ export async function updateLevels(rsn: string, newLevels: Record<IndividualSkil
         return;
     }
     // Send a message for any skill that is now 99 and remove it from the diff
-    for (const skill of Object.keys(diff)) {
+    for (const skill of (Object.keys(diff) as IndividualSkillName[])) {
         const newLevel = newLevels[skill];
         if (newLevel === 99) {
             const levelsGained = diff[skill];
