@@ -1,4 +1,4 @@
-import { Client, ClientUser, Guild, Intents, Options, TextBasedChannel, User } from 'discord.js';
+import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User } from 'discord.js';
 import { PlayerHiScores, TimeoutType } from './types';
 import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer } from './util';
 import { TimeoutManager, FileStorage, PastTimeoutStrategy, randInt, getDurationString, sleep } from 'evanw555.js';
@@ -62,14 +62,13 @@ const loadState = async (): Promise<void> => {
 // Initialize Discord Bot
 const client = new Client({
     intents: [
-        Intents.FLAGS.GUILDS,
-        Intents.FLAGS.GUILD_MESSAGES,
-        Intents.FLAGS.DIRECT_MESSAGES
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.DirectMessages
     ],
     makeCache: Options.cacheWithLimits({
         MessageManager: {
-            maxSize: 10,
-            sweepInterval: 300
+            maxSize: 10
         }
     })
 });
