@@ -30,8 +30,26 @@ const commands = [
         }]
     },
     {
+        name: 'clear',
+        description: 'Stops tracking all players'
+    },
+    {
         name: 'list',
         description: 'Lists all the players currently being tracked'
+    },
+    {
+        name: 'check',
+        description: 'Show the current levels for some player',
+        options: [{
+            name: 'username',
+            description: 'Username',
+            type: ApplicationCommandOptionType.String,
+            required: true
+        }]
+    },
+    {
+        name: 'channel',
+        description: 'All player updates will be sent to the channel where this command is issued'
     }
 ];
 

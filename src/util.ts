@@ -1,6 +1,6 @@
 import { Boss, BOSSES, INVALID_FORMAT_ERROR } from 'osrs-json-hiscores';
 import { isValidBoss, toSortedBosses, getBossName } from './boss-utility';
-import { TextBasedChannel } from 'discord.js';
+import { ChatInputCommandInteraction, TextBasedChannel } from 'discord.js';
 import { addReactsSync, randChoice } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName, PlayerHiScores } from './types';
 import { writeMiscProperty, writePlayerBosses, writePlayerClues, writePlayerHiScoreStatus, writePlayerLevels } from './pg-storage';
@@ -75,6 +75,19 @@ export async function sendUpdateMessage(channels: TextBasedChannel[], text: stri
             addReactsSync(message, options.reacts);
         }
     }
+}
+
+export async function replyUpdateMessage(interaction: ChatInputCommandInteraction, text: string, name: string, options?: SendUpdateMessageOptions): Promise<void> {
+    await interaction.reply({
+        content: options?.header,
+        embeds: [{
+            description: text,
+            thumbnail: getThumbnail(name, options),
+            color: options?.color ?? SKILL_EMBED_COLOR,
+            title: options?.title,
+            url: options?.url
+        }]
+    });
 }
 
 export function camelize(str: string) {
@@ -258,14 +271,14 @@ export async function updateLevels(rsn: string, newLevels: Record<IndividualSkil
         if (newLevel === 99) {
             const levelsGained = diff[skill];
             await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn),
-            `**${rsn}** has gained `
-                + (levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`)
-                + ` in **${skill}** and is now level **99**`,
-            skill, {
-                header: '@everyone',
-                is99: true,
-                reacts: ['🇬', '🇿']
-            });
+                `**${rsn}** has gained `
+                    + (levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`)
+                    + ` in **${skill}** and is now level **99**`,
+                skill, {
+                    header: '@everyone',
+                    is99: true,
+                    reacts: ['🇬', '🇿']
+                });
             delete diff[skill];
         }
     }
@@ -355,11 +368,11 @@ export async function updateKillCounts(rsn: string, newScores: Record<Boss, numb
     }
     default: {
         const text = updatedBosses.map((boss) => {
-        const scoreIncrease = diff[boss];
-        const bossName = getBossName(boss);
-        return newScores[boss] === 1
-            ? `**${bossName}** for the first time!`
-            : `**${bossName}** ${scoreIncrease === 1 ? 'again' : `**${scoreIncrease}** more times`} for a total of **${newScores[boss]}**`;
+            const scoreIncrease = diff[boss];
+            const bossName = getBossName(boss);
+            return newScores[boss] === 1
+                ? `**${bossName}** for the first time!`
+                : `**${bossName}** ${scoreIncrease === 1 ? 'again' : `**${scoreIncrease}** more times`} for a total of **${newScores[boss]}**`;
         }).join('\n');
         sendUpdateMessage(
             state.getTrackingChannelsForPlayer(rsn),
