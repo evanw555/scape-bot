@@ -46,8 +46,8 @@ const CLIENT_ID = AUTH.clientId;
             throw new Error('Client ID is required to deploy commands, aborting');
         }
         const SET_COMMANDS_ROUTE = GUILD_ID
-            ? Routes.applicationGuildCommands(AUTH.clientId, GUILD_ID)
-            : Routes.applicationCommands(AUTH.clientId);
+            ? Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID)
+            : Routes.applicationCommands(CLIENT_ID);
         await console.log(`Refreshing application (/) commands${GUILD_ID ? ` for guild ${GUILD_ID}` : ''}`);
         await rest.put(SET_COMMANDS_ROUTE, { body: commands });
         process.exit();
