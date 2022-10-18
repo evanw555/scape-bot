@@ -2,7 +2,7 @@ import { Client, ClientUser, Guild, Intents, Options, TextBasedChannel, User } f
 import { PlayerHiScores, TimeoutType } from './types';
 import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer } from './util';
 import { TimeoutManager, FileStorage, PastTimeoutStrategy, randInt, getDurationString, sleep } from 'evanw555.js';
-import { fetchAllPlayerBosses, fetchAllPlayerClues, fetchAllPlayerLevels, fetchAllPlayersWithHiScoreStatus, fetchAllTrackedPlayers, fetchAllTrackingChannels, fetchBotCounters, fetchMiscProperty, fetchWeeklyXpSnapshots, initializeTables, writeBotCounter, writeMiscProperty, writePlayerHiScoreStatus, writeWeeklyXpSnapshots } from './pg-storage';
+import { fetchAllPlayerBosses, fetchAllPlayerClues, fetchAllPlayerLevels, fetchAllPlayersWithHiScoreStatus, fetchAllTrackedPlayers, fetchAllTrackingChannels, fetchBotCounters, fetchMiscProperty, fetchWeeklyXpSnapshots, initializeTables, writeBotCounter, writeMiscProperty, writeWeeklyXpSnapshots } from './pg-storage';
 import CommandReader from './command-reader';
 import { fetchHiScores } from './hiscores';
 import { Client as PGClient } from 'pg';
@@ -16,7 +16,7 @@ const commandReader: CommandReader = new CommandReader();
 export async function sendRestartMessage(downtimeMillis: number): Promise<void> {
     const text = `ScapeBot online after **${getDurationString(downtimeMillis)}** of downtime. In **${client.guilds.cache.size}** guild(s).\n`;
     await logger.log(text + timeoutManager.toStrings().join('\n') || '_none._');
-    await logger.log(client.guilds.cache.toJSON().map((guild, i) => `**${i + 1}.** _${guild.name}_ with **${state.getAllTrackedPlayers(guild.id).length}** in ${state.getTrackingChannel(guild.id)}`).join('\n'));
+    await logger.log(client.guilds.cache.toJSON().map((guild, i) => `**${i + 1}.** _${guild.name}_ with **${state.getAllTrackedPlayers(guild.id).length}** in ${state.hasTrackingChannel(guild.id) ? state.getTrackingChannel(guild.id) : 'N/A'}`).join('\n'));
     // TODO: Use this if you need to troubleshoot...
     // await logger.log(state.toDebugString());
 }
@@ -53,7 +53,7 @@ const loadState = async (): Promise<void> => {
     state.setAllClues(await fetchAllPlayerClues());
     state.setBotCounters(await fetchBotCounters());
     state.setDisabled((await fetchMiscProperty('disabled') ?? 'false') === 'true');
-    state.setTimestamp(new Date(await fetchMiscProperty('timestamp') ?? new Date()))
+    state.setTimestamp(new Date(await fetchMiscProperty('timestamp') ?? new Date()));
 
     // Now that the state has been loaded, mark it as valid
     state.setValid(true);
