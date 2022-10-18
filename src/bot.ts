@@ -1,9 +1,10 @@
-import { Client, ClientUser, Guild, Intents, Options, TextBasedChannel, User } from 'discord.js';
+import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User } from 'discord.js';
 import { PlayerHiScores, TimeoutType } from './types';
 import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer } from './util';
 import { TimeoutManager, FileStorage, PastTimeoutStrategy, randInt, getDurationString, sleep } from 'evanw555.js';
-import { fetchAllPlayerBosses, fetchAllPlayerClues, fetchAllPlayerLevels, fetchAllPlayersWithHiScoreStatus, fetchAllTrackedPlayers, fetchAllTrackingChannels, fetchBotCounters, fetchMiscProperty, fetchWeeklyXpSnapshots, initializeTables, writeBotCounter, writeMiscProperty, writePlayerHiScoreStatus, writeWeeklyXpSnapshots } from './pg-storage';
+import { fetchAllPlayerBosses, fetchAllPlayerClues, fetchAllPlayerLevels, fetchAllPlayersWithHiScoreStatus, fetchAllTrackedPlayers, fetchAllTrackingChannels, fetchBotCounters, fetchMiscProperty, fetchWeeklyXpSnapshots, initializeTables, writeBotCounter, writeMiscProperty, writeWeeklyXpSnapshots } from './pg-storage';
 import CommandReader from './command-reader';
+import CommandHandler from './command-handler';
 import { fetchHiScores } from './hiscores';
 import { Client as PGClient } from 'pg';
 
@@ -11,12 +12,14 @@ import { AUTH, CONFIG } from './constants';
 import state from './instances/state';
 import logger from './instances/logger';
 
+// TODO: Deprecate CommandReader in favor of CommandHandler
 const commandReader: CommandReader = new CommandReader();
+const commandHandler: CommandHandler = new CommandHandler();
 
 export async function sendRestartMessage(downtimeMillis: number): Promise<void> {
     const text = `ScapeBot online after **${getDurationString(downtimeMillis)}** of downtime. In **${client.guilds.cache.size}** guild(s).\n`;
     await logger.log(text + timeoutManager.toStrings().join('\n') || '_none._');
-    await logger.log(client.guilds.cache.toJSON().map((guild, i) => `**${i + 1}.** _${guild.name}_ with **${state.getAllTrackedPlayers(guild.id).length}** in ${state.getTrackingChannel(guild.id)}`).join('\n'));
+    await logger.log(client.guilds.cache.toJSON().map((guild, i) => `**${i + 1}.** _${guild.name}_ with **${state.getAllTrackedPlayers(guild.id).length}** in ${state.hasTrackingChannel(guild.id) ? state.getTrackingChannel(guild.id) : 'N/A'}`).join('\n'));
     // TODO: Use this if you need to troubleshoot...
     // await logger.log(state.toDebugString());
 }
@@ -53,7 +56,7 @@ const loadState = async (): Promise<void> => {
     state.setAllClues(await fetchAllPlayerClues());
     state.setBotCounters(await fetchBotCounters());
     state.setDisabled((await fetchMiscProperty('disabled') ?? 'false') === 'true');
-    state.setTimestamp(new Date(await fetchMiscProperty('timestamp') ?? new Date()))
+    state.setTimestamp(new Date(await fetchMiscProperty('timestamp') ?? new Date()));
 
     // Now that the state has been loaded, mark it as valid
     state.setValid(true);
@@ -62,14 +65,13 @@ const loadState = async (): Promise<void> => {
 // Initialize Discord Bot
 const client = new Client({
     intents: [
-        Intents.FLAGS.GUILDS,
-        Intents.FLAGS.GUILD_MESSAGES,
-        Intents.FLAGS.DIRECT_MESSAGES
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.DirectMessages
     ],
     makeCache: Options.cacheWithLimits({
         MessageManager: {
-            maxSize: 10,
-            sweepInterval: 300
+            maxSize: 10
         }
     })
 });
@@ -243,6 +245,8 @@ client.on('messageCreate', async (msg) => {
         commandReader.read(msg);
     }
 });
+
+client.on('interactionCreate', commandHandler.handle);
 
 // Login!!!
 client.login(AUTH.token);

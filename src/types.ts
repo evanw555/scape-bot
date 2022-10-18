@@ -14,7 +14,9 @@ export interface AnyObject {
 export interface ScapeBotAuth {
     token: string,
     adminUserId: Snowflake,
-    pg: ClientConfig
+    pg: ClientConfig,
+    clientId?: Snowflake,
+    guildId?: Snowflake
 }
 
 export interface ScapeBotConfig {

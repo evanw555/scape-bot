@@ -1,6 +1,6 @@
 import { Boss, BOSSES, INVALID_FORMAT_ERROR } from 'osrs-json-hiscores';
 import { isValidBoss, toSortedBosses, getBossName } from './boss-utility';
-import { TextBasedChannel } from 'discord.js';
+import { ChatInputCommandInteraction, TextBasedChannel } from 'discord.js';
 import { addReactsSync, randChoice } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName, PlayerHiScores } from './types';
 import { writeMiscProperty, writePlayerBosses, writePlayerClues, writePlayerHiScoreStatus, writePlayerLevels } from './pg-storage';
@@ -43,7 +43,7 @@ export function getThumbnail(name: string, options?: { is99?: boolean }) {
     return;
 }
 
-interface SendUpdateMessageOptions {
+interface UpdateMessageOptions {
     // Decimal-coded color of the embed
     color?: number,
     // Title of the embed
@@ -54,27 +54,39 @@ interface SendUpdateMessageOptions {
     is99?: boolean,
     // Text to add at the top of the message(s) (outside the embed)
     header?: string,
+}
+
+interface SendUpdateMessageOptions extends UpdateMessageOptions {
     // Emojis to add to the sent message(s) as reacts
     reacts?: string[]
 }
 
+export function buildUpdateMessage(text: string, name: string, options?: UpdateMessageOptions) {
+    return {
+        content: options?.header,
+        embeds: [{
+            description: text,
+            thumbnail: getThumbnail(name, options),
+            color: options?.color ?? SKILL_EMBED_COLOR,
+            title: options?.title,
+            url: options?.url
+        }]
+    };
+}
+
 export async function sendUpdateMessage(channels: TextBasedChannel[], text: string, name: string, options?: SendUpdateMessageOptions): Promise<void> {
+    const updateMessage = buildUpdateMessage(text, name, options);
     for (const channel of channels) {
-        const message = await channel.send({
-            content: options?.header,
-            embeds: [ {
-                description: text,
-                thumbnail: getThumbnail(name, options),
-                color: options?.color ?? SKILL_EMBED_COLOR,
-                title: options?.title,
-                url: options?.url
-            } ]
-        });
+        const message = await channel.send(updateMessage);
         // If any reacts are specified, add them
         if (options?.reacts) {
             addReactsSync(message, options.reacts);
         }
     }
+}
+
+export async function replyUpdateMessage(interaction: ChatInputCommandInteraction, text: string, name: string, options?: UpdateMessageOptions): Promise<void> {
+    await interaction.reply(buildUpdateMessage(text, name, options));
 }
 
 export function camelize(str: string) {
@@ -258,14 +270,14 @@ export async function updateLevels(rsn: string, newLevels: Record<IndividualSkil
         if (newLevel === 99) {
             const levelsGained = diff[skill];
             await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn),
-            `**${rsn}** has gained `
-                + (levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`)
-                + ` in **${skill}** and is now level **99**`,
-            skill, {
-                header: '@everyone',
-                is99: true,
-                reacts: ['🇬', '🇿']
-            });
+                `**${rsn}** has gained `
+                    + (levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`)
+                    + ` in **${skill}** and is now level **99**`,
+                skill, {
+                    header: '@everyone',
+                    is99: true,
+                    reacts: ['🇬', '🇿']
+                });
             delete diff[skill];
         }
     }
@@ -355,11 +367,11 @@ export async function updateKillCounts(rsn: string, newScores: Record<Boss, numb
     }
     default: {
         const text = updatedBosses.map((boss) => {
-        const scoreIncrease = diff[boss];
-        const bossName = getBossName(boss);
-        return newScores[boss] === 1
-            ? `**${bossName}** for the first time!`
-            : `**${bossName}** ${scoreIncrease === 1 ? 'again' : `**${scoreIncrease}** more times`} for a total of **${newScores[boss]}**`;
+            const scoreIncrease = diff[boss];
+            const bossName = getBossName(boss);
+            return newScores[boss] === 1
+                ? `**${bossName}** for the first time!`
+                : `**${bossName}** ${scoreIncrease === 1 ? 'again' : `**${scoreIncrease}** more times`} for a total of **${newScores[boss]}**`;
         }).join('\n');
         sendUpdateMessage(
             state.getTrackingChannelsForPlayer(rsn),
