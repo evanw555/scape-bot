@@ -4,6 +4,7 @@ import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEve
 import { TimeoutManager, FileStorage, PastTimeoutStrategy, randInt, getDurationString, sleep } from 'evanw555.js';
 import { fetchAllPlayerBosses, fetchAllPlayerClues, fetchAllPlayerLevels, fetchAllPlayersWithHiScoreStatus, fetchAllTrackedPlayers, fetchAllTrackingChannels, fetchBotCounters, fetchMiscProperty, fetchWeeklyXpSnapshots, initializeTables, writeBotCounter, writeMiscProperty, writeWeeklyXpSnapshots } from './pg-storage';
 import CommandReader from './command-reader';
+import CommandHandler from './command-handler';
 import { fetchHiScores } from './hiscores';
 import { Client as PGClient } from 'pg';
 
@@ -11,7 +12,9 @@ import { AUTH, CONFIG } from './constants';
 import state from './instances/state';
 import logger from './instances/logger';
 
+// TODO: Deprecate CommandReader in favor of CommandHandler
 const commandReader: CommandReader = new CommandReader();
+const commandHandler: CommandHandler = new CommandHandler();
 
 export async function sendRestartMessage(downtimeMillis: number): Promise<void> {
     const text = `ScapeBot online after **${getDurationString(downtimeMillis)}** of downtime. In **${client.guilds.cache.size}** guild(s).\n`;
@@ -242,6 +245,8 @@ client.on('messageCreate', async (msg) => {
         commandReader.read(msg);
     }
 });
+
+client.on('interactionCreate', commandHandler.handle);
 
 // Login!!!
 client.login(AUTH.token);
