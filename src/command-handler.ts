@@ -10,6 +10,7 @@ import logger from './instances/logger';
 
 const INVALID_TEXT_CHANNEL = 'err/invalid-text-channel';
 const UNAUTHORIZED_USER = 'err/unauthorized-user';
+const STATE_DISABLED = 'err/state-disabled';
 
 class CommandHandler {
     static getInteractionGuildId(interaction: Interaction): string {
@@ -32,6 +33,12 @@ class CommandHandler {
         }
     }
 
+    static failIfDisabled() {
+        if (state.isDisabled()) {
+            throw new Error(STATE_DISABLED);
+        }
+    }
+
     async handle(interaction: Interaction) {
         if (!interaction.isChatInputCommand()) {
             return;
@@ -40,6 +47,7 @@ class CommandHandler {
             if (interaction.commandName === 'ping') {
                 await interaction.reply('pong!');
             } else if (interaction.commandName === 'track') {
+                CommandHandler.failIfDisabled();
                 const guildId = CommandHandler.getInteractionGuildId(interaction);
                 const rsn = interaction.options.getString('username') as string;
                 if (!rsn || !rsn.trim()) {
@@ -55,6 +63,7 @@ class CommandHandler {
                     await interaction.reply(`Now tracking player **${rsn}**`);
                 }
             } else if (interaction.commandName === 'remove') {
+                CommandHandler.failIfDisabled();
                 const guildId = CommandHandler.getInteractionGuildId(interaction);
                 const rsn = interaction.options.getString('username') as string;
                 if (!rsn || !rsn.trim()) {
@@ -69,6 +78,7 @@ class CommandHandler {
                     await interaction.reply({ content: 'That player is not currently being tracked', ephemeral: true });
                 }
             } else if (interaction.commandName === 'clear') {
+                CommandHandler.failIfDisabled();
                 CommandHandler.assertIsAdmin(interaction);
                 const guildId = CommandHandler.getInteractionGuildId(interaction);
                 // TODO: Can we add a batch delete operation?
@@ -89,6 +99,7 @@ class CommandHandler {
                     interaction.reply({ content: 'Currently not tracking any players', ephemeral: true });
                 }
             } else if (interaction.commandName === 'check') {
+                CommandHandler.failIfDisabled();
                 const rsn = interaction.options.getString('username', true);
                 try {
                     // Retrieve the player's hiscores data
@@ -117,6 +128,7 @@ class CommandHandler {
                     }
                 }
             } else if (interaction.commandName === 'channel') {
+                CommandHandler.failIfDisabled();
                 CommandHandler.assertIsAdmin(interaction);
                 const guildId = CommandHandler.getInteractionGuildId(interaction);
                 await updateTrackingChannel(guildId, interaction.channelId);
@@ -135,6 +147,11 @@ class CommandHandler {
                 } else if (err.message === UNAUTHORIZED_USER) {
                     await interaction.reply({
                         content: 'You can\'t do that',
+                        ephemeral: true
+                    });
+                } else if (err.message === STATE_DISABLED) {
+                    await interaction.reply({
+                        content: 'I can\'t do that while I\'m disabled',
                         ephemeral: true
                     });
                 } else {

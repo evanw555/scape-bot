@@ -43,7 +43,7 @@ export function getThumbnail(name: string, options?: { is99?: boolean }) {
     return;
 }
 
-interface SendUpdateMessageOptions {
+interface UpdateMessageOptions {
     // Decimal-coded color of the embed
     color?: number,
     // Title of the embed
@@ -54,31 +54,15 @@ interface SendUpdateMessageOptions {
     is99?: boolean,
     // Text to add at the top of the message(s) (outside the embed)
     header?: string,
+}
+
+interface SendUpdateMessageOptions extends UpdateMessageOptions {
     // Emojis to add to the sent message(s) as reacts
     reacts?: string[]
 }
 
-export async function sendUpdateMessage(channels: TextBasedChannel[], text: string, name: string, options?: SendUpdateMessageOptions): Promise<void> {
-    for (const channel of channels) {
-        const message = await channel.send({
-            content: options?.header,
-            embeds: [ {
-                description: text,
-                thumbnail: getThumbnail(name, options),
-                color: options?.color ?? SKILL_EMBED_COLOR,
-                title: options?.title,
-                url: options?.url
-            } ]
-        });
-        // If any reacts are specified, add them
-        if (options?.reacts) {
-            addReactsSync(message, options.reacts);
-        }
-    }
-}
-
-export async function replyUpdateMessage(interaction: ChatInputCommandInteraction, text: string, name: string, options?: SendUpdateMessageOptions): Promise<void> {
-    await interaction.reply({
+export function buildUpdateMessage(text: string, name: string, options?: UpdateMessageOptions) {
+    return {
         content: options?.header,
         embeds: [{
             description: text,
@@ -87,7 +71,22 @@ export async function replyUpdateMessage(interaction: ChatInputCommandInteractio
             title: options?.title,
             url: options?.url
         }]
-    });
+    };
+}
+
+export async function sendUpdateMessage(channels: TextBasedChannel[], text: string, name: string, options?: SendUpdateMessageOptions): Promise<void> {
+    const updateMessage = buildUpdateMessage(text, name, options);
+    for (const channel of channels) {
+        const message = await channel.send(updateMessage);
+        // If any reacts are specified, add them
+        if (options?.reacts) {
+            addReactsSync(message, options.reacts);
+        }
+    }
+}
+
+export async function replyUpdateMessage(interaction: ChatInputCommandInteraction, text: string, name: string, options?: UpdateMessageOptions): Promise<void> {
+    await interaction.reply(buildUpdateMessage(text, name, options));
 }
 
 export function camelize(str: string) {
