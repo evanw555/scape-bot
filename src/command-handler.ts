@@ -1,4 +1,4 @@
-import { Interaction, TextBasedChannel } from 'discord.js';
+import { Interaction, PermissionFlagsBits, TextBasedChannel } from 'discord.js';
 import { deleteTrackedPlayer, insertTrackedPlayer, updateTrackingChannel } from './pg-storage';
 import { BOSSES } from 'osrs-json-hiscores';
 import { getBossName } from './boss-utility';
@@ -12,15 +12,22 @@ const INVALID_TEXT_CHANNEL = 'err/invalid-text-channel';
 const UNAUTHORIZED_USER = 'err/unauthorized-user';
 
 class CommandHandler {
-    static getInteractionGuildId(interaction: Interaction) {
+    static getInteractionGuildId(interaction: Interaction): string {
         if (typeof interaction.guildId !== 'string') {
             throw new Error(INVALID_TEXT_CHANNEL);
         }
         return interaction.guildId;
     }
 
+    /**
+     * Asserts the interacting user has administrator permissions in the
+     * guild or is a bot admin.
+     */
     static assertIsAdmin(interaction: Interaction) {
-        if (!state.isAdmin(interaction.user.id)) {
+        if (
+            !interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)
+            && !state.isAdmin(interaction.user.id)
+        ) {
             throw new Error(UNAUTHORIZED_USER);
         }
     }
@@ -32,8 +39,7 @@ class CommandHandler {
         try {
             if (interaction.commandName === 'ping') {
                 await interaction.reply('pong!');
-            }
-            if (interaction.commandName === 'track') {
+            } else if (interaction.commandName === 'track') {
                 const guildId = CommandHandler.getInteractionGuildId(interaction);
                 const rsn = interaction.options.getString('username') as string;
                 if (!rsn || !rsn.trim()) {
@@ -48,8 +54,7 @@ class CommandHandler {
                     await updatePlayer(rsn);
                     await interaction.reply(`Now tracking player **${rsn}**`);
                 }
-            }
-            if (interaction.commandName === 'remove') {
+            } else if (interaction.commandName === 'remove') {
                 const guildId = CommandHandler.getInteractionGuildId(interaction);
                 const rsn = interaction.options.getString('username') as string;
                 if (!rsn || !rsn.trim()) {
@@ -63,8 +68,7 @@ class CommandHandler {
                 } else {
                     await interaction.reply({ content: 'That player is not currently being tracked', ephemeral: true });
                 }
-            }
-            if (interaction.commandName === 'clear') {
+            } else if (interaction.commandName === 'clear') {
                 const guildId = CommandHandler.getInteractionGuildId(interaction);
                 // TODO: Can we add a batch delete operation?
                 for (const rsn of state.getAllTrackedPlayers(guildId)) {
@@ -73,8 +77,7 @@ class CommandHandler {
 
                 state.clearAllTrackedPlayers(guildId);
                 await interaction.reply({ content: 'No longer tracking any players', ephemeral: true });
-            }
-            if (interaction.commandName === 'list') {
+            } else if (interaction.commandName === 'list') {
                 const guildId = CommandHandler.getInteractionGuildId(interaction);
                 if (state.isTrackingAnyPlayers(guildId)) {
                     await interaction.reply({
@@ -84,9 +87,8 @@ class CommandHandler {
                 } else {
                     interaction.reply({ content: 'Currently not tracking any players', ephemeral: true });
                 }
-            }
-            if (interaction.commandName === 'check') {
-                const rsn = interaction.options.getString('username') as string;
+            } else if (interaction.commandName === 'check') {
+                const rsn = interaction.options.getString('username', true);
                 try {
                     // Retrieve the player's hiscores data
                     const data = await fetchHiScores(rsn);
@@ -113,8 +115,7 @@ class CommandHandler {
                         interaction.reply(`Couldn't fetch hiscores for player **${rsn}** :pensive:\n\`${err.toString()}\``);
                     }
                 }
-            }
-            if (interaction.commandName === 'channel') {
+            } else if (interaction.commandName === 'channel') {
                 CommandHandler.assertIsAdmin(interaction);
                 const guildId = CommandHandler.getInteractionGuildId(interaction);
                 await updateTrackingChannel(guildId, interaction.channelId);
