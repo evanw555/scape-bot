@@ -1,59 +1,51 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
-const { ApplicationCommandOptionType } = require('discord.js');
+const { PermissionFlagsBits, SlashCommandBuilder } = require('discord.js');
 const { REST } = require('@discordjs/rest');
-const { Routes } = require('discord-api-types/v9');
+const { Routes } = require('discord-api-types/v10');
 const AUTH = require('../config/auth.json');
 
 const commands = [
-    {
-        name: 'ping',
-        description: 'Replies with pong!'
-    },
-    {
-        name: 'track',
-        description: 'Tracks a player and gives updates when they level up',
-        options: [{
-            name: 'username',
-            description: 'Username',
-            type: ApplicationCommandOptionType.String,
-            required: true
-        }]
-    },
-    {
-        name: 'remove',
-        description: 'Stops tracking a player',
-        options: [{
-            name: 'username',
-            description: 'Username',
-            type: ApplicationCommandOptionType.String,
-            required: true
-        }]
-    },
-    {
-        name: 'clear',
-        description: 'Stops tracking all players'
-    },
-    {
-        name: 'list',
-        description: 'Lists all the players currently being tracked'
-    },
-    {
-        name: 'check',
-        description: 'Show the current levels for some player',
-        options: [{
-            name: 'username',
-            description: 'Username',
-            type: ApplicationCommandOptionType.String,
-            required: true
-        }]
-    },
-    {
-        name: 'channel',
-        description: 'All player updates will be sent to the channel where this command is issued'
-    }
+    new SlashCommandBuilder()
+        .setName('ping')
+        .setDescription('Replies with pong!'),
+    new SlashCommandBuilder()
+        .setName('track')
+        .setDescription('Tracks a player and gives updates when they level up')
+        .addStringOption(option =>
+            option
+                .setName('username')
+                .setDescription('Username')
+                .setRequired(true)),
+    new SlashCommandBuilder()
+        .setName('remove')
+        .setDescription('Stops tracking a player')
+        .addStringOption(option =>
+            option
+                .setName('username')
+                .setDescription('Username')
+                .setRequired(true)),
+    new SlashCommandBuilder()
+        .setName('clear')
+        .setDescription('Stops tracking all players')
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder()
+        .setName('list')
+        .setDescription('Lists all the players currently being tracked'),
+    new SlashCommandBuilder()
+        .setName('check')
+        .setDescription('Shows the current levels for some player')
+        .addStringOption(option =>
+            option
+                .setName('username')
+                .setDescription('Username')
+                .setRequired(true)),
+    new SlashCommandBuilder()
+        .setName('channel')
+        .setDescription('All the player updates will be sent to the channel where this command is issued')
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
 ];
 
-const rest = new REST({ version: '9' }).setToken(AUTH.token);
+const rest = new REST({ version: '10' }).setToken(AUTH.token);
 
 const GUILD_ID = AUTH.guildId;
 const CLIENT_ID = AUTH.clientId;

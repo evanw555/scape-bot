@@ -69,6 +69,7 @@ class CommandHandler {
                     await interaction.reply({ content: 'That player is not currently being tracked', ephemeral: true });
                 }
             } else if (interaction.commandName === 'clear') {
+                CommandHandler.assertIsAdmin(interaction);
                 const guildId = CommandHandler.getInteractionGuildId(interaction);
                 // TODO: Can we add a batch delete operation?
                 for (const rsn of state.getAllTrackedPlayers(guildId)) {
