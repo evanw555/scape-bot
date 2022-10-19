@@ -204,6 +204,13 @@ client.on('ready', async () => {
             await timeoutManager.registerTimeout(TimeoutType.WeeklyXpUpdate, getNextFridayEvening(), { pastStrategy: PastTimeoutStrategy.Invoke });
         }
 
+        // Register global slash commands on startup
+        if (client.application) {
+            const commands = commandHandler.buildCommands();
+            const results = await client.application.commands.set(commands);
+            await logger.log(`Refreshed ${results.size} application (/) commands`);
+        }
+
         // Notify the admin that the bot has restarted
         sendRestartMessage(downtimeMillis);
     } catch (err) {
