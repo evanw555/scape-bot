@@ -112,6 +112,7 @@ class CommandHandler {
             return;
         }
         const command = commands[interaction.commandName];
+        const debugString = `\`${interaction.user.tag}\` executed command \`${interaction.commandName}\` in ${interaction.channel} with options \`${JSON.stringify(interaction.options.data)}\``;
         try {
             if (command.failIfDisabled) {
                 CommandHandler.failIfDisabled();
@@ -121,7 +122,7 @@ class CommandHandler {
             }
             if (typeof command.execute === 'function') {
                 await command.execute(interaction);
-                logger.log(`Executed command '${interaction.commandName}' with options \`${JSON.stringify(interaction.options)}\``);
+                logger.log(debugString);
             } else {
                 await interaction.reply(`Warning: slash command does not exist yet for command: ${interaction.commandName}`);
             }
@@ -129,7 +130,7 @@ class CommandHandler {
             if (err instanceof Error) {
                 await CommandHandler.handleError(interaction, err);
             } else {
-                logger.log(`Unexpected error while trying to execute command '${interaction.commandName}': \`${JSON.stringify(err)}\``);
+                logger.log(`Unexpected error when ${debugString}: \`${err}\``);
             }
         }
     }
