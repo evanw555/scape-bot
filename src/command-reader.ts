@@ -27,8 +27,12 @@ class CommandReader {
                 msg.channel.send('I can\'t do that while I\'m disabled');
             } else {
                 try {
-                    commandInfo.fn && commandInfo.fn(msg, rawArgs, ...args);
-                    logger.log(`Executed command '${command}' with args ${JSON.stringify(args)}`);
+                    if (typeof commandInfo.fn === 'function') {
+                        commandInfo.fn(msg, rawArgs, ...args);
+                        logger.log(`Executed command '${command}' with args ${JSON.stringify(args)}`);
+                    } else {
+                        msg.channel.send(`Warning: deprecated command format does not exist for this command: ${command}`);
+                    }
                 } catch (err) {
                     if (err instanceof Error) {
                         logger.log(`Uncaught error while trying to execute command '${msg.content}': ${err.toString()}`);

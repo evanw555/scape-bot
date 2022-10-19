@@ -119,8 +119,12 @@ class CommandHandler {
             if (command.privileged) {
                 CommandHandler.assertIsAdmin(interaction);
             }
-            command.execute && await command.execute(interaction);
-            logger.log(`Executed command '${interaction.commandName}' with options \`${JSON.stringify(interaction.options)}\``);
+            if (typeof command.execute === 'function') {
+                await command.execute(interaction);
+                logger.log(`Executed command '${interaction.commandName}' with options \`${JSON.stringify(interaction.options)}\``);
+            } else {
+                await interaction.reply(`Warning: slash command does not exist yet for command: ${interaction.commandName}`);
+            }
         } catch (err) {
             if (err instanceof Error) {
                 await CommandHandler.handleError(interaction, err);
