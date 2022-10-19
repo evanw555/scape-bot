@@ -2,7 +2,7 @@ import { replyUpdateMessage, sendUpdateMessage, updatePlayer } from './util';
 import { FORMATTED_BOSS_NAMES, Boss, BOSSES } from 'osrs-json-hiscores';
 import { exec } from 'child_process';
 import { sanitizeBossName, getBossName, isValidBoss } from './boss-utility';
-import { Command, PlayerHiScores, CommandName } from './types';
+import { Command, PlayerHiScores, CommandName, BuiltSlashCommand } from './types';
 import { ChatInputCommandInteraction, Message, PermissionFlagsBits, SlashCommandBuilder, Snowflake, TextBasedChannel } from 'discord.js';
 import { randChoice, randInt } from 'evanw555.js';
 import { fetchHiScores } from './hiscores';
@@ -38,12 +38,19 @@ const getInteractionGuildId = (interaction: ChatInputCommandInteraction): string
     return interaction.guildId;
 };
 
+const buildSlashCommand = (builder: BuiltSlashCommand, commandInfo: Command) => {
+    let command = builder.setDescription(commandInfo.text);
+    if (commandInfo.privileged) {
+        command = command.setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
+    }
+    return command;
+};
+
 const commands: Record<CommandName, Command> = {
     ping: {
-        build: () =>
-            new SlashCommandBuilder()
-                .setName('ping')    
-                .setDescription('Replies with pong!'),
+        build() {
+            return buildSlashCommand(new SlashCommandBuilder().setName('ping'), this);
+        },
         execute: async (interaction) => {
             await interaction.reply('pong!');
         },
@@ -59,15 +66,16 @@ const commands: Record<CommandName, Command> = {
         fn: async (msg) => {
             await msg.channel.send('Use the **/track** command');
         },
-        build: () =>
-            new SlashCommandBuilder()
+        build() {
+            const builder = new SlashCommandBuilder()
                 .setName('track')
-                .setDescription('Tracks a player and gives updates when they level up')
                 .addStringOption(option =>
                     option
                         .setName('username')
                         .setDescription('Username')
-                        .setRequired(true)),
+                        .setRequired(true));
+            return buildSlashCommand(builder, this);
+        },
         execute: async (interaction) => {
             const guildId = getInteractionGuildId(interaction);
             const rsn = interaction.options.getString('username', true);
@@ -91,15 +99,16 @@ const commands: Record<CommandName, Command> = {
         fn: async (msg) => {
             await msg.channel.send('Use the **/remove** command');
         },
-        build: () =>
-            new SlashCommandBuilder()
+        build() {
+            const builder = new SlashCommandBuilder()
                 .setName('remove')
-                .setDescription('Stops tracking a player')
                 .addStringOption(option =>
                     option
                         .setName('username')
                         .setDescription('Username')
-                        .setRequired(true)),
+                        .setRequired(true));
+            return buildSlashCommand(builder, this);
+        },
         execute: async (interaction) => {
             const guildId = getInteractionGuildId(interaction);
             const rsn = interaction.options.getString('username', true);
@@ -122,11 +131,9 @@ const commands: Record<CommandName, Command> = {
         fn: async (msg) => {
             await msg.channel.send('Use the **/clear** command');
         },
-        build: () =>
-            new SlashCommandBuilder()
-                .setName('clear')
-                .setDescription('Stops tracking all players')
-                .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+        build() {
+            return buildSlashCommand(new SlashCommandBuilder().setName('clear'), this);
+        },
         execute: async (interaction) => {
             const guildId = getInteractionGuildId(interaction);
             // TODO: Can we add a batch delete operation?
@@ -137,16 +144,16 @@ const commands: Record<CommandName, Command> = {
             await interaction.reply({ content: 'No longer tracking any players', ephemeral: true });
         },
         text: 'Stops tracking all players',
+        privileged: true,
         failIfDisabled: true
     },
     list: {
         fn: async (msg) => {
             await msg.channel.send('Use the **/list** command');
         },
-        build: () =>
-            new SlashCommandBuilder()
-                .setName('list')
-                .setDescription('Lists all the players currently being tracked'),
+        build() {
+            return buildSlashCommand(new SlashCommandBuilder().setName('list'), this);
+        },
         execute: async (interaction) => {
             const guildId = getInteractionGuildId(interaction);
             if (state.isTrackingAnyPlayers(guildId)) {
@@ -164,15 +171,16 @@ const commands: Record<CommandName, Command> = {
         fn: async (msg) => {
             await msg.channel.send('Use the **/check** command');
         },
-        build: () =>
-            new SlashCommandBuilder()
+        build() {
+            const builder = new SlashCommandBuilder()
                 .setName('check')
-                .setDescription('Shows the current levels for some player')
                 .addStringOption(option =>
                     option
                         .setName('username')
                         .setDescription('Username')
-                        .setRequired(true)),
+                        .setRequired(true));
+            return buildSlashCommand(builder, this);
+        },
         execute: async (interaction) => {
             const rsn = interaction.options.getString('username', true);
             try {
@@ -241,11 +249,9 @@ const commands: Record<CommandName, Command> = {
         fn: async (msg) => {
             await msg.channel.send('Use the **/channel** command');
         },
-        build: () =>
-            new SlashCommandBuilder()
-                .setName('channel')
-                .setDescription('All the player updates will be sent to the channel where this command is issued')
-                .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+        build() {
+            return buildSlashCommand(new SlashCommandBuilder().setName('channel'), this);
+        },
         execute: async (interaction) => {
             const guildId = getInteractionGuildId(interaction);
             await updateTrackingChannel(guildId, interaction.channelId);

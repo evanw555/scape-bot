@@ -48,10 +48,12 @@ export interface SerializedGuildState {
 
 export type MiscFlagName = 'timestamp' | 'disabled';
 
+export type BuiltSlashCommand = SlashCommandBuilder | Omit<SlashCommandBuilder, 'addSubcommand' | 'addSubcommandGroup'>;
+
 export interface Command {
     fn?: (msg: Message, rawArgs: string, ...args: string[]) => void,
     execute?: (interaction: ChatInputCommandInteraction) => Promise<void>,
-    build?: () => SlashCommandBuilder | Omit<SlashCommandBuilder, 'addSubcommand' | 'addSubcommandGroup'>,
+    build?: () => BuiltSlashCommand,
     text: string,
     hidden?: boolean,
     privileged?: boolean,
