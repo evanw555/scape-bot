@@ -1,4 +1,4 @@
-import { Message, Snowflake } from 'discord.js';
+import { ChatInputCommandInteraction, Message, SlashCommandBuilder, Snowflake } from 'discord.js';
 import { Boss, ClueType, SkillName } from 'osrs-json-hiscores';
 import { ClientConfig } from 'pg';
 
@@ -49,7 +49,9 @@ export interface SerializedGuildState {
 export type MiscFlagName = 'timestamp' | 'disabled';
 
 export interface Command {
-    fn: (msg: Message, rawArgs: string, ...args: string[]) => void,
+    fn?: (msg: Message, rawArgs: string, ...args: string[]) => void,
+    execute?: (interaction: ChatInputCommandInteraction) => Promise<void>,
+    build?: () => SlashCommandBuilder | Omit<SlashCommandBuilder, 'addSubcommand' | 'addSubcommandGroup'>,
     text: string,
     hidden?: boolean,
     privileged?: boolean,
@@ -74,5 +76,11 @@ export interface PlayerHiScores {
     bossesWithDefaults: Record<Boss, number>,
     clues: Partial<Record<IndividualClueType, number>>,
     cluesWithDefaults: Record<IndividualClueType, number>
-
 }
+
+export type DeprecatedCommandName =  'help' | 'kc' | 'hiddenhelp' | 'details' | 'hey' | 'sup' | 'log'
+| 'thumbnail' | 'thumbnail' | 'thumbnail99' | 'spoof' | 'spoofverbose' | 'uptime' | 'kill' | 'enable';
+
+export type SlashCommandName = 'ping' | 'track' | 'remove' | 'clear' | 'list' | 'check' | 'channel';
+
+export type CommandName = DeprecatedCommandName | SlashCommandName;

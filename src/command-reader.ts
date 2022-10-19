@@ -1,5 +1,5 @@
 import { Message } from 'discord.js';
-import { ParsedCommand, Command } from './types';
+import { ParsedCommand, Command, CommandName } from './types';
 import commands from './commands';
 
 import state from './instances/state';
@@ -20,14 +20,14 @@ class CommandReader {
         // Execute command
         const { command, args, rawArgs } = parsedCommand;
         if (Object.prototype.hasOwnProperty.call(commands, command)) {
-            const commandInfo: Command = commands[command];
+            const commandInfo: Command = commands[command as CommandName];
             if (commandInfo.privileged && !state.isAdmin(msg.author.id)) {
                 msg.channel.send('You can\'t do that');
             } else if (commandInfo.failIfDisabled && state.isDisabled()) {
                 msg.channel.send('I can\'t do that while I\'m disabled');
             } else {
                 try {
-                    commandInfo.fn(msg, rawArgs, ...args);
+                    commandInfo.fn && commandInfo.fn(msg, rawArgs, ...args);
                     logger.log(`Executed command '${command}' with args ${JSON.stringify(args)}`);
                 } catch (err) {
                     if (err instanceof Error) {

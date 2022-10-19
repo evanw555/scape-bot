@@ -1,34 +1,54 @@
-import { sendUpdateMessage, updatePlayer } from './util';
-import { FORMATTED_BOSS_NAMES, Boss } from 'osrs-json-hiscores';
+import { replyUpdateMessage, sendUpdateMessage, updatePlayer } from './util';
+import { FORMATTED_BOSS_NAMES, Boss, BOSSES } from 'osrs-json-hiscores';
 import { exec } from 'child_process';
 import { sanitizeBossName, getBossName, isValidBoss } from './boss-utility';
-import { Command, PlayerHiScores } from './types';
-import { Message, Snowflake } from 'discord.js';
+import { Command, PlayerHiScores, CommandName } from './types';
+import { ChatInputCommandInteraction, Message, PermissionFlagsBits, SlashCommandBuilder, Snowflake, TextBasedChannel } from 'discord.js';
 import { randChoice, randInt } from 'evanw555.js';
 import { fetchHiScores } from './hiscores';
 import capacityLog from './capacity-log';
-import { SKILLS_NO_OVERALL } from './constants';
+import { CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, CONFIG } from './constants';
+import { deleteTrackedPlayer, insertTrackedPlayer, updateTrackingChannel } from './pg-storage';
 
-import { CONSTANTS, CONFIG } from './constants';
 import state from './instances/state';
 import logger from './instances/logger';
 
 const validSkills = new Set<string>(CONSTANTS.skills);
 
 const getHelpText = (hidden?: boolean) => {
-    const commandKeys = Object.keys(commands)
-        .filter(key => !!commands[key].hidden === !!hidden);
+    const unfilteredCommandKeys = Object.keys(commands) as CommandName[];
+    const commandKeys = unfilteredCommandKeys
+        .filter((key: CommandName) => !!commands[key].hidden === !!hidden);
     commandKeys.sort();
     const maxLengthKey = Math.max(...commandKeys.map((key) => {
         return key.length;
     }));
     const innerText = commandKeys
-        .map(key => `${key.padEnd(maxLengthKey)} :: ${commands[key].text}`)
+        .map((key: CommandName) => `${key.padEnd(maxLengthKey)} :: ${commands[key].text}`)
         .join('\n');
     return `\`\`\`asciidoc\n${innerText}\`\`\``;
 };
 
-const commands: Record<string, Command> = {
+export const INVALID_TEXT_CHANNEL = 'err/invalid-text-channel';
+
+const getInteractionGuildId = (interaction: ChatInputCommandInteraction): string => {
+    if (typeof interaction.guildId !== 'string') {
+        throw new Error(INVALID_TEXT_CHANNEL);
+    }
+    return interaction.guildId;
+};
+
+const commands: Record<CommandName, Command> = {
+    ping: {
+        build: () =>
+            new SlashCommandBuilder()
+                .setName('ping')    
+                .setDescription('Replies with pong!'),
+        execute: async (interaction) => {
+            await interaction.reply('pong!');
+        },
+        text: 'Replies with pong!'
+    },
     help: {
         fn: (msg) => {
             msg.channel.send(getHelpText(false));
@@ -39,12 +59,61 @@ const commands: Record<string, Command> = {
         fn: async (msg) => {
             await msg.channel.send('Use the **/track** command');
         },
+        build: () =>
+            new SlashCommandBuilder()
+                .setName('track')
+                .setDescription('Tracks a player and gives updates when they level up')
+                .addStringOption(option =>
+                    option
+                        .setName('username')
+                        .setDescription('Username')
+                        .setRequired(true)),
+        execute: async (interaction) => {
+            const guildId = getInteractionGuildId(interaction);
+            const rsn = interaction.options.getString('username', true);
+            if (!rsn || !rsn.trim()) {
+                await interaction.reply({ content: 'Invalid username', ephemeral: true });
+                return;
+            }
+            if (state.isTrackingPlayer(guildId, rsn)) {
+                await interaction.reply({ content: 'That player is already being tracked', ephemeral: true });
+            } else {
+                await insertTrackedPlayer(guildId, rsn);
+                state.addTrackedPlayer(guildId, rsn);
+                await updatePlayer(rsn);
+                await interaction.reply(`Now tracking player **${rsn}**`);
+            }
+        },
         text: 'Tracks a player and gives updates when they level up',
         failIfDisabled: true
     },
     remove: {
         fn: async (msg) => {
             await msg.channel.send('Use the **/remove** command');
+        },
+        build: () =>
+            new SlashCommandBuilder()
+                .setName('remove')
+                .setDescription('Stops tracking a player')
+                .addStringOption(option =>
+                    option
+                        .setName('username')
+                        .setDescription('Username')
+                        .setRequired(true)),
+        execute: async (interaction) => {
+            const guildId = getInteractionGuildId(interaction);
+            const rsn = interaction.options.getString('username', true);
+            if (!rsn || !rsn.trim()) {
+                await interaction.reply({ content: 'Invalid username', ephemeral: true });
+                return;
+            }
+            if (state.isTrackingPlayer(guildId, rsn)) {
+                await deleteTrackedPlayer(guildId, rsn);
+                state.removeTrackedPlayer(guildId, rsn);
+                await interaction.reply(`No longer tracking player **${rsn}**`);
+            } else {
+                await interaction.reply({ content: 'That player is not currently being tracked', ephemeral: true });
+            }
         },
         text: 'Stops tracking a player',
         failIfDisabled: true
@@ -53,6 +122,20 @@ const commands: Record<string, Command> = {
         fn: async (msg) => {
             await msg.channel.send('Use the **/clear** command');
         },
+        build: () =>
+            new SlashCommandBuilder()
+                .setName('clear')
+                .setDescription('Stops tracking all players')
+                .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+        execute: async (interaction) => {
+            const guildId = getInteractionGuildId(interaction);
+            // TODO: Can we add a batch delete operation?
+            for (const rsn of state.getAllTrackedPlayers(guildId)) {
+                await deleteTrackedPlayer(guildId, rsn);
+            }
+            state.clearAllTrackedPlayers(guildId);
+            await interaction.reply({ content: 'No longer tracking any players', ephemeral: true });
+        },
         text: 'Stops tracking all players',
         failIfDisabled: true
     },
@@ -60,11 +143,64 @@ const commands: Record<string, Command> = {
         fn: async (msg) => {
             await msg.channel.send('Use the **/list** command');
         },
+        build: () =>
+            new SlashCommandBuilder()
+                .setName('list')
+                .setDescription('Lists all the players currently being tracked'),
+        execute: async (interaction) => {
+            const guildId = getInteractionGuildId(interaction);
+            if (state.isTrackingAnyPlayers(guildId)) {
+                await interaction.reply({
+                    content: `Currently tracking players **${state.getAllTrackedPlayers(guildId).join('**, **')}**`,
+                    ephemeral: true
+                });
+            } else {
+                interaction.reply({ content: 'Currently not tracking any players', ephemeral: true });
+            }
+        },
         text: 'Lists all the players currently being tracked'
     },
     check: {
         fn: async (msg) => {
             await msg.channel.send('Use the **/check** command');
+        },
+        build: () =>
+            new SlashCommandBuilder()
+                .setName('check')
+                .setDescription('Shows the current levels for some player')
+                .addStringOption(option =>
+                    option
+                        .setName('username')
+                        .setDescription('Username')
+                        .setRequired(true)),
+        execute: async (interaction) => {
+            const rsn = interaction.options.getString('username', true);
+            try {
+                // Retrieve the player's hiscores data
+                const data = await fetchHiScores(rsn);
+                let messageText = '';
+                // Create skills message text
+                const totalLevel: string = (data.totalLevel ?? '???').toString();
+                const baseLevel: string = (data.baseLevel ?? '???').toString();
+                messageText += `${SKILLS_NO_OVERALL.map(skill => `**${data.levels[skill] ?? '?'}** ${skill}`).join('\n')}\n\nTotal **${totalLevel}**\nBase **${baseLevel}**`;
+                // Create bosses message text if there are any bosses with one or more kills
+                if (BOSSES.some(boss => data.bosses[boss])) {
+                    messageText += '\n\n' + BOSSES.filter(boss => data.bosses[boss]).map(boss => `**${data.bosses[boss]}** ${getBossName(boss)}`).join('\n');
+                }
+                // Create clues message text if there are any clues with a score of one or greater
+                if (CLUES_NO_ALL.some(clue => data.clues[clue])) {
+                    messageText += '\n\n' + CLUES_NO_ALL.filter(clue => data.clues[clue]).map(clue => `**${data.clues[clue]}** ${clue}`).join('\n');
+                }
+                replyUpdateMessage(interaction, messageText, 'overall', {
+                    title: rsn,
+                    url: `${CONSTANTS.hiScoresUrlTemplate}${encodeURI(rsn)}`
+                });
+            } catch (err) {
+                if (err instanceof Error) {
+                    logger.log(`Error while fetching hiscores (check) for player ${rsn}: ${err.toString()}`);
+                    interaction.reply(`Couldn't fetch hiscores for player **${rsn}** :pensive:\n\`${err.toString()}\``);
+                }
+            }
         },
         text: 'Show the current levels for some player',
         failIfDisabled: true
@@ -104,6 +240,18 @@ const commands: Record<string, Command> = {
     channel: {
         fn: async (msg) => {
             await msg.channel.send('Use the **/channel** command');
+        },
+        build: () =>
+            new SlashCommandBuilder()
+                .setName('channel')
+                .setDescription('All the player updates will be sent to the channel where this command is issued')
+                .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+        execute: async (interaction) => {
+            const guildId = getInteractionGuildId(interaction);
+            await updateTrackingChannel(guildId, interaction.channelId);
+            const textChannel = interaction.channel as TextBasedChannel;
+            state.setTrackingChannel(guildId, textChannel);
+            await interaction.reply('Player experience updates will now be sent to this channel');
         },
         text: 'All player updates will be sent to the channel where this command is issued',
         privileged: true,
