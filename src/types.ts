@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, Message, SlashCommandBuilder, Snowflake } from 'discord.js';
+import { ApplicationCommandOptionType, ChatInputCommandInteraction, Message, SlashCommandBuilder, Snowflake } from 'discord.js';
 import { Boss, ClueType, SkillName } from 'osrs-json-hiscores';
 import { ClientConfig } from 'pg';
 
@@ -50,11 +50,25 @@ export type MiscFlagName = 'timestamp' | 'disabled';
 
 export type BuiltSlashCommand = SlashCommandBuilder | Omit<SlashCommandBuilder, 'addSubcommand' | 'addSubcommandGroup'>;
 
+export type DeprecatedCommandName =  'help' | 'kc' | 'hiddenhelp' | 'details' | 'hey' | 'sup' | 'log'
+| 'thumbnail' | 'thumbnail' | 'thumbnail99' | 'spoof' | 'spoofverbose' | 'uptime' | 'kill' | 'enable';
+
+export type SlashCommandName = 'ping' | 'track' | 'remove' | 'clear' | 'list' | 'check' | 'channel';
+
+export type CommandName = DeprecatedCommandName | SlashCommandName;
+
+export interface CommandOption {
+    type: ApplicationCommandOptionType,
+    name: string,
+    description: string,
+    required?: boolean
+}
+
 export interface Command {
     fn?: (msg: Message, rawArgs: string, ...args: string[]) => void,
     execute?: (interaction: ChatInputCommandInteraction) => Promise<void>,
-    build?: () => BuiltSlashCommand,
     text: string,
+    options?: CommandOption[],
     hidden?: boolean,
     privileged?: boolean,
     failIfDisabled?: boolean
@@ -79,10 +93,3 @@ export interface PlayerHiScores {
     clues: Partial<Record<IndividualClueType, number>>,
     cluesWithDefaults: Record<IndividualClueType, number>
 }
-
-export type DeprecatedCommandName =  'help' | 'kc' | 'hiddenhelp' | 'details' | 'hey' | 'sup' | 'log'
-| 'thumbnail' | 'thumbnail' | 'thumbnail99' | 'spoof' | 'spoofverbose' | 'uptime' | 'kill' | 'enable';
-
-export type SlashCommandName = 'ping' | 'track' | 'remove' | 'clear' | 'list' | 'check' | 'channel';
-
-export type CommandName = DeprecatedCommandName | SlashCommandName;

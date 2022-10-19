@@ -1,9 +1,16 @@
-import { ApplicationCommandDataResolvable, ChatInputCommandInteraction, Interaction, PermissionFlagsBits } from 'discord.js';
+import {
+    ApplicationCommandDataResolvable,
+    ApplicationCommandOptionType,
+    ChatInputCommandInteraction,
+    Interaction,
+    PermissionFlagsBits,
+    SlashCommandBuilder
+} from 'discord.js';
 import commands, { INVALID_TEXT_CHANNEL } from './commands';
+import { BuiltSlashCommand, CommandName, CommandOption } from './types';
 
 import state from './instances/state';
 import logger from './instances/logger';
-import { CommandName } from './types';
 
 const UNAUTHORIZED_USER = 'err/unauthorized-user';
 const STATE_DISABLED = 'err/state-disabled';
@@ -53,13 +60,43 @@ class CommandHandler {
         }  
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    static buildCommandOption = (option: any, optionInfo: CommandOption) =>
+        option
+            .setName(optionInfo.name)
+            .setDescription(optionInfo.description)
+            .setRequired(optionInfo.required || false);
+
+    static buildCommandOptions(builder: BuiltSlashCommand, options: CommandOption[]) {
+        options.forEach((optionInfo: CommandOption) => {
+            if (optionInfo.type === ApplicationCommandOptionType.String) {
+                builder = builder.addStringOption((option) => CommandHandler.buildCommandOption(option, optionInfo));
+            } else if (optionInfo.type === ApplicationCommandOptionType.Integer) {
+                builder = builder.addIntegerOption((option) => CommandHandler.buildCommandOption(option, optionInfo));
+            }
+        });
+        return builder;
+    }
+
     buildCommands(): ApplicationCommandDataResolvable[] {
         const commandKeys = Object.keys(commands) as CommandName[];
         const data: ApplicationCommandDataResolvable[] = [];
         commandKeys.forEach((key) => {
-            if (typeof commands[key].build === 'function') {
-                // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-                const command = commands[key].build!();
+            // We can check for existence of the execute() function for now, this is only
+            // temporary until all commands are migrated over to slash commands
+            if (typeof commands[key].execute === 'function') {
+                const commandInfo = commands[key];
+                let command: BuiltSlashCommand = new SlashCommandBuilder()
+                    .setName(key)
+                    .setDescription(commandInfo.text);
+                // If command has the privileged flag, set the command permissions to admin
+                if (commandInfo.privileged) {
+                    command = command.setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
+                }
+                // Build the command options if they exist
+                if (commandInfo.options) {
+                    command = CommandHandler.buildCommandOptions(command, commandInfo.options);
+                }
                 data.push(command);
             }
         });
