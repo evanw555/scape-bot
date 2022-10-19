@@ -1,6 +1,12 @@
 {
     "refreshInterval": 3000,
-    "logCapacity": 15,
-    "logMaxEntryLength": 120,
-    "timeZone": "America/Los_Angeles"
+    "timeZone": "America/Los_Angeles",
+    "debugLog": {
+        "logCapacity": 20,
+        "logMaxEntryLength": 120
+    },
+    "infoLog": {
+        "logCapacity": 20,
+        "logMaxEntryLength": 120
+    }
 }

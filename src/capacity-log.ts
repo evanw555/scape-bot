@@ -1,6 +1,3 @@
-import { loadJson } from "evanw555.js";
-import { ScapeBotConfig } from "./types";
-
 import { CONFIG } from './constants';
 
 interface LogEntry {
@@ -8,7 +5,7 @@ interface LogEntry {
     value: string;
 }
 
-class CapacityLog {
+export class CapacityLog {
     readonly _capacity: number;
     readonly _maxEntryLength: number;
     readonly _list: LogEntry[];
@@ -24,7 +21,6 @@ class CapacityLog {
      * @param value new message
      */
     push(value: string): void {
-        console.log(value);
         if (this._list.length >= this._capacity) {
             this._list.shift();
         }
@@ -36,14 +32,9 @@ class CapacityLog {
 
     /**
      * Returns the current log represented as a list of serialized log entries.
-     * @param maxChars max characters to serialize per log entry
      * @returns serialized log entries
      */
-    toLogArray(maxChars?: number): string[] {
+    toLogArray(): string[] {
         return this._list.map(entry => `[${entry.date.toLocaleString('en-US', { timeZone: CONFIG.timeZone })}] ${entry.value}`);
     }
 }
-
-const capacityLog: CapacityLog = new CapacityLog(CONFIG.logCapacity, CONFIG.logMaxEntryLength);
-
-export default capacityLog;

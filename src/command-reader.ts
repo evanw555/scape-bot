@@ -1,4 +1,5 @@
 import { Message } from 'discord.js';
+import { MultiLoggerLevel } from 'evanw555.js';
 import { ParsedCommand, Command, CommandName } from './types';
 import commands from './commands';
 
@@ -13,7 +14,7 @@ class CommandReader {
             parsedCommand = CommandReader.parseCommand(msg.content);
         } catch (err) {
             if (err instanceof Error) {
-                logger.log(`Failed to parse command '${msg.content}': ${err.toString()}`);
+                logger.log(`Failed to parse command '${msg.content}': ${err.toString()}`, MultiLoggerLevel.Error);
             }
             return;
         }
@@ -29,13 +30,13 @@ class CommandReader {
                 try {
                     if (typeof commandInfo.fn === 'function') {
                         commandInfo.fn(msg, rawArgs, ...args);
-                        logger.log(`Executed command '${command}' with args ${JSON.stringify(args)}`);
+                        logger.log(`Executed command '${command}' with args ${JSON.stringify(args)}`, MultiLoggerLevel.Warn);
                     } else {
                         msg.channel.send(`Warning: deprecated command format does not exist for this command: ${command}`);
                     }
                 } catch (err) {
                     if (err instanceof Error) {
-                        logger.log(`Uncaught error while trying to execute command '${msg.content}': ${err.toString()}`);
+                        logger.log(`Uncaught error while trying to execute command '${msg.content}': ${err.toString()}`, MultiLoggerLevel.Error);
                     }
                 }
             }

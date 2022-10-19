@@ -1,7 +1,8 @@
 import { Snowflake } from 'discord.js';
 import { Boss } from 'osrs-json-hiscores';
 import { Client as PGClient } from 'pg';
-import format, { string } from 'pg-format';
+import format from 'pg-format';
+import { MultiLoggerLevel } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName, MiscFlagName } from './types';
 
 import state from './instances/state';
@@ -17,7 +18,7 @@ const TABLES: Record<string, string> = {
     'player_hiscore_status': 'CREATE TABLE player_hiscore_status (rsn VARCHAR(12) PRIMARY KEY, on_hiscores BOOLEAN);',
     'bot_counters': 'CREATE TABLE bot_counters (user_id BIGINT PRIMARY KEY, counter INTEGER);',
     'misc_properties': 'CREATE TABLE misc_properties (name VARCHAR(32) PRIMARY KEY, value VARCHAR(2048));'
-}
+};
 
 export async function initializeTables(): Promise<void> {
     const client: PGClient = state.getPGClient();
@@ -30,7 +31,7 @@ export async function initializeTables(): Promise<void> {
             results.push(`⚠️ Table \`${tableName}\` created`);
         }
     }
-    await logger.log(results.join('\n'));
+    await logger.log(results.join('\n'), MultiLoggerLevel.Warn);
 }
 
 export async function doesTableExist(name: string): Promise<boolean> {
@@ -196,12 +197,12 @@ export async function fetchMiscProperty(name: MiscFlagName): Promise<string | nu
     try {
         const queryResult = await client.query<{name: string, value: string}>('SELECT * FROM misc_properties WHERE name = $1;', [name]);
         if (queryResult.rowCount === 0) {
-            await logger.log(`PG ERROR: No rows found for misc property \`${name}\``);
+            await logger.log(`PG ERROR: No rows found for misc property \`${name}\``, MultiLoggerLevel.Error);
             return null;
         }
         return queryResult.rows[0].value;
     } catch (err) {
-        await logger.log(`PG ERROR: Unable to fetch misc property \`${name}\`: \`${err}\``);
+        await logger.log(`PG ERROR: Unable to fetch misc property \`${name}\`: \`${err}\``, MultiLoggerLevel.Error);
         return null;
     }
 }

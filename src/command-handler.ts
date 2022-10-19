@@ -6,6 +6,7 @@ import {
     PermissionFlagsBits,
     SlashCommandBuilder
 } from 'discord.js';
+import { MultiLoggerLevel } from 'evanw555.js';
 import commands, { INVALID_TEXT_CHANNEL } from './commands';
 import { BuiltSlashCommand, CommandName, CommandOption } from './types';
 
@@ -56,7 +57,7 @@ class CommandHandler {
                 ephemeral: true
             });
         } else {
-            logger.log(`Uncaught error while trying to execute command '${interaction.commandName}': ${err.toString()}`);
+            logger.log(`Uncaught error while trying to execute command '${interaction.commandName}': ${err.toString()}`, MultiLoggerLevel.Error);
         }  
     }
 
@@ -122,7 +123,7 @@ class CommandHandler {
             }
             if (typeof command.execute === 'function') {
                 await command.execute(interaction);
-                logger.log(debugString);
+                logger.log(debugString, MultiLoggerLevel.Warn);
             } else {
                 await interaction.reply(`Warning: slash command does not exist yet for command: ${interaction.commandName}`);
             }
@@ -130,7 +131,7 @@ class CommandHandler {
             if (err instanceof Error) {
                 await CommandHandler.handleError(interaction, err);
             } else {
-                logger.log(`Unexpected error when ${debugString}: \`${err}\``);
+                logger.log(`Unexpected error when ${debugString}: \`${err}\``, MultiLoggerLevel.Error);
             }
         }
     }

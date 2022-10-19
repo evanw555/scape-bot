@@ -19,11 +19,16 @@ export interface ScapeBotAuth {
     guildId?: Snowflake
 }
 
+export interface ScapeBotLoggerConfig {
+    logCapacity: number,
+    logMaxEntryLength: number
+}
+
 export interface ScapeBotConfig {
     refreshInterval: number,
-    logCapacity: number,
-    logMaxEntryLength: number,
-    timeZone: string
+    timeZone: string,
+    debugLog: ScapeBotLoggerConfig,
+    infoLog: ScapeBotLoggerConfig
 }
 
 export interface ScapeBotConstants {

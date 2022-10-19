@@ -1,7 +1,7 @@
 import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User } from 'discord.js';
 import { PlayerHiScores, TimeoutType } from './types';
 import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer } from './util';
-import { TimeoutManager, FileStorage, PastTimeoutStrategy, randInt, getDurationString, sleep } from 'evanw555.js';
+import { TimeoutManager, FileStorage, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel } from 'evanw555.js';
 import { fetchAllPlayerBosses, fetchAllPlayerClues, fetchAllPlayerLevels, fetchAllPlayersWithHiScoreStatus, fetchAllTrackedPlayers, fetchAllTrackingChannels, fetchBotCounters, fetchMiscProperty, fetchWeeklyXpSnapshots, initializeTables, writeBotCounter, writeMiscProperty, writeWeeklyXpSnapshots } from './pg-storage';
 import CommandReader from './command-reader';
 import CommandHandler from './command-handler';
@@ -18,8 +18,8 @@ const commandHandler: CommandHandler = new CommandHandler();
 
 export async function sendRestartMessage(downtimeMillis: number): Promise<void> {
     const text = `ScapeBot online after **${getDurationString(downtimeMillis)}** of downtime. In **${client.guilds.cache.size}** guild(s).\n`;
-    await logger.log(text + timeoutManager.toStrings().join('\n') || '_none._');
-    await logger.log(client.guilds.cache.toJSON().map((guild, i) => `**${i + 1}.** _${guild.name}_ with **${state.getAllTrackedPlayers(guild.id).length}** in ${state.hasTrackingChannel(guild.id) ? state.getTrackingChannel(guild.id) : 'N/A'}`).join('\n'));
+    await logger.log(text + timeoutManager.toStrings().join('\n') || '_none._', MultiLoggerLevel.Warn);
+    await logger.log(client.guilds.cache.toJSON().map((guild, i) => `**${i + 1}.** _${guild.name}_ with **${state.getAllTrackedPlayers(guild.id).length}** in ${state.hasTrackingChannel(guild.id) ? state.getTrackingChannel(guild.id) : 'N/A'}`).join('\n'), MultiLoggerLevel.Warn);
     // TODO: Use this if you need to troubleshoot...
     // await logger.log(state.toDebugString());
 }
@@ -86,7 +86,7 @@ const weeklyTotalXpUpdate = async () => {
     try {
         oldTotalXpValues = await fetchWeeklyXpSnapshots();
     } catch (err) {
-        await logger.log(`Unable to fetch weekly XP snapshots from PG: \`${err}\``);
+        await logger.log(`Unable to fetch weekly XP snapshots from PG: \`${err}\``, MultiLoggerLevel.Error);
         return;
     }
 
@@ -142,13 +142,13 @@ const weeklyTotalXpUpdate = async () => {
     try {
         await writeWeeklyXpSnapshots(newTotalXpValues);
     } catch (err) {
-        await logger.log(`Unable to write weekly XP snapshots to PG: \`${err}\``);
+        await logger.log(`Unable to write weekly XP snapshots to PG: \`${err}\``, MultiLoggerLevel.Error);
     }
 
     // Log all the data used to compute these values
-    await logger.log(`Old Total XP:\n\`\`\`${JSON.stringify(oldTotalXpValues, null, 2)}\`\`\``);
-    await logger.log(`New Total XP:\n\`\`\`${JSON.stringify(newTotalXpValues, null, 2)}\`\`\``);
-    await logger.log(`Total XP Diff:\n\`\`\`${JSON.stringify(totalXpDiffs, null, 2)}\`\`\``);
+    await logger.log(`Old Total XP:\n\`\`\`${JSON.stringify(oldTotalXpValues, null, 2)}\`\`\``, MultiLoggerLevel.Warn);
+    await logger.log(`New Total XP:\n\`\`\`${JSON.stringify(newTotalXpValues, null, 2)}\`\`\``, MultiLoggerLevel.Warn);
+    await logger.log(`Total XP Diff:\n\`\`\`${JSON.stringify(totalXpDiffs, null, 2)}\`\`\``, MultiLoggerLevel.Warn);
 };
 
 client.on('ready', async () => {
@@ -163,14 +163,15 @@ client.on('ready', async () => {
                 state.setAdminId(admin.id);
                 const adminDmChannel: TextBasedChannel = await admin.createDM();
                 logger.log(`Determined admin user: ${admin.username}`);
+                // The admin DM channel should only be used for WARN and above logs
                 logger.addOutput(async (text: string) => {
                     await adminDmChannel.send(text);
-                });
+                }, MultiLoggerLevel.Warn);
             } else {
-                await logger.log('Could not fetch the admin user!');
+                await logger.log('Could not fetch the admin user!', MultiLoggerLevel.Error);
             }
         } else {
-            await logger.log('No admin user ID was specified in auth.json!');
+            await logger.log('No admin user ID was specified in auth.json!', MultiLoggerLevel.Error);
         }
 
         // Fetch guilds to load them into the cache
@@ -196,7 +197,7 @@ client.on('ready', async () => {
         const guildsWithoutTrackingChannels: Guild[] = client.guilds.cache.toJSON()
             .filter(guild => !state.hasTrackingChannel(guild.id));
         if (guildsWithoutTrackingChannels.length > 0) {
-            await logger.log(`This bot is in **${client.guilds.cache.size}** guilds, but a tracking channel is missing for **${guildsWithoutTrackingChannels.length}** of them`);
+            await logger.log(`This bot is in **${client.guilds.cache.size}** guilds, but a tracking channel is missing for **${guildsWithoutTrackingChannels.length}** of them`, MultiLoggerLevel.Warn);
         }
 
         // Start the weekly loop if the right timeout isn't already scheduled (get next Friday at 5:10pm)
@@ -214,7 +215,7 @@ client.on('ready', async () => {
         // Notify the admin that the bot has restarted
         sendRestartMessage(downtimeMillis);
     } catch (err) {
-        await logger.log(`Failed to boot:\n\`\`\`\n${(err as Error).stack}\n\`\`\`\nThe bot will reboot in 30 seconds...`);
+        await logger.log(`Failed to boot:\n\`\`\`\n${(err as Error).stack}\n\`\`\`\nThe process will exit in 30 seconds...`, MultiLoggerLevel.Fatal);
         await sleep(30000);
         process.exit(1);
     }

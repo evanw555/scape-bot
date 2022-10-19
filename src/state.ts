@@ -1,8 +1,9 @@
 import { Snowflake, TextBasedChannel } from 'discord.js';
-import { Client as PGClient } from 'pg';
-import { CircularQueue } from 'evanw555.js';
-import { IndividualClueType, IndividualSkillName } from './types';
 import { Boss } from 'osrs-json-hiscores';
+import { Client as PGClient } from 'pg';
+import { MultiLoggerLevel } from 'evanw555.js';
+import { IndividualClueType, IndividualSkillName } from './types';
+import PlayerQueue from './player-queue';
 
 import logger from './instances/logger';
 
@@ -18,7 +19,7 @@ export default class State {
     private readonly _lastUpdate: Record<string, Date>;
     private _adminId?: Snowflake;
 
-    private readonly _masterPlayerQueue: CircularQueue<string>;
+    private readonly _masterPlayerQueue: PlayerQueue;
     private readonly _guildsByPlayer: Record<Snowflake, Set<Snowflake>>;
     private readonly _playersByGuild: Record<Snowflake, Set<Snowflake>>;
 
@@ -37,7 +38,7 @@ export default class State {
         this._botCounters = {};
         this._lastUpdate = {};
 
-        this._masterPlayerQueue = new CircularQueue<string>();
+        this._masterPlayerQueue = new PlayerQueue();
         this._guildsByPlayer = {};
         this._playersByGuild = {};
         this._trackingChannelsByGuild = {};
@@ -61,6 +62,15 @@ export default class State {
         } else {
             this._disabled = undefined;
         }
+    }
+
+    /**
+     * This should be invoked whenever a player experiences some sort of update.
+     * This lets the player queue know which players to update more frequently.
+     * @param rsn the player to mark as active
+     */
+    markPlayerAsActive(rsn: string): void {
+        this._masterPlayerQueue.markAsActive(rsn);
     }
 
     nextTrackedPlayer(): string | undefined {
@@ -99,7 +109,7 @@ export default class State {
         // If this guild no longer is tracking any players, delete its player set
         if (!this.isTrackingAnyPlayers(guildId)) {
             delete this._playersByGuild[guildId];
-            logger.log(`Deleted player set for guild ${guildId}`);
+            logger.log(`Deleted player set for guild ${guildId}`, MultiLoggerLevel.Debug);
         }
         // Attempt to delete the guild from the player's guild set
         this._guildsByPlayer[rsn]?.delete(guildId);
@@ -113,7 +123,7 @@ export default class State {
             delete this._levels[rsn];
             delete this._bosses[rsn];
             delete this._lastUpdate[rsn];
-            logger.log(`Removed player ${rsn} from the master queue`);
+            logger.log(`Removed player ${rsn} from the master queue`, MultiLoggerLevel.Debug);
         }
     }
 
@@ -227,7 +237,7 @@ export default class State {
     setAllLevels(allLevels: Record<string, Record<string, number>>): void {
         for (const [rsn, levels] of Object.entries(allLevels)) {
             this.setLevels(rsn, levels);
-        };
+        }
     }
 
     hasLevel(rsn: string, skill: string): boolean {

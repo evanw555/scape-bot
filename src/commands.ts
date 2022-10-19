@@ -1,17 +1,19 @@
-import { replyUpdateMessage, sendUpdateMessage, updatePlayer } from './util';
+import { ApplicationCommandOptionType, ChatInputCommandInteraction, Message, Snowflake, TextBasedChannel } from 'discord.js';
 import { FORMATTED_BOSS_NAMES, Boss, BOSSES } from 'osrs-json-hiscores';
 import { exec } from 'child_process';
+import { MultiLoggerLevel, randChoice, randInt } from 'evanw555.js';
 import { sanitizeBossName, getBossName, isValidBoss } from './boss-utility';
 import { Command, PlayerHiScores, CommandName } from './types';
-import { ApplicationCommandOptionType, ChatInputCommandInteraction, Message, Snowflake, TextBasedChannel } from 'discord.js';
-import { randChoice, randInt } from 'evanw555.js';
+import { replyUpdateMessage, sendUpdateMessage, updatePlayer } from './util';
 import { fetchHiScores } from './hiscores';
-import capacityLog from './capacity-log';
 import { CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, CONFIG } from './constants';
 import { deleteTrackedPlayer, insertTrackedPlayer, updateTrackingChannel } from './pg-storage';
 
 import state from './instances/state';
 import logger from './instances/logger';
+
+import debugLog from './instances/debug-log';
+import infoLog from './instances/info-log';
 
 const validSkills = new Set<string>(CONSTANTS.skills);
 
@@ -176,7 +178,7 @@ const commands: Record<CommandName, Command> = {
                 });
             } catch (err) {
                 if (err instanceof Error) {
-                    logger.log(`Error while fetching hiscores (check) for player ${rsn}: ${err.toString()}`);
+                    logger.log(`Error while fetching hiscores (check) for player ${rsn}: ${err.toString()}`, MultiLoggerLevel.Error);
                     interaction.reply(`Couldn't fetch hiscores for player **${rsn}** :pensive:\n\`${err.toString()}\``);
                 }
             }
@@ -209,7 +211,7 @@ const commands: Record<CommandName, Command> = {
                     color: 10363483
                 });
             }).catch((err) => {
-                logger.log(`Error while fetching hiscores (check) for player ${rsn}: ${err.toString()}`);
+                logger.log(`Error while fetching hiscores (check) for player ${rsn}: ${err.toString()}`, MultiLoggerLevel.Error);
                 msg.channel.send(`Couldn't fetch hiscores for player **${rsn}** :pensive:\n\`${err.toString()}\``);
             });
         },
@@ -272,7 +274,9 @@ const commands: Record<CommandName, Command> = {
     },
     log: {
         fn: (msg) => {
-            msg.channel.send(`\`\`\`${capacityLog.toLogArray().join('\n')}\`\`\``);
+            // Truncate both logs to the Discord max of 2000 characters
+            msg.channel.send(`Info Log:\n\`\`\`${infoLog.toLogArray().join('\n').slice(0, 1950)}\`\`\``);
+            msg.channel.send(`Debug Log:\`\`\`${debugLog.toLogArray().join('\n').slice(0, 1950)}\`\`\``);
         },
         hidden: true,
         text: 'Prints the bot\'s log'

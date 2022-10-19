@@ -1,7 +1,7 @@
 import { Boss, BOSSES, INVALID_FORMAT_ERROR } from 'osrs-json-hiscores';
 import { isValidBoss, toSortedBosses, getBossName } from './boss-utility';
 import { ChatInputCommandInteraction, TextBasedChannel } from 'discord.js';
-import { addReactsSync, randChoice } from 'evanw555.js';
+import { addReactsSync, MultiLoggerLevel, randChoice } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName, PlayerHiScores } from './types';
 import { writeMiscProperty, writePlayerBosses, writePlayerClues, writePlayerHiScoreStatus, writePlayerLevels } from './pg-storage';
 import { fetchHiScores } from './hiscores';
@@ -186,7 +186,7 @@ export async function updatePlayer(rsn: string, spoofedDiff?: Record<string, num
                     { color: GRAY_EMBED_COLOR });
             }
         } else {
-            logger.log(`Error while fetching player hiscores for ${rsn}: \`${err}\``);
+            logger.log(`Error while fetching player hiscores for ${rsn}: \`${err}\``, MultiLoggerLevel.Error);
         }
         return;
     }
@@ -257,7 +257,7 @@ export async function updateLevels(rsn: string, newLevels: Record<IndividualSkil
         }
     } catch (err) {
         if (err instanceof Error && err.message) {
-            logger.log(`Failed to compute level diff for player ${rsn}: ${err.message}`);
+            logger.log(`Failed to compute level diff for player ${rsn}: ${err.message}`, MultiLoggerLevel.Error);
         }
         return;
     }
@@ -308,9 +308,12 @@ export async function updateLevels(rsn: string, newLevels: Record<IndividualSkil
     // If not spoofing the diff, update player's levels
     if (!spoofedDiff) {
         if (updatedSkills.length > 0) {
-            await logger.log(`**${rsn}** update: \`${JSON.stringify(diff)}\``);
+            // TODO: This doesn't count the 99 skills filtered from the diff above HELP!
+            state.markPlayerAsActive(rsn);
+            await logger.log(`**${rsn}** update: \`${JSON.stringify(diff)}\``, MultiLoggerLevel.Info);
         }
         // Write only updated skills to PG
+        // TODO: This skips the 99 skills filtered from the diff above HELP!
         await writePlayerLevels(rsn, filterMap(newLevels, updatedSkills));
         state.setLevels(rsn, newLevels);
         state.setLastUpdated(rsn, new Date());
@@ -339,7 +342,7 @@ export async function updateKillCounts(rsn: string, newScores: Record<Boss, numb
         }
     } catch (err) {
         if (err instanceof Error && err.message) {
-            logger.log(`Failed to compute boss KC diff for player ${rsn}: ${err.message}`);
+            logger.log(`Failed to compute boss KC diff for player ${rsn}: ${err.message}`, MultiLoggerLevel.Error);
         }
         return;
     }
@@ -387,7 +390,8 @@ export async function updateKillCounts(rsn: string, newScores: Record<Boss, numb
     // If not spoofing the diff, update player's boss scores
     if (!spoofedDiff) {
         if (updatedBosses.length > 0) {
-            await logger.log(`**${rsn}** update: \`${JSON.stringify(diff)}\``);
+            state.markPlayerAsActive(rsn);
+            await logger.log(`**${rsn}** update: \`${JSON.stringify(diff)}\``, MultiLoggerLevel.Info);
         }
         // Write only updated bosses to PG
         await writePlayerBosses(rsn, filterMap(newScores, updatedBosses));
@@ -418,7 +422,7 @@ export async function updateClues(rsn: string, newScores: Record<IndividualClueT
         }
     } catch (err) {
         if (err instanceof Error && err.message) {
-            logger.log(`Failed to compute clue score diff for player ${rsn}: ${err.message}`);
+            logger.log(`Failed to compute clue score diff for player ${rsn}: ${err.message}`, MultiLoggerLevel.Error);
         }
         return;
     }
@@ -458,7 +462,8 @@ export async function updateClues(rsn: string, newScores: Record<IndividualClueT
     // If not spoofing the diff, update player's clue scores
     if (!spoofedDiff) {
         if (updatedClues.length > 0) {
-            await logger.log(`**${rsn}** update: \`${JSON.stringify(diff)}\``);
+            state.markPlayerAsActive(rsn);
+            await logger.log(`**${rsn}** update: \`${JSON.stringify(diff)}\``, MultiLoggerLevel.Info);
         }
         // Write only updated clues to PG
         await writePlayerClues(rsn, filterMap(newScores, updatedClues));
