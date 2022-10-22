@@ -275,8 +275,8 @@ const commands: Record<CommandName, Command> = {
     log: {
         fn: (msg) => {
             // Truncate both logs to the Discord max of 2000 characters
-            msg.channel.send(`Info Log:\n\`\`\`${infoLog.toLogArray().join('\n').slice(0, 1950)}\`\`\``);
-            msg.channel.send(`Debug Log:\`\`\`${debugLog.toLogArray().join('\n').slice(0, 1950)}\`\`\``);
+            msg.channel.send(`Info Log:\n\`\`\`${infoLog.toLogArray().join('\n').slice(0, 1950) || 'log empty'}\`\`\``);
+            msg.channel.send(`Debug Log:\`\`\`${debugLog.toLogArray().join('\n').slice(0, 1950) || 'log empty'}\`\`\``);
         },
         hidden: true,
         text: 'Prints the bot\'s log'

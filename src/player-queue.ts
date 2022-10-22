@@ -31,6 +31,11 @@ export default class PlayerQueue {
     }
 
     next(): string | undefined {
+        // If the active queue is empty (this will happen on a fresh reboot), always draw from the inactive queue
+        if (this.activeQueue.isEmpty()) {
+            const rsn = this.inactiveQueue.next();
+            logger.log(`[Inactive] (No Actives) -> ${rsn}`, MultiLoggerLevel.Debug);
+        }
         // TODO: Use the size of the active queue rather than this hard-coded limit
         this.counter = (this.counter + 1) % 10;
         // Every 10th call processes from the inactive queue, the remaining 9 process from the active queue
@@ -42,7 +47,7 @@ export default class PlayerQueue {
                 this.inactiveQueue.remove(inactivePlayer);
                 logger.log(`Moved **${inactivePlayer}** to the _active_ queue`, MultiLoggerLevel.Warn);
             }
-            logger.log(`${this.counter} [Inactive] -> ${inactivePlayer}`, MultiLoggerLevel.Debug);
+            logger.log(`[Inactive] ${this.counter} -> ${inactivePlayer}`, MultiLoggerLevel.Debug);
             return inactivePlayer;
         } else {
             const activePlayer = this.activeQueue.next();
@@ -52,7 +57,7 @@ export default class PlayerQueue {
                 this.activeQueue.remove(activePlayer);
                 logger.log(`Moved **${activePlayer}** to the _inactive_ queue`, MultiLoggerLevel.Warn);
             }
-            logger.log(`${this.counter} [Active] -> ${activePlayer}`, MultiLoggerLevel.Debug);
+            logger.log(`[Active] ${this.counter} -> ${activePlayer}`, MultiLoggerLevel.Debug);
             return activePlayer;
         }
     }
