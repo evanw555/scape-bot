@@ -31,25 +31,18 @@ export default class PlayerQueue {
     }
 
     next(): string | undefined {
-        // If the active queue is empty (this will happen on a fresh reboot), always draw from the inactive queue
-        if (this.activeQueue.isEmpty()) {
-            const rsn = this.inactiveQueue.next();
-            if (rsn && this.isActive(rsn)) {
-                this.moveToActiveQueue(rsn);
-            }
-            logger.log(`[IQ] 🥶 -> ${rsn}`, MultiLoggerLevel.Debug);
-            return rsn;
-        }
-        // TODO: Use the size of the active queue rather than this hard-coded limit
-        this.counter = (this.counter + 1) % 10;
-        // Every 10th call processes from the inactive queue, the remaining 9 process from the active queue
+        // Don't loop over the active queue more than once before drawing from the inactive queue.
+        // N is guaranteed to be at most 10, possibly less on a fresh reboot (active queue empty -> N = 0 -> always draw from the inactive queue)
+        const counterInterval = Math.min(10, this.activeQueue.size());
+        this.counter = (this.counter + 1) % counterInterval;
+        // Every N calls we process from the inactive queue, for the remaining N - 1 we process from the active queue
         if (this.counter === 0) {
             const inactivePlayer = this.inactiveQueue.next();
             // If this inactive player is now active, move them to the active queue
             if (inactivePlayer && this.isActive(inactivePlayer)) {
                 this.moveToActiveQueue(inactivePlayer);
             }
-            logger.log(`[IQ] ${this.counter} -> ${inactivePlayer}`, MultiLoggerLevel.Debug);
+            logger.log(`[IQ] ${this.counter}/${counterInterval} -> ${inactivePlayer}`, MultiLoggerLevel.Debug);
             return inactivePlayer;
         } else {
             const activePlayer = this.activeQueue.next();
@@ -57,7 +50,7 @@ export default class PlayerQueue {
             if (activePlayer && !this.isActive(activePlayer)) {
                 this.moveToInactiveQueue(activePlayer);
             }
-            logger.log(`[AQ] ${this.counter} -> ${activePlayer}`, MultiLoggerLevel.Debug);
+            logger.log(`[AQ] ${this.counter}/${counterInterval} -> ${activePlayer}`, MultiLoggerLevel.Debug);
             return activePlayer;
         }
     }
