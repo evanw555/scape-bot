@@ -172,6 +172,7 @@ class CommandHandler {
                     await CommandHandler.sendEmptyResponse(interaction);
                     return;
                 }
+                // TODO: We can definitely improve this search functionality
                 const filtered = commandOption.choices.filter(choice => choice.value.toLowerCase()
                     .startsWith(focusedOption.value.toLowerCase()));
                 await interaction.respond(filtered);

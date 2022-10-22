@@ -55,14 +55,17 @@ export type MiscFlagName = 'timestamp' | 'disabled';
 
 export type BuiltSlashCommand = SlashCommandBuilder | Omit<SlashCommandBuilder, 'addSubcommand' | 'addSubcommandGroup'>;
 
-export type DeprecatedCommandName =  'help' | 'hiddenhelp' | 'details' | 'hey' | 'sup' | 'log'
-| 'thumbnail' | 'thumbnail' | 'thumbnail99' | 'spoof' | 'spoofverbose' | 'uptime' | 'kill' | 'enable';
+// export type DeprecatedCommandName =  'help' | 'details' | 'log' | 'thumbnail' | 'thumbnail99' | 'spoof'
+// | 'spoofverbose' | 'uptime' | 'kill' | 'enable' | 'hiddenhelp';
 
-export type SlashCommandName = 'ping' | 'track' | 'remove' | 'clear' | 'list' | 'check' | 'channel' | 'kc';
+export type DeprecatedCommandName =  'help' | 'hiddenhelp' | 'details' | 'hey' | 'sup' | 'log'
+| 'thumbnail99' | 'spoof' | 'spoofverbose' | 'uptime' | 'kill' | 'enable';
+
+export type SlashCommandName = 'ping' | 'track' | 'remove' | 'clear' | 'list' | 'check' | 'channel' | 'kc' | 'thumbnail';
 
 export type CommandName = DeprecatedCommandName | SlashCommandName;
 
-interface CommandOptionChoice {
+export interface CommandOptionChoice {
     name: string,
     value: string
 }

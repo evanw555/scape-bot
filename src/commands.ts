@@ -1,9 +1,18 @@
+<<<<<<< HEAD
 import { ApplicationCommandOptionType, ChatInputCommandInteraction, Message, Snowflake, TextBasedChannel } from 'discord.js';
 import { FORMATTED_BOSS_NAMES, Boss, BOSSES } from 'osrs-json-hiscores';
 import { exec } from 'child_process';
 import { MultiLoggerLevel, randChoice, randInt } from 'evanw555.js';
 import { Command, PlayerHiScores, CommandName } from './types';
 import { replyUpdateMessage, sendUpdateMessage, updatePlayer } from './util';
+=======
+import { replyUpdateMessage, sendUpdateMessage, updatePlayer, isValidBoss, getBossName } from './util';
+import { FORMATTED_BOSS_NAMES, Boss, BOSSES, SKILLS, FORMATTED_SKILL_NAMES } from 'osrs-json-hiscores';
+import { exec } from 'child_process';
+import { Command, PlayerHiScores, CommandName, CommandOptionChoice } from './types';
+import { ApplicationCommandOptionType, ChatInputCommandInteraction, Message, Snowflake, TextBasedChannel } from 'discord.js';
+import { randChoice, randInt } from 'evanw555.js';
+>>>>>>> b2630b6 (Clean up boss utils, implement /thumbnail command)
 import { fetchHiScores } from './hiscores';
 import { CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, CONFIG } from './constants';
 import { deleteTrackedPlayer, insertTrackedPlayer, updateTrackingChannel } from './pg-storage';
@@ -31,6 +40,9 @@ const getHelpText = (hidden?: boolean) => {
 };
 
 export const INVALID_TEXT_CHANNEL = 'err/invalid-text-channel';
+
+const BOSS_CHOICES: CommandOptionChoice[] = BOSSES.map(boss => ({ name: getBossName(boss), value: boss }));
+const SKILL_CHOICES: CommandOptionChoice[] = SKILLS.map(skill => ({ name: FORMATTED_SKILL_NAMES[skill], value: skill }));
 
 const getInteractionGuildId = (interaction: ChatInputCommandInteraction): string => {
     if (typeof interaction.guildId !== 'string') {
@@ -138,7 +150,7 @@ const commands: Record<CommandName, Command> = {
                     ephemeral: true
                 });
             } else {
-                interaction.reply({ content: 'Currently not tracking any players', ephemeral: true });
+                await interaction.reply({ content: 'Currently not tracking any players', ephemeral: true });
             }
         },
         text: 'Lists all the players currently being tracked'
@@ -171,14 +183,19 @@ const commands: Record<CommandName, Command> = {
                 if (CLUES_NO_ALL.some(clue => data.clues[clue])) {
                     messageText += '\n\n' + CLUES_NO_ALL.filter(clue => data.clues[clue]).map(clue => `**${data.clues[clue]}** ${clue}`).join('\n');
                 }
-                replyUpdateMessage(interaction, messageText, 'overall', {
+                await replyUpdateMessage(interaction, messageText, 'overall', {
                     title: rsn,
                     url: `${CONSTANTS.hiScoresUrlTemplate}${encodeURI(rsn)}`
                 });
             } catch (err) {
                 if (err instanceof Error) {
+<<<<<<< HEAD
                     logger.log(`Error while fetching hiscores (check) for player ${rsn}: ${err.toString()}`, MultiLoggerLevel.Error);
                     interaction.reply(`Couldn't fetch hiscores for player **${rsn}** :pensive:\n\`${err.toString()}\``);
+=======
+                    logger.log(`Error while fetching hiscores (check) for player ${rsn}: ${err.toString()}`);
+                    await interaction.reply(`Couldn't fetch hiscores for player **${rsn}** :pensive:\n\`${err.toString()}\``);
+>>>>>>> b2630b6 (Clean up boss utils, implement /thumbnail command)
                 }
             }
         },
@@ -202,7 +219,7 @@ const commands: Record<CommandName, Command> = {
                 description: 'Boss',
                 required: true,
                 autocomplete: true,
-                choices: BOSSES.map(boss => ({ name: FORMATTED_BOSS_NAMES[boss], value: boss }))
+                choices: BOSS_CHOICES
             }
         ],
         execute: async (interaction) => {
@@ -212,13 +229,12 @@ const commands: Record<CommandName, Command> = {
             try {
                 // Retrieve the player's hiscores data
                 const data: PlayerHiScores = await fetchHiScores(rsn);
-                const bossName = FORMATTED_BOSS_NAMES[boss];
+                const bossName = getBossName(boss);
                 // Create boss message text
                 const messageText = boss in data.bosses
                     ? `**${rsn}** has killed **${bossName}** **${data.bosses[boss]}** times`
                     : `I don't know how many **${bossName}** kills **${rsn}** has`;
-                // TODO: Should we change how we map boss names to thumbnails? Seems like there are currently 3 formats...
-                replyUpdateMessage(interaction, messageText, bossName, {
+                await replyUpdateMessage(interaction, messageText, boss, {
                     title: bossName,
                     url: `${CONSTANTS.osrsWikiBaseUrl}${encodeURIComponent(bossName)}`,
                     color: 10363483
@@ -226,7 +242,7 @@ const commands: Record<CommandName, Command> = {
             } catch (err) {
                 if (err instanceof Error) {
                     logger.log(`Error while fetching hiscores (check) for player ${rsn}: ${err.toString()}`, MultiLoggerLevel.Error);
-                    interaction.reply({
+                    await interaction.reply({
                         content: `Couldn't fetch hiscores for player **${rsn}** :pensive:\n\`${err.toString()}\``,
                         ephemeral: true
                     });
@@ -311,6 +327,31 @@ const commands: Record<CommandName, Command> = {
                 });
             } else {
                 msg.channel.send(`**${name || '[none]'}** does not have a thumbnail`);
+            }
+        },
+        options: [{
+            type: ApplicationCommandOptionType.String,
+            name: 'name',
+            description: 'Name',
+            required: true,
+            autocomplete: true,
+            choices: BOSS_CHOICES.concat(SKILL_CHOICES)
+        }],
+        execute: async (interaction) => {
+            const name = interaction.options.getString('name', true);
+            if (validSkills.has(name)) {
+                await replyUpdateMessage(interaction, 'Here is the thumbnail', name, {
+                    title: name
+                });
+            } else if (isValidBoss(name)) {
+                await replyUpdateMessage(interaction, 'Here is the thumbnail', name, {
+                    title: name
+                });
+            } else {
+                await interaction.reply({
+                    content: `**${name || '[none]'}** does not have a thumbnail`,
+                    ephemeral: true
+                });
             }
         },
         hidden: true,
