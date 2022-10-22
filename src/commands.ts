@@ -1,11 +1,11 @@
 import { ApplicationCommandOptionType, ChatInputCommandInteraction, Message, Snowflake, TextBasedChannel } from 'discord.js';
-import { FORMATTED_BOSS_NAMES, Boss, BOSSES, SKILLS, FORMATTED_SKILL_NAMES } from 'osrs-json-hiscores';
+import { FORMATTED_BOSS_NAMES, Boss, BOSSES } from 'osrs-json-hiscores';
 import { exec } from 'child_process';
 import { MultiLoggerLevel, randChoice, randInt } from 'evanw555.js';
-import { Command, PlayerHiScores, CommandName, CommandOptionChoice } from './types';
+import { Command, PlayerHiScores, CommandName } from './types';
 import { replyUpdateMessage, sendUpdateMessage, updatePlayer, getBossName, isValidBoss } from './util';
 import { fetchHiScores } from './hiscores';
-import { CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, CONFIG } from './constants';
+import { CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, CONFIG, BOSS_CHOICES, SKILL_CHOICES } from './constants';
 import { deleteTrackedPlayer, insertTrackedPlayer, updateTrackingChannel } from './pg-storage';
 
 import state from './instances/state';
@@ -31,9 +31,6 @@ const getHelpText = (hidden?: boolean) => {
 };
 
 export const INVALID_TEXT_CHANNEL = 'err/invalid-text-channel';
-
-const BOSS_CHOICES: CommandOptionChoice[] = BOSSES.map(boss => ({ name: getBossName(boss), value: boss }));
-const SKILL_CHOICES: CommandOptionChoice[] = SKILLS.map(skill => ({ name: FORMATTED_SKILL_NAMES[skill], value: skill }));
 
 const getInteractionGuildId = (interaction: ChatInputCommandInteraction): string => {
     if (typeof interaction.guildId !== 'string') {
