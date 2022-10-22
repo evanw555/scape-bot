@@ -372,7 +372,7 @@ export async function updateKillCounts(rsn: string, newScores: Record<Boss, numb
             : `**${rsn}** ${verb} **${bossName}** `
                     + (scoreIncrease === 1 ? 'again' : `**${scoreIncrease}** more times`)
                     + ` for a total of **${newScores[boss]}**`;
-        sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, bossName, { color: BOSS_EMBED_COLOR });
+        sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, boss, { color: BOSS_EMBED_COLOR });
         break;
     }
     default: {
