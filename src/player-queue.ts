@@ -34,6 +34,9 @@ export default class PlayerQueue {
         // If the active queue is empty (this will happen on a fresh reboot), always draw from the inactive queue
         if (this.activeQueue.isEmpty()) {
             const rsn = this.inactiveQueue.next();
+            if (rsn && this.isActive(rsn)) {
+                this.moveToActiveQueue(rsn);
+            }
             logger.log(`[Inactive] (No Actives) -> ${rsn}`, MultiLoggerLevel.Debug);
             return rsn;
         }
@@ -44,9 +47,7 @@ export default class PlayerQueue {
             const inactivePlayer = this.inactiveQueue.next();
             // If this inactive player is now active, move them to the active queue
             if (inactivePlayer && this.isActive(inactivePlayer)) {
-                this.activeQueue.add(inactivePlayer);
-                this.inactiveQueue.remove(inactivePlayer);
-                logger.log(`Moved **${inactivePlayer}** to the _active_ queue`, MultiLoggerLevel.Warn);
+                this.moveToActiveQueue(inactivePlayer);
             }
             logger.log(`[Inactive] ${this.counter} -> ${inactivePlayer}`, MultiLoggerLevel.Debug);
             return inactivePlayer;
@@ -54,13 +55,23 @@ export default class PlayerQueue {
             const activePlayer = this.activeQueue.next();
             // If this active player is now inactive, move them to the inactive queue
             if (activePlayer && !this.isActive(activePlayer)) {
-                this.inactiveQueue.add(activePlayer);
-                this.activeQueue.remove(activePlayer);
-                logger.log(`Moved **${activePlayer}** to the _inactive_ queue`, MultiLoggerLevel.Warn);
+                this.moveToInactiveQueue(activePlayer);
             }
             logger.log(`[Active] ${this.counter} -> ${activePlayer}`, MultiLoggerLevel.Debug);
             return activePlayer;
         }
+    }
+
+    private moveToActiveQueue(rsn: string): void {
+        this.activeQueue.add(rsn);
+        this.inactiveQueue.remove(rsn);
+        logger.log(`Moved **${rsn}** to the _active_ queue`, MultiLoggerLevel.Warn);
+    }
+
+    private moveToInactiveQueue(rsn: string): void {
+        this.inactiveQueue.add(rsn);
+        this.activeQueue.remove(rsn);
+        logger.log(`Moved **${rsn}** to the _inactive_ queue`, MultiLoggerLevel.Warn);
     }
 
     markAsActive(rsn: string): void {
