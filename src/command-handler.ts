@@ -128,7 +128,7 @@ class CommandHandler {
         return data;
     }
 
-    async handleChatInput(interaction: Interaction) {
+    async handleChatInputCommand(interaction: Interaction) {
         if (!interaction.isChatInputCommand()) {
             return;
         }
