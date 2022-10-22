@@ -3,10 +3,10 @@
     "timeZone": "America/Los_Angeles",
     "debugLog": {
         "logCapacity": 20,
-        "logMaxEntryLength": 160
+        "logMaxEntryLength": 90
     },
     "infoLog": {
-        "logCapacity": 20,
+        "logCapacity": 15,
         "logMaxEntryLength": 160
     }
 }

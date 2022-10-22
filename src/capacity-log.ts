@@ -1,18 +1,18 @@
-import { CONFIG } from './constants';
-
 interface LogEntry {
     date: Date;
     value: string;
 }
 
 export class CapacityLog {
-    readonly _capacity: number;
-    readonly _maxEntryLength: number;
-    readonly _list: LogEntry[];
+    private readonly _capacity: number;
+    private readonly _maxEntryLength: number;
+    private readonly _dateFormatOptions: Intl.DateTimeFormatOptions;
+    private readonly _list: LogEntry[];
 
-    constructor(capacity: number, maxEntryLength: number) {
+    constructor(capacity: number, maxEntryLength: number, dateFormatOptions: Intl.DateTimeFormatOptions) {
         this._capacity = capacity;
         this._maxEntryLength = maxEntryLength;
+        this._dateFormatOptions = dateFormatOptions;
         this._list = [];
     }
 
@@ -35,6 +35,6 @@ export class CapacityLog {
      * @returns serialized log entries
      */
     toLogArray(): string[] {
-        return this._list.map(entry => `[${entry.date.toLocaleString('en-US', { timeZone: CONFIG.timeZone })}] ${entry.value}`);
+        return this._list.map(entry => `[${entry.date.toLocaleString('en-US', this._dateFormatOptions)}] ${entry.value}`);
     }
 }

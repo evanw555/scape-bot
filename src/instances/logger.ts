@@ -1,7 +1,7 @@
 import { MultiLogger, MultiLoggerLevel } from 'evanw555.js';
 
 import debugLog from './debug-log';
-import infoLog from './debug-log';
+import infoLog from './info-log';
 
 // Export global logger instance
 const logger: MultiLogger = new MultiLogger({ defaultLogLevel: MultiLoggerLevel.Info });
