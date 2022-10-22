@@ -80,11 +80,12 @@ class CommandHandler {
             option = option.setRequired(optionInfo.required);
         }
         if (optionInfo.choices && optionInfo.choices.length) {
-            // Only set autocomplete if there are actually choices for completion
-            option = option.setAutocomplete(optionInfo.autocomplete || false);
+            // Only set autocomplete if there are >25 choices for completion
+            const autocomplete = optionInfo.choices.length > 25;
+            option = option.setAutocomplete(autocomplete);
             // If there are choices and autocomplete is not on, then add them to
-            // the list of static choices (must be <25 choices)
-            if (!optionInfo.autocomplete) {
+            // the list of static choices
+            if (!autocomplete) {
                 option = option.addChoices(optionInfo.choices);
             }
         }

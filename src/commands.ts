@@ -204,7 +204,6 @@ const commands: Record<CommandName, Command> = {
                 name: 'boss',
                 description: 'Boss',
                 required: true,
-                autocomplete: true,
                 choices: BOSS_CHOICES
             }
         ],
@@ -320,7 +319,6 @@ const commands: Record<CommandName, Command> = {
             name: 'name',
             description: 'Name',
             required: true,
-            autocomplete: true,
             choices: BOSS_CHOICES.concat(SKILL_CHOICES)
         }],
         execute: async (interaction) => {

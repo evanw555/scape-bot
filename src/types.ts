@@ -72,7 +72,6 @@ export interface CommandOption {
     name: string,
     description: string,
     required?: boolean,
-    autocomplete?: boolean,
     choices?: CommandOptionChoice[]
 }
 
