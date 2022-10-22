@@ -13,11 +13,11 @@ logger.addOutput(async (text: string) => {
 
 // Two separate accessible in-memory capacity-limited logs
 logger.addOutput(async (text: string) => {
-    debugLog.push(text);
+    debugLog.push(text.replace(/\n/g, ' '));
 }, MultiLoggerLevel.Debug);
 
 logger.addOutput(async (text: string) => {
-    infoLog.push(text);
+    infoLog.push(text.replace(/\n/g, ' '));
 }, MultiLoggerLevel.Info);
 
 export default logger;

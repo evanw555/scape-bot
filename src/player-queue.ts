@@ -35,6 +35,7 @@ export default class PlayerQueue {
         if (this.activeQueue.isEmpty()) {
             const rsn = this.inactiveQueue.next();
             logger.log(`[Inactive] (No Actives) -> ${rsn}`, MultiLoggerLevel.Debug);
+            return rsn;
         }
         // TODO: Use the size of the active queue rather than this hard-coded limit
         this.counter = (this.counter + 1) % 10;
