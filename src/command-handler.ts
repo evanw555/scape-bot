@@ -1,6 +1,7 @@
 import {
     ApplicationCommandDataResolvable,
     ApplicationCommandOptionType,
+    AutocompleteInteraction,
     ChatInputCommandInteraction,
     Interaction,
     PermissionFlagsBits,
@@ -8,7 +9,7 @@ import {
 } from 'discord.js';
 import { MultiLoggerLevel } from 'evanw555.js';
 import commands, { INVALID_TEXT_CHANNEL } from './commands';
-import { BuiltSlashCommand, CommandName, CommandOption } from './types';
+import { BuiltSlashCommand, Command, CommandName, CommandOption, CommandWithOptions } from './types';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -36,8 +37,16 @@ class CommandHandler {
         }
     }
 
+    static async sendEmptyResponse(interaction: AutocompleteInteraction) {
+        await interaction.respond([]);
+    }
+
     static isValidCommand(commandName: string): commandName is CommandName {
         return Object.prototype.hasOwnProperty.call(commands, commandName);
+    }
+
+    static isCommandWithOptions(command: Command): command is CommandWithOptions {
+        return Array.isArray(command.options);
     }
 
     static async handleError(interaction: ChatInputCommandInteraction, err: Error) {
@@ -62,11 +71,25 @@ class CommandHandler {
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    static buildCommandOption = (option: any, optionInfo: CommandOption) =>
-        option
+    static buildCommandOption = (builder: any, optionInfo: CommandOption) => {
+        let option = builder
             .setName(optionInfo.name)
-            .setDescription(optionInfo.description)
-            .setRequired(optionInfo.required || false);
+            .setDescription(optionInfo.description);
+        // Set the option as required if necessary
+        if (optionInfo.required) {
+            option = option.setRequired(optionInfo.required);
+        }
+        if (optionInfo.choices && optionInfo.choices.length) {
+            // Only set autocomplete if there are actually choices for completion
+            option = option.setAutocomplete(optionInfo.autocomplete || false);
+            // If there are choices and autocomplete is not on, then add them to
+            // the list of static choices (must be <25 choices)
+            if (!optionInfo.autocomplete) {
+                option = option.addChoices(optionInfo.choices);
+            }
+        }
+        return option;
+    };
 
     static buildCommandOptions(builder: BuiltSlashCommand, options: CommandOption[]) {
         options.forEach((optionInfo: CommandOption) => {
@@ -105,33 +128,55 @@ class CommandHandler {
     }
 
     async handle(interaction: Interaction) {
-        if (!interaction.isChatInputCommand()) {
-            return;
-        }
-        if (!CommandHandler.isValidCommand(interaction.commandName)) {
-            await interaction.reply((`**${interaction.commandName}** is not a valid command, use **/help** to see a list of commands`));
-            return;
-        }
-        const command = commands[interaction.commandName];
-        const debugString = `\`${interaction.user.tag}\` executed command \`${interaction.commandName}\` in ${interaction.channel} with options \`${JSON.stringify(interaction.options.data)}\``;
-        try {
-            if (command.failIfDisabled) {
-                CommandHandler.failIfDisabled();
+        if (interaction.isChatInputCommand()) {
+            if (!CommandHandler.isValidCommand(interaction.commandName)) {
+                await interaction.reply((`**${interaction.commandName}** is not a valid command, use **/help** to see a list of commands`));
+                return;
             }
-            if (command.privileged) {
-                CommandHandler.assertIsAdmin(interaction);
+            const command = commands[interaction.commandName];
+            const debugString = `\`${interaction.user.tag}\` executed command \`${interaction.commandName}\` in ${interaction.channel} with options \`${JSON.stringify(interaction.options.data)}\``;
+            try {
+                if (command.failIfDisabled) {
+                    CommandHandler.failIfDisabled();
+                }
+                if (command.privileged) {
+                    CommandHandler.assertIsAdmin(interaction);
+                }
+                if (typeof command.execute === 'function') {
+                    await command.execute(interaction);
+                    logger.log(debugString, MultiLoggerLevel.Warn);
+                } else {
+                    await interaction.reply(`Warning: slash command does not exist yet for command: ${interaction.commandName}`);
+                }
+            } catch (err) {
+                if (err instanceof Error) {
+                    await CommandHandler.handleError(interaction, err);
+                } else {
+                    logger.log(`Unexpected error when ${debugString}: \`${err}\``, MultiLoggerLevel.Error);
+                }
             }
-            if (typeof command.execute === 'function') {
-                await command.execute(interaction);
-                logger.log(debugString, MultiLoggerLevel.Warn);
-            } else {
-                await interaction.reply(`Warning: slash command does not exist yet for command: ${interaction.commandName}`);
+        } else if (interaction.isAutocomplete()) {
+            if (!CommandHandler.isValidCommand(interaction.commandName)) {
+                await CommandHandler.sendEmptyResponse(interaction);
+                return;
             }
-        } catch (err) {
-            if (err instanceof Error) {
-                await CommandHandler.handleError(interaction, err);
-            } else {
-                logger.log(`Unexpected error when ${debugString}: \`${err}\``, MultiLoggerLevel.Error);
+            const command = commands[interaction.commandName];
+            if (!CommandHandler.isCommandWithOptions(command)) {
+                await CommandHandler.sendEmptyResponse(interaction);
+                return;
+            }
+            try {
+                const focusedOption = interaction.options.getFocused(true);
+                const commandOption = command.options.find(o => o.name === focusedOption.name);
+                if (!focusedOption.value || !commandOption || !commandOption.choices) {
+                    await CommandHandler.sendEmptyResponse(interaction);
+                    return;
+                }
+                const filtered = commandOption.choices.filter(choice => choice.value.toLowerCase()
+                    .startsWith(focusedOption.value.toLowerCase()));
+                await interaction.respond(filtered);
+            } catch (err) {
+                logger.log(JSON.stringify(err));
             }
         }
     }

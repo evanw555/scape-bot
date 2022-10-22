@@ -2,7 +2,6 @@ import { ApplicationCommandOptionType, ChatInputCommandInteraction, Message, Sno
 import { FORMATTED_BOSS_NAMES, Boss, BOSSES } from 'osrs-json-hiscores';
 import { exec } from 'child_process';
 import { MultiLoggerLevel, randChoice, randInt } from 'evanw555.js';
-import { sanitizeBossName, getBossName, isValidBoss } from './boss-utility';
 import { Command, PlayerHiScores, CommandName } from './types';
 import { replyUpdateMessage, sendUpdateMessage, updatePlayer } from './util';
 import { fetchHiScores } from './hiscores';
@@ -187,33 +186,52 @@ const commands: Record<CommandName, Command> = {
         failIfDisabled: true
     },
     kc: {
-        fn: (msg, rawArgs, rsn, bossArg) => {
-            if (!rsn || !rsn.trim() || !bossArg || !bossArg.trim()) {
-                msg.channel.send('`kc` command must look like `kc [player] [boss]`');
-                return;
+        fn: async (msg) => {
+            await msg.channel.send('Use the **/kc** command');
+        },
+        options: [
+            {
+                type: ApplicationCommandOptionType.String,
+                name: 'username',
+                description: 'Username',
+                required: true
+            },
+            {
+                type: ApplicationCommandOptionType.String,
+                name: 'boss',
+                description: 'Boss',
+                required: true,
+                autocomplete: true,
+                choices: BOSSES.map(boss => ({ name: FORMATTED_BOSS_NAMES[boss], value: boss }))
             }
-            // TODO: Can we refactor our utility to use more osrs-json-hiscores constants?
-            if (!isValidBoss(bossArg)) {
-                msg.channel.send(`\`${bossArg}\` is not a valid boss`);
-                return;
-            }
-            const boss: Boss = sanitizeBossName(bossArg);
-            // Retrieve the player's hiscores data
-            fetchHiScores(rsn).then((data: PlayerHiScores) => {
+        ],
+        execute: async (interaction) => {
+            const rsn = interaction.options.getString('username', true);
+            // This must be a valid boss, since we define the valid choices
+            const boss = interaction.options.getString('boss', true) as Boss;
+            try {
+                // Retrieve the player's hiscores data
+                const data: PlayerHiScores = await fetchHiScores(rsn);
+                const bossName = FORMATTED_BOSS_NAMES[boss];
                 // Create boss message text
                 const messageText = boss in data.bosses
-                    ? `**${rsn}** has killed **${getBossName(boss)}** **${data.bosses[boss]}** times`
-                    : `I don't know how many **${getBossName(boss)}** kills **${rsn}** has`;
+                    ? `**${rsn}** has killed **${bossName}** **${data.bosses[boss]}** times`
+                    : `I don't know how many **${bossName}** kills **${rsn}** has`;
                 // TODO: Should we change how we map boss names to thumbnails? Seems like there are currently 3 formats...
-                sendUpdateMessage([msg.channel], messageText, getBossName(boss), {
-                    title: getBossName(boss),
-                    url: `${CONSTANTS.osrsWikiBaseUrl}${encodeURIComponent(getBossName(boss))}`,
+                replyUpdateMessage(interaction, messageText, bossName, {
+                    title: bossName,
+                    url: `${CONSTANTS.osrsWikiBaseUrl}${encodeURIComponent(bossName)}`,
                     color: 10363483
                 });
-            }).catch((err) => {
-                logger.log(`Error while fetching hiscores (check) for player ${rsn}: ${err.toString()}`, MultiLoggerLevel.Error);
-                msg.channel.send(`Couldn't fetch hiscores for player **${rsn}** :pensive:\n\`${err.toString()}\``);
-            });
+            } catch (err) {
+                if (err instanceof Error) {
+                    logger.log(`Error while fetching hiscores (check) for player ${rsn}: ${err.toString()}`, MultiLoggerLevel.Error);
+                    interaction.reply({
+                        content: `Couldn't fetch hiscores for player **${rsn}** :pensive:\n\`${err.toString()}\``,
+                        ephemeral: true
+                    });
+                }
+            }
         },
         text: 'Show kill count of a boss for some player',
         failIfDisabled: true

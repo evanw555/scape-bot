@@ -55,18 +55,25 @@ export type MiscFlagName = 'timestamp' | 'disabled';
 
 export type BuiltSlashCommand = SlashCommandBuilder | Omit<SlashCommandBuilder, 'addSubcommand' | 'addSubcommandGroup'>;
 
-export type DeprecatedCommandName =  'help' | 'kc' | 'hiddenhelp' | 'details' | 'hey' | 'sup' | 'log'
+export type DeprecatedCommandName =  'help' | 'hiddenhelp' | 'details' | 'hey' | 'sup' | 'log'
 | 'thumbnail' | 'thumbnail' | 'thumbnail99' | 'spoof' | 'spoofverbose' | 'uptime' | 'kill' | 'enable';
 
-export type SlashCommandName = 'ping' | 'track' | 'remove' | 'clear' | 'list' | 'check' | 'channel';
+export type SlashCommandName = 'ping' | 'track' | 'remove' | 'clear' | 'list' | 'check' | 'channel' | 'kc';
 
 export type CommandName = DeprecatedCommandName | SlashCommandName;
+
+interface CommandOptionChoice {
+    name: string,
+    value: string
+}
 
 export interface CommandOption {
     type: ApplicationCommandOptionType,
     name: string,
     description: string,
-    required?: boolean
+    required?: boolean,
+    autocomplete?: boolean,
+    choices?: CommandOptionChoice[]
 }
 
 export interface Command {
@@ -77,6 +84,10 @@ export interface Command {
     hidden?: boolean,
     privileged?: boolean,
     failIfDisabled?: boolean
+}
+
+export interface CommandWithOptions extends Command {
+    options: CommandOption[]
 }
 
 export interface ParsedCommand {
