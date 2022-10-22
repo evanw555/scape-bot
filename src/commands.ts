@@ -1,18 +1,9 @@
-<<<<<<< HEAD
 import { ApplicationCommandOptionType, ChatInputCommandInteraction, Message, Snowflake, TextBasedChannel } from 'discord.js';
 import { FORMATTED_BOSS_NAMES, Boss, BOSSES } from 'osrs-json-hiscores';
 import { exec } from 'child_process';
 import { MultiLoggerLevel, randChoice, randInt } from 'evanw555.js';
-import { Command, PlayerHiScores, CommandName } from './types';
-import { replyUpdateMessage, sendUpdateMessage, updatePlayer } from './util';
-=======
-import { replyUpdateMessage, sendUpdateMessage, updatePlayer, isValidBoss, getBossName } from './util';
-import { FORMATTED_BOSS_NAMES, Boss, BOSSES, SKILLS, FORMATTED_SKILL_NAMES } from 'osrs-json-hiscores';
-import { exec } from 'child_process';
 import { Command, PlayerHiScores, CommandName, CommandOptionChoice } from './types';
-import { ApplicationCommandOptionType, ChatInputCommandInteraction, Message, Snowflake, TextBasedChannel } from 'discord.js';
-import { randChoice, randInt } from 'evanw555.js';
->>>>>>> b2630b6 (Clean up boss utils, implement /thumbnail command)
+import { replyUpdateMessage, sendUpdateMessage, updatePlayer } from './util';
 import { fetchHiScores } from './hiscores';
 import { CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, CONFIG } from './constants';
 import { deleteTrackedPlayer, insertTrackedPlayer, updateTrackingChannel } from './pg-storage';
@@ -189,13 +180,8 @@ const commands: Record<CommandName, Command> = {
                 });
             } catch (err) {
                 if (err instanceof Error) {
-<<<<<<< HEAD
                     logger.log(`Error while fetching hiscores (check) for player ${rsn}: ${err.toString()}`, MultiLoggerLevel.Error);
-                    interaction.reply(`Couldn't fetch hiscores for player **${rsn}** :pensive:\n\`${err.toString()}\``);
-=======
-                    logger.log(`Error while fetching hiscores (check) for player ${rsn}: ${err.toString()}`);
                     await interaction.reply(`Couldn't fetch hiscores for player **${rsn}** :pensive:\n\`${err.toString()}\``);
->>>>>>> b2630b6 (Clean up boss utils, implement /thumbnail command)
                 }
             }
         },

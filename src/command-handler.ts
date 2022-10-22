@@ -127,11 +127,19 @@ class CommandHandler {
         return data;
     }
 
-    async handle(interaction: Interaction) {
-        if (interaction.isChatInputCommand()) {
-            if (!CommandHandler.isValidCommand(interaction.commandName)) {
-                await interaction.reply((`**${interaction.commandName}** is not a valid command, use **/help** to see a list of commands`));
-                return;
+    async handleChatInput(interaction: Interaction) {
+        if (!interaction.isChatInputCommand()) {
+            return;
+        }
+        if (!CommandHandler.isValidCommand(interaction.commandName)) {
+            await interaction.reply((`**${interaction.commandName}** is not a valid command, use **/help** to see a list of commands`));
+            return;
+        }
+        const command = commands[interaction.commandName];
+        const debugString = `\`${interaction.user.tag}\` executed command \`${interaction.commandName}\` in ${interaction.channel} with options \`${JSON.stringify(interaction.options.data)}\``;
+        try {
+            if (command.failIfDisabled) {
+                CommandHandler.failIfDisabled();
             }
             const command = commands[interaction.commandName];
             const debugString = `\`${interaction.user.tag}\` executed command \`${interaction.commandName}\` in ${interaction.channel} with options \`${JSON.stringify(interaction.options.data)}\``;
@@ -155,30 +163,49 @@ class CommandHandler {
                     logger.log(`Unexpected error when ${debugString}: \`${err}\``, MultiLoggerLevel.Error);
                 }
             }
-        } else if (interaction.isAutocomplete()) {
-            if (!CommandHandler.isValidCommand(interaction.commandName)) {
+            if (typeof command.execute === 'function') {
+                await command.execute(interaction);
+                logger.log(debugString);
+            } else {
+                await interaction.reply(`Warning: slash command does not exist yet for command: ${interaction.commandName}`);
+            }
+        } catch (err) {
+            if (err instanceof Error) {
+                await CommandHandler.handleError(interaction, err);
+            } else {
+                logger.log(`Unexpected error when ${debugString}: \`${err}\``);
+            }
+        }
+    }
+
+    async handleAutocomplete(interaction: Interaction) {
+        if (!interaction.isAutocomplete()) {
+            return;
+        }
+        if (!CommandHandler.isValidCommand(interaction.commandName)) {
+            await CommandHandler.sendEmptyResponse(interaction);
+            return;
+        }
+        const command = commands[interaction.commandName];
+        const focusedOption = interaction.options.getFocused(true);
+        const debugString = `\`${interaction.user.tag}\` called autocomplete for \`${interaction.commandName}\` in ${interaction.channel} with value \`${focusedOption.value}\``;
+        if (!CommandHandler.isCommandWithOptions(command)) {
+            await CommandHandler.sendEmptyResponse(interaction);
+            return;
+        }
+        try {
+            const commandOption = command.options.find(o => o.name === focusedOption.name);
+            if (!focusedOption.value || !commandOption || !commandOption.choices) {
                 await CommandHandler.sendEmptyResponse(interaction);
                 return;
             }
-            const command = commands[interaction.commandName];
-            if (!CommandHandler.isCommandWithOptions(command)) {
-                await CommandHandler.sendEmptyResponse(interaction);
-                return;
-            }
-            try {
-                const focusedOption = interaction.options.getFocused(true);
-                const commandOption = command.options.find(o => o.name === focusedOption.name);
-                if (!focusedOption.value || !commandOption || !commandOption.choices) {
-                    await CommandHandler.sendEmptyResponse(interaction);
-                    return;
-                }
-                // TODO: We can definitely improve this search functionality
-                const filtered = commandOption.choices.filter(choice => choice.value.toLowerCase()
-                    .startsWith(focusedOption.value.toLowerCase()));
-                await interaction.respond(filtered);
-            } catch (err) {
-                logger.log(JSON.stringify(err));
-            }
+            // TODO: We can definitely improve this search functionality
+            const filtered = commandOption.choices.filter(choice => choice.value.toLowerCase()
+                .startsWith(focusedOption.value.toLowerCase()));
+            await interaction.respond(filtered);
+            logger.log(debugString);
+        } catch (err) {
+            logger.log(`Unexpected error when ${debugString}: \`${err}\``);
         }
     }
 }

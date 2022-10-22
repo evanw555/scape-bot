@@ -55,9 +55,6 @@ export type MiscFlagName = 'timestamp' | 'disabled';
 
 export type BuiltSlashCommand = SlashCommandBuilder | Omit<SlashCommandBuilder, 'addSubcommand' | 'addSubcommandGroup'>;
 
-// export type DeprecatedCommandName =  'help' | 'details' | 'log' | 'thumbnail' | 'thumbnail99' | 'spoof'
-// | 'spoofverbose' | 'uptime' | 'kill' | 'enable' | 'hiddenhelp';
-
 export type DeprecatedCommandName =  'help' | 'hiddenhelp' | 'details' | 'hey' | 'sup' | 'log'
 | 'thumbnail99' | 'spoof' | 'spoofverbose' | 'uptime' | 'kill' | 'enable';
 
