@@ -1,5 +1,4 @@
-import { Boss, BOSSES, INVALID_FORMAT_ERROR } from 'osrs-json-hiscores';
-import { isValidBoss, toSortedBosses, getBossName } from './boss-utility';
+import { Boss, BOSSES, INVALID_FORMAT_ERROR, FORMATTED_BOSS_NAMES } from 'osrs-json-hiscores';
 import { ChatInputCommandInteraction, TextBasedChannel } from 'discord.js';
 import { addReactsSync, MultiLoggerLevel, randChoice } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName, PlayerHiScores } from './types';
@@ -14,6 +13,15 @@ import logger from './instances/logger';
 const validSkills: Set<string> = new Set(CONSTANTS.skills);
 const validClues: Set<string> = new Set(CLUES_NO_ALL);
 const validMiscThumbnails: Set<string> = new Set(CONSTANTS.miscThumbnails);
+
+export function getBossName(boss: Boss): string {
+    return FORMATTED_BOSS_NAMES[boss] ?? 'Unknown';
+}
+
+export function isValidBoss(boss: string): boss is Boss {
+    return BOSSES.indexOf(boss as Boss) > -1;
+}
+
 
 export function getThumbnail(name: string, options?: { is99?: boolean }) {
     if (validSkills.has(name)) {
@@ -30,9 +38,8 @@ export function getThumbnail(name: string, options?: { is99?: boolean }) {
     }
     if (isValidBoss(name)) {
         const boss = name;
-        const thumbnailBoss = boss.replace(/[^a-zA-Z ]/g, '').replace(/ /g,'_').toLowerCase();
         return {
-            url: `${CONSTANTS.baseThumbnailUrl}${thumbnailBoss}${CONSTANTS.imageFileExtension}`
+            url: `${CONSTANTS.baseThumbnailUrl}${boss}${CONSTANTS.imageFileExtension}`
         };
     }
     if (validMiscThumbnails.has(name)) {
@@ -350,7 +357,7 @@ export async function updateKillCounts(rsn: string, newScores: Record<Boss, numb
         return;
     }
     // Send a message showing all the incremented boss scores
-    const updatedBosses: Boss[] = toSortedBosses(Object.keys(diff));
+    const updatedBosses: Boss[] = Object.keys(diff) as Boss[];
     // Only use a kill verb if all the updated bosses are "killable" bosses, else use a complete verb
     const verb: string = updatedBosses.some(boss => COMPLETE_VERB_BOSSES.has(boss)) ? randChoice(...DOPE_COMPLETE_VERBS) : randChoice(...DOPE_KILL_VERBS);
     switch (updatedBosses.length) {

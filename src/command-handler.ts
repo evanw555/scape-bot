@@ -1,6 +1,7 @@
 import {
     ApplicationCommandDataResolvable,
     ApplicationCommandOptionType,
+    AutocompleteInteraction,
     ChatInputCommandInteraction,
     Interaction,
     PermissionFlagsBits,
@@ -8,7 +9,7 @@ import {
 } from 'discord.js';
 import { MultiLoggerLevel } from 'evanw555.js';
 import commands, { INVALID_TEXT_CHANNEL } from './commands';
-import { BuiltSlashCommand, CommandName, CommandOption } from './types';
+import { BuiltSlashCommand, Command, CommandName, CommandOption, CommandWithOptions } from './types';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -36,8 +37,16 @@ class CommandHandler {
         }
     }
 
+    static async sendEmptyResponse(interaction: AutocompleteInteraction) {
+        await interaction.respond([]);
+    }
+
     static isValidCommand(commandName: string): commandName is CommandName {
         return Object.prototype.hasOwnProperty.call(commands, commandName);
+    }
+
+    static isCommandWithOptions(command: Command): command is CommandWithOptions {
+        return Array.isArray(command.options);
     }
 
     static async handleError(interaction: ChatInputCommandInteraction, err: Error) {
@@ -62,11 +71,26 @@ class CommandHandler {
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    static buildCommandOption = (option: any, optionInfo: CommandOption) =>
-        option
+    static buildCommandOption = (builder: any, optionInfo: CommandOption) => {
+        let option = builder
             .setName(optionInfo.name)
-            .setDescription(optionInfo.description)
-            .setRequired(optionInfo.required || false);
+            .setDescription(optionInfo.description);
+        // Set the option as required if necessary
+        if (optionInfo.required) {
+            option = option.setRequired(optionInfo.required);
+        }
+        if (optionInfo.choices && optionInfo.choices.length) {
+            // Only set autocomplete if there are >25 choices for completion
+            const autocomplete = optionInfo.choices.length > 25;
+            option = option.setAutocomplete(autocomplete);
+            // If there are choices and autocomplete is not on, then add them to
+            // the list of static choices
+            if (!autocomplete) {
+                option = option.addChoices(optionInfo.choices);
+            }
+        }
+        return option;
+    };
 
     static buildCommandOptions(builder: BuiltSlashCommand, options: CommandOption[]) {
         options.forEach((optionInfo: CommandOption) => {
@@ -104,7 +128,7 @@ class CommandHandler {
         return data;
     }
 
-    async handle(interaction: Interaction) {
+    async handleChatInputCommand(interaction: Interaction) {
         if (!interaction.isChatInputCommand()) {
             return;
         }
@@ -133,6 +157,37 @@ class CommandHandler {
             } else {
                 logger.log(`Unexpected error when ${debugString}: \`${err}\``, MultiLoggerLevel.Error);
             }
+        }
+    }
+
+    async handleAutocomplete(interaction: Interaction) {
+        if (!interaction.isAutocomplete()) {
+            return;
+        }
+        if (!CommandHandler.isValidCommand(interaction.commandName)) {
+            await CommandHandler.sendEmptyResponse(interaction);
+            return;
+        }
+        const command = commands[interaction.commandName];
+        const focusedOption = interaction.options.getFocused(true);
+        const debugString = `\`${interaction.user.tag}\` called autocomplete for \`${interaction.commandName}\` in ${interaction.channel} with value \`${focusedOption.value}\``;
+        if (!CommandHandler.isCommandWithOptions(command)) {
+            await CommandHandler.sendEmptyResponse(interaction);
+            return;
+        }
+        try {
+            const commandOption = command.options.find(o => o.name === focusedOption.name);
+            if (!focusedOption.value || !commandOption || !commandOption.choices) {
+                await CommandHandler.sendEmptyResponse(interaction);
+                return;
+            }
+            // TODO: We can definitely improve this search functionality
+            const filtered = commandOption.choices.filter(choice => choice.value.toLowerCase()
+                .startsWith(focusedOption.value.toLowerCase()));
+            await interaction.respond(filtered);
+            logger.log(debugString, MultiLoggerLevel.Warn);
+        } catch (err) {
+            logger.log(`Unexpected error when ${debugString}: \`${err}\``, MultiLoggerLevel.Error);
         }
     }
 }

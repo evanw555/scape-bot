@@ -254,7 +254,9 @@ client.on('messageCreate', async (msg) => {
     }
 });
 
-client.on('interactionCreate', commandHandler.handle);
+client.on('interactionCreate', commandHandler.handleChatInputCommand);
+
+client.on('interactionCreate', commandHandler.handleAutocomplete);
 
 // Login!!!
 client.login(AUTH.token);
