@@ -1,9 +1,9 @@
 import { ApplicationCommandOptionType, ChatInputCommandInteraction, Message, Snowflake, TextBasedChannel } from 'discord.js';
-import { FORMATTED_BOSS_NAMES, Boss, BOSSES } from 'osrs-json-hiscores';
+import { FORMATTED_BOSS_NAMES, Boss, BOSSES, SKILLS, FORMATTED_SKILL_NAMES } from 'osrs-json-hiscores';
 import { exec } from 'child_process';
 import { MultiLoggerLevel, randChoice, randInt } from 'evanw555.js';
 import { Command, PlayerHiScores, CommandName, CommandOptionChoice } from './types';
-import { replyUpdateMessage, sendUpdateMessage, updatePlayer } from './util';
+import { replyUpdateMessage, sendUpdateMessage, updatePlayer, getBossName, isValidBoss } from './util';
 import { fetchHiScores } from './hiscores';
 import { CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, CONFIG } from './constants';
 import { deleteTrackedPlayer, insertTrackedPlayer, updateTrackingChannel } from './pg-storage';

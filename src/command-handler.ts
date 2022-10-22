@@ -141,31 +141,12 @@ class CommandHandler {
             if (command.failIfDisabled) {
                 CommandHandler.failIfDisabled();
             }
-            const command = commands[interaction.commandName];
-            const debugString = `\`${interaction.user.tag}\` executed command \`${interaction.commandName}\` in ${interaction.channel} with options \`${JSON.stringify(interaction.options.data)}\``;
-            try {
-                if (command.failIfDisabled) {
-                    CommandHandler.failIfDisabled();
-                }
-                if (command.privileged) {
-                    CommandHandler.assertIsAdmin(interaction);
-                }
-                if (typeof command.execute === 'function') {
-                    await command.execute(interaction);
-                    logger.log(debugString, MultiLoggerLevel.Warn);
-                } else {
-                    await interaction.reply(`Warning: slash command does not exist yet for command: ${interaction.commandName}`);
-                }
-            } catch (err) {
-                if (err instanceof Error) {
-                    await CommandHandler.handleError(interaction, err);
-                } else {
-                    logger.log(`Unexpected error when ${debugString}: \`${err}\``, MultiLoggerLevel.Error);
-                }
+            if (command.privileged) {
+                CommandHandler.assertIsAdmin(interaction);
             }
             if (typeof command.execute === 'function') {
                 await command.execute(interaction);
-                logger.log(debugString);
+                logger.log(debugString, MultiLoggerLevel.Warn);
             } else {
                 await interaction.reply(`Warning: slash command does not exist yet for command: ${interaction.commandName}`);
             }
@@ -173,7 +154,7 @@ class CommandHandler {
             if (err instanceof Error) {
                 await CommandHandler.handleError(interaction, err);
             } else {
-                logger.log(`Unexpected error when ${debugString}: \`${err}\``);
+                logger.log(`Unexpected error when ${debugString}: \`${err}\``, MultiLoggerLevel.Error);
             }
         }
     }
@@ -203,9 +184,9 @@ class CommandHandler {
             const filtered = commandOption.choices.filter(choice => choice.value.toLowerCase()
                 .startsWith(focusedOption.value.toLowerCase()));
             await interaction.respond(filtered);
-            logger.log(debugString);
+            logger.log(debugString, MultiLoggerLevel.Warn);
         } catch (err) {
-            logger.log(`Unexpected error when ${debugString}: \`${err}\``);
+            logger.log(`Unexpected error when ${debugString}: \`${err}\``, MultiLoggerLevel.Error);
         }
     }
 }
