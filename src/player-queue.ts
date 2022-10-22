@@ -32,8 +32,8 @@ export default class PlayerQueue {
 
     next(): string | undefined {
         // Don't loop over the active queue more than once before drawing from the inactive queue.
-        // N is guaranteed to be at most 10, possibly less on a fresh reboot (active queue empty -> N = 0 -> always draw from the inactive queue)
-        const counterInterval = Math.min(10, this.activeQueue.size());
+        // N is guaranteed to be at most 10, possibly less on a fresh reboot (active queue empty -> N = 1 -> always draw from the inactive queue)
+        const counterInterval = Math.min(10, 1 + this.activeQueue.size());
         this.counter = (this.counter + 1) % counterInterval;
         // Every N calls we process from the inactive queue, for the remaining N - 1 we process from the active queue
         if (this.counter === 0) {
