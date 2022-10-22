@@ -37,7 +37,7 @@ export default class PlayerQueue {
             if (rsn && this.isActive(rsn)) {
                 this.moveToActiveQueue(rsn);
             }
-            logger.log(`[Inactive] (No Actives) -> ${rsn}`, MultiLoggerLevel.Debug);
+            logger.log(`[IQ] 🥶 -> ${rsn}`, MultiLoggerLevel.Debug);
             return rsn;
         }
         // TODO: Use the size of the active queue rather than this hard-coded limit
@@ -49,7 +49,7 @@ export default class PlayerQueue {
             if (inactivePlayer && this.isActive(inactivePlayer)) {
                 this.moveToActiveQueue(inactivePlayer);
             }
-            logger.log(`[Inactive] ${this.counter} -> ${inactivePlayer}`, MultiLoggerLevel.Debug);
+            logger.log(`[IQ] ${this.counter} -> ${inactivePlayer}`, MultiLoggerLevel.Debug);
             return inactivePlayer;
         } else {
             const activePlayer = this.activeQueue.next();
@@ -57,7 +57,7 @@ export default class PlayerQueue {
             if (activePlayer && !this.isActive(activePlayer)) {
                 this.moveToInactiveQueue(activePlayer);
             }
-            logger.log(`[Active] ${this.counter} -> ${activePlayer}`, MultiLoggerLevel.Debug);
+            logger.log(`[AQ] ${this.counter} -> ${activePlayer}`, MultiLoggerLevel.Debug);
             return activePlayer;
         }
     }
