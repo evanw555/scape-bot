@@ -18,6 +18,7 @@ module.exports = {
         'quotes': 'off',
         '@typescript-eslint/quotes': ['error', 'single'],
         'indent': 'off',
-        '@typescript-eslint/indent': ['error', 4, { 'MemberExpression': 1, 'SwitchCase': 0 }]
+        '@typescript-eslint/indent': ['error', 4, { 'MemberExpression': 1, 'SwitchCase': 0 }],
+        'no-multiple-empty-lines': ['error', { 'max': 1, 'maxEOF': 0 }]
     }
 };

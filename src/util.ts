@@ -22,7 +22,6 @@ export function isValidBoss(boss: string): boss is Boss {
     return BOSSES.indexOf(boss as Boss) > -1;
 }
 
-
 export function getThumbnail(name: string, options?: { is99?: boolean }) {
     if (validSkills.has(name)) {
         const skill = name;
