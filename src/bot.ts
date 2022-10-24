@@ -236,7 +236,7 @@ client.on('ready', async () => {
 });
 
 client.on('messageCreate', async (msg) => {
-    // Only process messages from other users mentio
+    // Only process messages from other users mentions
     if (msg.mentions.has(client.user as ClientUser) && msg.author.id !== client.user?.id) {
         // If the message was sent by another bot, troll epic style 😈
         if (msg.author.bot) {

@@ -255,7 +255,8 @@ const slashCommands: SlashCommandsType = {
                 });
             }
         },
-        text: 'Show details of when each tracked player was last updated'
+        text: 'Show details of when each tracked player was last updated',
+        privileged: true
     }
 };
 
