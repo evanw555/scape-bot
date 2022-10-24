@@ -260,7 +260,6 @@ const slashCommands: SlashCommandsType = {
     }
 };
 
-
 /**
  * These commands are accessible only to the user matching the adminUserId
  * specified in the config, and are invoked using the old command reader.

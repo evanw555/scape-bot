@@ -42,9 +42,18 @@ const loadState = async (): Promise<void> => {
     }
     const trackingChannels = await fetchAllTrackingChannels();
     for (const [ guildId, trackingChannelId ] of Object.entries(trackingChannels)) {
-        const trackingChannel = (await client.channels.fetch(trackingChannelId) as TextBasedChannel);
-        if (trackingChannel) {
-            state.setTrackingChannel(guildId, trackingChannel);
+        try {
+            const trackingChannel = (await client.channels.fetch(trackingChannelId) as TextBasedChannel);
+            if (trackingChannel) {
+                state.setTrackingChannel(guildId, trackingChannel);
+            }
+        } catch (err) {
+            if (err instanceof Error) {
+                // TODO: Handle cleanup if DiscordApiError[50001]: Missing Access; once 'guildDelete'
+                // event handler is set up, this should only happen if the bot is kicked while the
+                // bot client is down.
+                logger.log(`Failed to set tracking channel for guild ${guildId} due to: ${err.toString()}`, MultiLoggerLevel.Error);
+            }
         }
     }
     const playersOffHiScores: string[] = await fetchAllPlayersWithHiScoreStatus(false);
@@ -233,6 +242,27 @@ client.on('ready', async () => {
             }
         }
     }, CONFIG.refreshInterval);
+});
+
+client.on('guildCreate', (guild) => {
+    try {
+        const systemChannel = guild.systemChannel;
+        if (systemChannel) {
+            systemChannel.send(`Thanks for adding ${client.user} to your server! Use **/track** to start tracking `
+                + 'scapers, and **/help** for a list of useful commands.');
+        } else {
+            // Can this even happen?
+            logger.log(`There is no system channel defined for guild ${guild.id}`, MultiLoggerLevel.Warn);
+        }
+    } catch (err) {
+        if (err instanceof Error) {
+            logger.log(`Failed to handle guildCreate event due to: ${err.toString()}`, MultiLoggerLevel.Error);
+        }
+    }
+});
+
+client.on('guildDelete', (guild) => {
+    logger.log(`Bot has been removed from guild ${guild.id}`, MultiLoggerLevel.Debug);
 });
 
 client.on('messageCreate', async (msg) => {
