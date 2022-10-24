@@ -47,7 +47,6 @@ const getInteractionGuildId = (interaction: ChatInputCommandInteraction): string
     return interaction.guildId;
 };
 
-
 const slashCommands: SlashCommandsType = {
     ping: {
         execute: async (interaction) => {

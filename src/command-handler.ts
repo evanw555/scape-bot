@@ -107,23 +107,19 @@ class CommandHandler {
         const commandKeys = Object.keys(commands) as SlashCommandName[];
         const data: ApplicationCommandDataResolvable[] = [];
         commandKeys.forEach((key) => {
-            // We can check for existence of the execute() function for now, this is only
-            // temporary until all commands are migrated over to slash commands
-            if (typeof commands[key].execute === 'function') {
-                const commandInfo = commands[key];
-                let command: BuiltSlashCommand = new SlashCommandBuilder()
-                    .setName(key)
-                    .setDescription(commandInfo.text);
-                // If command has the privileged flag, set the command permissions to admin
-                if (commandInfo.privileged) {
-                    command = command.setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
-                }
-                // Build the command options if they exist
-                if (commandInfo.options) {
-                    command = CommandHandler.buildCommandOptions(command, commandInfo.options);
-                }
-                data.push(command);
+            const commandInfo = commands[key];
+            let command: BuiltSlashCommand = new SlashCommandBuilder()
+                .setName(key)
+                .setDescription(commandInfo.text);
+            // If command has the privileged flag, set the command permissions to admin
+            if (commandInfo.privileged) {
+                command = command.setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
             }
+            // Build the command options if they exist
+            if (commandInfo.options) {
+                command = CommandHandler.buildCommandOptions(command, commandInfo.options);
+            }
+            data.push(command);
         });
         return data;
     }
