@@ -1,11 +1,11 @@
-import { ApplicationCommandOptionType, ChatInputCommandInteraction, Message, Snowflake, TextBasedChannel } from 'discord.js';
+import { ApplicationCommandOptionType, ChatInputCommandInteraction, Message, PermissionFlagsBits, TextBasedChannel } from 'discord.js';
 import { FORMATTED_BOSS_NAMES, Boss, BOSSES } from 'osrs-json-hiscores';
 import { exec } from 'child_process';
 import { MultiLoggerLevel, randChoice, randInt } from 'evanw555.js';
-import { Command, PlayerHiScores, CommandName } from './types';
+import { SlashCommandName, HiddenCommand, PlayerHiScores, SlashCommand, HiddenCommandName, Command } from './types';
 import { replyUpdateMessage, sendUpdateMessage, updatePlayer, getBossName, isValidBoss } from './util';
 import { fetchHiScores } from './hiscores';
-import { CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, CONFIG, BOSS_CHOICES, SKILL_CHOICES } from './constants';
+import { CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, CONFIG, BOSS_CHOICES } from './constants';
 import { deleteTrackedPlayer, insertTrackedPlayer, updateTrackingChannel } from './pg-storage';
 
 import state from './instances/state';
@@ -16,16 +16,24 @@ import infoLog from './instances/info-log';
 
 const validSkills = new Set<string>(CONSTANTS.skills);
 
-const getHelpText = (hidden?: boolean) => {
-    const unfilteredCommandKeys = Object.keys(commands) as CommandName[];
-    const commandKeys = unfilteredCommandKeys
-        .filter((key: CommandName) => !!commands[key].hidden === !!hidden);
+type CommandsType = Record<string, Command>;
+type SlashCommandsType = Record<SlashCommandName, SlashCommand>;
+type HiddenCommandsType = Record<HiddenCommandName, HiddenCommand>;
+
+const getHelpText = (hidden: boolean, privileged = false) => {
+    const commands: CommandsType = hidden ? hiddenCommands : slashCommands;
+    const commandKeys = Object.keys(commands).filter((key) => {
+        if (hidden || privileged) {
+            return true;
+        }
+        return !commands[key].privileged;
+    });
     commandKeys.sort();
     const maxLengthKey = Math.max(...commandKeys.map((key) => {
         return key.length;
     }));
     const innerText = commandKeys
-        .map((key: CommandName) => `${key.padEnd(maxLengthKey)} :: ${commands[key].text}`)
+        .map(key => `${hidden ? '' : '/'}${key.padEnd(maxLengthKey)} :: ${commands[key].text}`)
         .join('\n');
     return `\`\`\`asciidoc\n${innerText}\`\`\``;
 };
@@ -39,7 +47,8 @@ const getInteractionGuildId = (interaction: ChatInputCommandInteraction): string
     return interaction.guildId;
 };
 
-const commands: Record<CommandName, Command> = {
+
+const slashCommands: SlashCommandsType = {
     ping: {
         execute: async (interaction) => {
             await interaction.reply('pong!');
@@ -47,15 +56,13 @@ const commands: Record<CommandName, Command> = {
         text: 'Replies with pong!'
     },
     help: {
-        fn: (msg) => {
-            msg.channel.send(getHelpText(false));
+        execute: async (interaction) => {
+            const isAdmin = interaction.memberPermissions?.has(PermissionFlagsBits.Administrator);
+            await interaction.reply({ content: getHelpText(false, isAdmin), ephemeral: true });
         },
         text: 'Shows help'
     },
     track: {
-        fn: async (msg) => {
-            await msg.channel.send('Use the **/track** command');
-        },
         options: [{
             type: ApplicationCommandOptionType.String,
             name: 'username',
@@ -82,9 +89,6 @@ const commands: Record<CommandName, Command> = {
         failIfDisabled: true
     },
     remove: {
-        fn: async (msg) => {
-            await msg.channel.send('Use the **/remove** command');
-        },
         options: [{
             type: ApplicationCommandOptionType.String,
             name: 'username',
@@ -110,9 +114,6 @@ const commands: Record<CommandName, Command> = {
         failIfDisabled: true
     },
     clear: {
-        fn: async (msg) => {
-            await msg.channel.send('Use the **/clear** command');
-        },
         execute: async (interaction) => {
             const guildId = getInteractionGuildId(interaction);
             // TODO: Can we add a batch delete operation?
@@ -127,9 +128,6 @@ const commands: Record<CommandName, Command> = {
         failIfDisabled: true
     },
     list: {
-        fn: async (msg) => {
-            await msg.channel.send('Use the **/list** command');
-        },
         execute: async (interaction) => {
             const guildId = getInteractionGuildId(interaction);
             if (state.isTrackingAnyPlayers(guildId)) {
@@ -144,9 +142,6 @@ const commands: Record<CommandName, Command> = {
         text: 'Lists all the players currently being tracked'
     },
     check: {
-        fn: async (msg) => {
-            await msg.channel.send('Use the **/check** command');
-        },
         options: [{
             type: ApplicationCommandOptionType.String,
             name: 'username',
@@ -186,9 +181,6 @@ const commands: Record<CommandName, Command> = {
         failIfDisabled: true
     },
     kc: {
-        fn: async (msg) => {
-            await msg.channel.send('Use the **/kc** command');
-        },
         options: [
             {
                 type: ApplicationCommandOptionType.String,
@@ -235,9 +227,6 @@ const commands: Record<CommandName, Command> = {
         failIfDisabled: true
     },
     channel: {
-        fn: async (msg) => {
-            await msg.channel.send('Use the **/channel** command');
-        },
         execute: async (interaction) => {
             const guildId = getInteractionGuildId(interaction);
             await updateTrackingChannel(guildId, interaction.channelId);
@@ -249,54 +238,34 @@ const commands: Record<CommandName, Command> = {
         privileged: true,
         failIfDisabled: true
     },
-    hiddenhelp: {
-        fn: (msg) => {
-            msg.channel.send(getHelpText(true));
-        },
-        hidden: true,
-        text: 'Shows help for hidden commands',
-        privileged: true
-    },
     details: {
-        fn: (msg) => {
-            const guildId: Snowflake | null = msg.guildId;
-            if (!guildId) {
-                msg.reply('This command can only be used in a guild text channel!');
-                return;
-            }
+        execute: async (interaction) => {
+            const guildId = getInteractionGuildId(interaction);
 
             if (state.isTrackingAnyPlayers(guildId)) {
                 const sortedPlayers = state.getAllTrackedPlayers(guildId);
-                msg.channel.send(`${sortedPlayers.map(rsn => `**${rsn}**: last updated **${state.getLastUpdated(rsn)?.toLocaleTimeString('en-US', { timeZone: CONFIG.timeZone })}**`).join('\n')}`);
+                await interaction.reply({
+                    content: `${sortedPlayers.map(rsn => `**${rsn}**: last updated **${state.getLastUpdated(rsn)?.toLocaleTimeString('en-US', { timeZone: CONFIG.timeZone })}**`).join('\n')}`,
+                    ephemeral: true
+                });
             } else {
-                msg.channel.send('Currently not tracking any players');
+                await interaction.reply({
+                    content: 'Currently not tracking any players',
+                    ephemeral: true
+                });
             }
         },
-        text: 'Show details of when each tracked player was last updated'
-    },
-    hey: {
-        fn: (msg) => {
-            msg.channel.send('Sup');
-        },
-        hidden: true,
-        text: 'Hey'
-    },
-    sup: {
-        fn: (msg) => {
-            msg.channel.send('Hey');
-        },
-        hidden: true,
-        text: 'Sup'
-    },
-    log: {
-        fn: (msg) => {
-            // Truncate both logs to the Discord max of 2000 characters
-            msg.channel.send(`Info Log:\n\`\`\`${infoLog.toLogArray().join('\n').slice(0, 1950) || 'log empty'}\`\`\``);
-            msg.channel.send(`Debug Log:\`\`\`${debugLog.toLogArray().join('\n').slice(0, 1950) || 'log empty'}\`\`\``);
-        },
-        hidden: true,
-        text: 'Prints the bot\'s log'
-    },
+        text: 'Show details of when each tracked player was last updated',
+        privileged: true
+    }
+};
+
+
+/**
+ * These commands are accessible only to the user matching the adminUserId
+ * specified in the config, and are invoked using the old command reader.
+ */
+export const hiddenCommands: HiddenCommandsType = {
     thumbnail: {
         fn: (msg, rawArgs, name) => {
             if (validSkills.has(name)) {
@@ -311,31 +280,6 @@ const commands: Record<CommandName, Command> = {
                 msg.channel.send(`**${name || '[none]'}** does not have a thumbnail`);
             }
         },
-        options: [{
-            type: ApplicationCommandOptionType.String,
-            name: 'name',
-            description: 'Name',
-            required: true,
-            choices: BOSS_CHOICES.concat(SKILL_CHOICES)
-        }],
-        execute: async (interaction) => {
-            const name = interaction.options.getString('name', true);
-            if (validSkills.has(name)) {
-                await replyUpdateMessage(interaction, 'Here is the thumbnail', name, {
-                    title: name
-                });
-            } else if (isValidBoss(name)) {
-                await replyUpdateMessage(interaction, 'Here is the thumbnail', name, {
-                    title: name
-                });
-            } else {
-                await interaction.reply({
-                    content: `**${name || '[none]'}** does not have a thumbnail`,
-                    ephemeral: true
-                });
-            }
-        },
-        hidden: true,
         text: 'Displays a skill or boss\' thumbnail'
     },
     thumbnail99: {
@@ -349,8 +293,22 @@ const commands: Record<CommandName, Command> = {
                 msg.channel.send(`**${skill || '[none]'}** is not a valid skill`);
             }
         },
-        hidden: true,
         text: 'Displays a skill\'s level 99 thumbnail'
+    },
+    help: {
+        fn: (msg) => {
+            msg.channel.send(getHelpText(true));
+        },
+        text: 'Shows help for hidden commands',
+        privileged: true
+    },
+    log: {
+        fn: (msg) => {
+            // Truncate both logs to the Discord max of 2000 characters
+            msg.channel.send(`Info Log:\n\`\`\`${infoLog.toLogArray().join('\n').slice(0, 1950) || 'log empty'}\`\`\``);
+            msg.channel.send(`Debug Log:\`\`\`${debugLog.toLogArray().join('\n').slice(0, 1950) || 'log empty'}\`\`\``);
+        },
+        text: 'Prints the bot\'s log'
     },
     spoofverbose: {
         fn: (msg, rawArgs) => {
@@ -367,7 +325,6 @@ const commands: Record<CommandName, Command> = {
             }
             updatePlayer(player, spoofedDiff);
         },
-        hidden: true,
         text: 'Spoof an update notification using a raw JSON object {player, diff: {skills|bosses}}',
         failIfDisabled: true
     },
@@ -388,7 +345,6 @@ const commands: Record<CommandName, Command> = {
                 msg.channel.send('Usage: spoof PLAYER');
             }
         },
-        hidden: true,
         text: 'Spoof an update notification for some player with random skill/boss updates',
         failIfDisabled: true
     },
@@ -406,7 +362,6 @@ const commands: Record<CommandName, Command> = {
                 }
             });
         },
-        hidden: true,
         text: 'Show the uptime of the host (not the bot)'
     },
     kill: {
@@ -423,7 +378,6 @@ const commands: Record<CommandName, Command> = {
                 process.exit(1);
             });
         },
-        hidden: true,
         text: 'Kills the bot',
         privileged: true
     },
@@ -457,7 +411,6 @@ const commands: Record<CommandName, Command> = {
     //                 msg.reply(`Could not serialize state:\n\`\`\`${reason.toString()}\`\`\``);
     //             });
     //     },
-    //     hidden: true,
     //     text: 'Prints the bot\'s state',
     //     privileged: true
     // },
@@ -466,10 +419,9 @@ const commands: Record<CommandName, Command> = {
             msg.reply('Enabling the bot... If the API format is still not supported, the bot will disable itself.');
             state.setDisabled(false);
         },
-        hidden: true,
         text: 'Enables the bot, this should be used after the bot has been disabled due to an incompatible API change',
         privileged: true
     }
 };
 
-export default commands;
+export default slashCommands;

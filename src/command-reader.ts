@@ -1,7 +1,7 @@
 import { Message } from 'discord.js';
 import { MultiLoggerLevel } from 'evanw555.js';
-import { ParsedCommand, Command, CommandName } from './types';
-import commands from './commands';
+import { ParsedCommand, HiddenCommand, HiddenCommandName } from './types';
+import { hiddenCommands } from './commands';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -20,8 +20,9 @@ class CommandReader {
         }
         // Execute command
         const { command, args, rawArgs } = parsedCommand;
-        if (Object.prototype.hasOwnProperty.call(commands, command)) {
-            const commandInfo: Command = commands[command as CommandName];
+        if (Object.prototype.hasOwnProperty.call(hiddenCommands, command)) {
+            const commandName = command as HiddenCommandName;
+            const commandInfo: HiddenCommand = hiddenCommands[commandName];
             if (commandInfo.privileged && !state.isAdmin(msg.author.id)) {
                 msg.channel.send('You can\'t do that');
             } else if (commandInfo.failIfDisabled && state.isDisabled()) {

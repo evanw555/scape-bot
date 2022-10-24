@@ -55,12 +55,9 @@ export type MiscFlagName = 'timestamp' | 'disabled';
 
 export type BuiltSlashCommand = SlashCommandBuilder | Omit<SlashCommandBuilder, 'addSubcommand' | 'addSubcommandGroup'>;
 
-export type DeprecatedCommandName =  'help' | 'hiddenhelp' | 'details' | 'hey' | 'sup' | 'log'
-| 'thumbnail99' | 'spoof' | 'spoofverbose' | 'uptime' | 'kill' | 'enable';
+export type SlashCommandName = 'help' | 'ping' | 'track' | 'remove' | 'clear' | 'list' | 'check' | 'channel' | 'kc' | 'details';
 
-export type SlashCommandName = 'ping' | 'track' | 'remove' | 'clear' | 'list' | 'check' | 'channel' | 'kc' | 'thumbnail';
-
-export type CommandName = DeprecatedCommandName | SlashCommandName;
+export type HiddenCommandName = 'help' | 'log' | 'thumbnail' | 'thumbnail99' | 'spoof' | 'spoofverbose' | 'uptime' | 'kill' | 'enable';
 
 export interface CommandOptionChoice {
     name: string,
@@ -76,16 +73,21 @@ export interface CommandOption {
 }
 
 export interface Command {
-    fn?: (msg: Message, rawArgs: string, ...args: string[]) => void,
-    execute?: (interaction: ChatInputCommandInteraction) => Promise<void>,
     text: string,
-    options?: CommandOption[],
-    hidden?: boolean,
     privileged?: boolean,
     failIfDisabled?: boolean
 }
 
-export interface CommandWithOptions extends Command {
+export interface SlashCommand extends Command {
+    options?: CommandOption[]
+    execute: (interaction: ChatInputCommandInteraction) => Promise<void>,
+}
+
+export interface HiddenCommand extends Command {
+    fn: (msg: Message, rawArgs: string, ...args: string[]) => void
+}
+
+export interface CommandWithOptions extends SlashCommand {
     options: CommandOption[]
 }
 

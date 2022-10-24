@@ -9,7 +9,7 @@ import {
 } from 'discord.js';
 import { MultiLoggerLevel } from 'evanw555.js';
 import commands, { INVALID_TEXT_CHANNEL } from './commands';
-import { BuiltSlashCommand, Command, CommandName, CommandOption, CommandWithOptions } from './types';
+import { BuiltSlashCommand, SlashCommandName, CommandOption, CommandWithOptions, SlashCommand } from './types';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -41,11 +41,11 @@ class CommandHandler {
         await interaction.respond([]);
     }
 
-    static isValidCommand(commandName: string): commandName is CommandName {
+    static isValidCommand(commandName: string): commandName is SlashCommandName {
         return Object.prototype.hasOwnProperty.call(commands, commandName);
     }
 
-    static isCommandWithOptions(command: Command): command is CommandWithOptions {
+    static isCommandWithOptions(command: SlashCommand): command is CommandWithOptions {
         return Array.isArray(command.options);
     }
 
@@ -104,7 +104,7 @@ class CommandHandler {
     }
 
     buildCommands(): ApplicationCommandDataResolvable[] {
-        const commandKeys = Object.keys(commands) as CommandName[];
+        const commandKeys = Object.keys(commands) as SlashCommandName[];
         const data: ApplicationCommandDataResolvable[] = [];
         commandKeys.forEach((key) => {
             // We can check for existence of the execute() function for now, this is only
