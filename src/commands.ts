@@ -47,7 +47,6 @@ const getInteractionGuildId = (interaction: ChatInputCommandInteraction): string
     return interaction.guildId;
 };
 
-
 const slashCommands: SlashCommandsType = {
     ping: {
         execute: async (interaction) => {
@@ -259,7 +258,6 @@ const slashCommands: SlashCommandsType = {
         privileged: true
     }
 };
-
 
 /**
  * These commands are accessible only to the user matching the adminUserId

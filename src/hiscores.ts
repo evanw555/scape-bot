@@ -1,6 +1,6 @@
-import hiscores, { Activity, Boss, BOSSES, Player, Skill, Stats } from "osrs-json-hiscores";
-import { CLUES_NO_ALL, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, SKILLS_NO_OVERALL } from "./constants";
-import { IndividualClueType, IndividualSkillName, PlayerHiScores } from "./types";
+import hiscores, { Activity, Boss, BOSSES, Player, Skill, Stats } from 'osrs-json-hiscores';
+import { CLUES_NO_ALL, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, SKILLS_NO_OVERALL } from './constants';
+import { IndividualClueType, IndividualSkillName, PlayerHiScores } from './types';
 
 import state from './instances/state';
 
