@@ -68,6 +68,11 @@ export default class PlayerQueue {
     }
 
     markAsActive(rsn: string): void {
+        // If this player was considered inactive before this, move them to the active queue now
+        if (!this.isActive(rsn)) {
+            this.moveToActiveQueue(rsn);
+        }
+        // Set their "last active" timestamp to right now
         this.lastActive[rsn] = new Date().getTime();
     }
 
