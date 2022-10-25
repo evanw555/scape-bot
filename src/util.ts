@@ -270,30 +270,28 @@ export async function updateLevels(rsn: string, newLevels: Record<IndividualSkil
     if (!diff) {
         return;
     }
-    // Send a message for any skill that is now 99 and remove it from the diff
-    for (const skill of (Object.keys(diff) as IndividualSkillName[])) {
-        const newLevel = newLevels[skill];
-        if (newLevel === 99) {
-            const levelsGained = diff[skill];
-            await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn),
-                `**${rsn}** has gained `
-                    + (levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`)
-                    + ` in **${skill}** and is now level **99**`,
-                skill, {
-                    header: '@everyone',
-                    is99: true,
-                    reacts: ['🇬', '🇿']
-                });
-            delete diff[skill];
-        }
-    }
-    // Send a message showing all the levels gained
+    // Send a message for any skill that is now 99
     const updatedSkills: IndividualSkillName[] = toSortedSkillsNoOverall(Object.keys(diff));
-    switch (updatedSkills.length) {
+    const updated99Skills = updatedSkills.filter(skill => newLevels[skill] === 99);
+    for (const skill of updated99Skills) {
+        const levelsGained = diff[skill];
+        await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn),
+            `**${rsn}** has gained `
+                + (levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`)
+                + ` in **${skill}** and is now level **99**`,
+            skill, {
+                header: '@everyone',
+                is99: true,
+                reacts: ['🇬', '🇿']
+            });
+    }
+    // Send a message showing all the levels gained for all non-99 skills
+    const updatedIncompleteSkills = updatedSkills.filter(skill => !updated99Skills.includes(skill));
+    switch (updatedIncompleteSkills.length) {
     case 0:
         break;
     case 1: {
-        const skill = updatedSkills[0];
+        const skill = updatedIncompleteSkills[0];
         const levelsGained = diff[skill];
         const text = `**${rsn}** has gained `
             + (levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`)
@@ -302,7 +300,7 @@ export async function updateLevels(rsn: string, newLevels: Record<IndividualSkil
         break;
     }
     default: {
-        const text = updatedSkills.map((skill) => {
+        const text = updatedIncompleteSkills.map((skill) => {
             const levelsGained = diff[skill];
             return `${levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`} in **${skill}** and is now level **${newLevels[skill]}**`;
         }).join('\n');
@@ -314,12 +312,10 @@ export async function updateLevels(rsn: string, newLevels: Record<IndividualSkil
     // If not spoofing the diff, update player's levels
     if (!spoofedDiff) {
         if (updatedSkills.length > 0) {
-            // TODO: This doesn't count the 99 skills filtered from the diff above HELP!
             state.markPlayerAsActive(rsn);
             await logger.log(`**${rsn}** update: \`${JSON.stringify(diff)}\``, MultiLoggerLevel.Info);
         }
         // Write only updated skills to PG
-        // TODO: This skips the 99 skills filtered from the diff above HELP!
         await writePlayerLevels(rsn, filterMap(newLevels, updatedSkills));
         state.setLevels(rsn, newLevels);
         state.setLastUpdated(rsn, new Date());
