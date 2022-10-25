@@ -68,12 +68,12 @@ export default class PlayerQueue {
     }
 
     markAsActive(rsn: string): void {
-        // If this player was considered inactive before this, move them to the active queue now
-        if (!this.isActive(rsn)) {
-            this.moveToActiveQueue(rsn);
-        }
         // Set their "last active" timestamp to right now
         this.lastActive[rsn] = new Date().getTime();
+        // If they weren't already on the active queue, move them there now
+        if (this.inactiveQueue.contains(rsn) && !this.activeQueue.contains(rsn)) {
+            this.moveToActiveQueue(rsn);
+        }
     }
 
     toSortedArray(): string[] {
