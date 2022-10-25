@@ -105,6 +105,8 @@ const slashCommands: SlashCommandsType = {
                 await deleteTrackedPlayer(guildId, rsn);
                 state.removeTrackedPlayer(guildId, rsn);
                 await interaction.reply(`No longer tracking player **${rsn}**`);
+                // TODO: We need to remove this player's data from PG if they're no longer tracked anywhere
+                // ...
             } else {
                 await interaction.reply({ content: 'That player is not currently being tracked', ephemeral: true });
             }
@@ -121,6 +123,8 @@ const slashCommands: SlashCommandsType = {
             }
             state.clearAllTrackedPlayers(guildId);
             await interaction.reply({ content: 'No longer tracking any players', ephemeral: true });
+            // TODO: We need to remove these players' data from PG if they're no longer tracked anywhere
+            // ...
         },
         text: 'Stops tracking all players',
         privileged: true,
