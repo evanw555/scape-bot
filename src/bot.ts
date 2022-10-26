@@ -161,6 +161,11 @@ const weeklyTotalXpUpdate = async () => {
 };
 
 client.on('ready', async () => {
+    // (when not testing...) Add one logger just for logging to terminal
+    logger.addOutput(async (text: string) => {
+        console.log(text);
+    }, MultiLoggerLevel.Info);
+
     try {
         logger.log(`Logged in as: ${client.user?.tag}`);
         logger.log(`Config=${JSON.stringify(CONFIG)}`);

@@ -147,7 +147,7 @@ export default class State {
     }
 
     isPlayerTrackedInAnyGuilds(rsn: string): boolean {
-        return this._guildsByPlayer[rsn] && this._guildsByPlayer[rsn].size > 0;
+        return rsn in this._guildsByPlayer && this._guildsByPlayer[rsn].size > 0;
     }
 
     getGuildsTrackingPlayer(rsn: string): Snowflake[] {
