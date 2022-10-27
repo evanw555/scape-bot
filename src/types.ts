@@ -1,6 +1,7 @@
 import { ApplicationCommandOptionType, ChatInputCommandInteraction, Message, SlashCommandBuilder, Snowflake } from 'discord.js';
 import { Boss, ClueType, SkillName } from 'osrs-json-hiscores';
 import { ClientConfig } from 'pg';
+import { TIMEOUTS_PROPERTY } from './constants';
 
 export enum TimeoutType {
     WeeklyXpUpdate = 'WEEKLY_XP_UPDATE'
@@ -51,7 +52,7 @@ export interface SerializedGuildState {
     players: string[]
 }
 
-export type MiscFlagName = 'timestamp' | 'disabled';
+export type MiscPropertyName = 'timestamp' | 'disabled' | typeof TIMEOUTS_PROPERTY;
 
 export type BuiltSlashCommand = SlashCommandBuilder | Omit<SlashCommandBuilder, 'addSubcommand' | 'addSubcommandGroup'>;
 

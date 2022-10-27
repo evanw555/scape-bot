@@ -1,12 +1,13 @@
 import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User } from 'discord.js';
-import { TimeoutManager, FileStorage, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel } from 'evanw555.js';
+import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel } from 'evanw555.js';
 import { PlayerHiScores, TimeoutType } from './types';
 import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer } from './util';
 import CommandReader from './command-reader';
 import CommandHandler from './command-handler';
 import { fetchHiScores } from './hiscores';
+import TimeoutStorage from './timeout-storage';
 
-import { AUTH, CONFIG } from './constants';
+import { AUTH, CONFIG, TIMEOUTS_PROPERTY } from './constants';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -30,7 +31,7 @@ const timeoutCallbacks = {
         await weeklyTotalXpUpdate();
     }
 };
-const timeoutManager = new TimeoutManager<TimeoutType>(new FileStorage('./data/'), timeoutCallbacks);
+const timeoutManager = new TimeoutManager<TimeoutType>(new TimeoutStorage(), timeoutCallbacks, { fileName: TIMEOUTS_PROPERTY });
 
 const loadState = async (): Promise<void> => {
     // TODO: Eventually, the whole "deserialize" thing won't be needed. We'll just need one method for loading up all stuff from PG on startup
@@ -212,6 +213,8 @@ client.on('ready', async () => {
             await logger.log(`This bot is in **${client.guilds.cache.size}** guilds, but a tracking channel is missing for **${guildsWithoutTrackingChannels.length}** of them`, MultiLoggerLevel.Warn);
         }
 
+        // Load the existing timeouts from storage (this must happen after the PG client connects, since it leverages PG for storage)
+        await timeoutManager.loadTimeouts();
         // Start the weekly loop if the right timeout isn't already scheduled (get next Friday at 5:10pm)
         if (!timeoutManager.hasTimeout(TimeoutType.WeeklyXpUpdate)) {
             await timeoutManager.registerTimeout(TimeoutType.WeeklyXpUpdate, getNextFridayEvening(), { pastStrategy: PastTimeoutStrategy.Invoke });

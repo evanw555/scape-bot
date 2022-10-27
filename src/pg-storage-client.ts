@@ -3,7 +3,7 @@ import { MultiLoggerLevel } from 'evanw555.js';
 import { Boss } from 'osrs-json-hiscores';
 import { Client, ClientConfig } from 'pg';
 import format from 'pg-format';
-import { IndividualSkillName, IndividualClueType, MiscFlagName } from './types';
+import { IndividualSkillName, IndividualClueType, MiscPropertyName } from './types';
 
 import logger from './instances/logger';
 
@@ -186,7 +186,7 @@ export default class PGStorageClient {
         await this.client.query('INSERT INTO bot_counters VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET counter = EXCLUDED.counter;', [userId, counter]);
     }
     
-    async fetchMiscProperty(name: MiscFlagName): Promise<string | null> {
+    async fetchMiscProperty(name: MiscPropertyName): Promise<string | null> {
         try {
             const queryResult = await this.client.query<{name: string, value: string}>('SELECT * FROM misc_properties WHERE name = $1;', [name]);
             if (queryResult.rowCount === 0) {
@@ -200,7 +200,7 @@ export default class PGStorageClient {
         }
     }
     
-    async writeMiscProperty(name: MiscFlagName, value: string): Promise<void> {
+    async writeMiscProperty(name: MiscPropertyName, value: string): Promise<void> {
         await this.client.query('INSERT INTO misc_properties VALUES ($1, $2) ON CONFLICT (name) DO UPDATE SET value = EXCLUDED.value;', [name, value]);
     }
 }
