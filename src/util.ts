@@ -2,13 +2,14 @@ import { Boss, BOSSES, INVALID_FORMAT_ERROR, FORMATTED_BOSS_NAMES } from 'osrs-j
 import { ChatInputCommandInteraction, TextBasedChannel } from 'discord.js';
 import { addReactsSync, MultiLoggerLevel, randChoice } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName, PlayerHiScores } from './types';
-import { writeMiscProperty, writePlayerBosses, writePlayerClues, writePlayerHiScoreStatus, writePlayerLevels } from './pg-storage';
 import { fetchHiScores } from './hiscores';
 import { BOSS_EMBED_COLOR, CLUES_NO_ALL, CLUE_EMBED_COLOR, COMPLETE_VERB_BOSSES, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, DOPE_COMPLETE_VERBS, DOPE_KILL_VERBS, GRAY_EMBED_COLOR, RED_EMBED_COLOR, SKILLS_NO_OVERALL, SKILL_EMBED_COLOR, YELLOW_EMBED_COLOR } from './constants';
 
 import { CONSTANTS } from './constants';
+
 import state from './instances/state';
 import logger from './instances/logger';
+import pgStorageClient from './instances/pg-storage-client';
 
 const validSkills: Set<string> = new Set(CONSTANTS.skills);
 const validClues: Set<string> = new Set(CLUES_NO_ALL);
@@ -185,7 +186,7 @@ export async function updatePlayer(rsn: string, spoofedDiff?: Record<string, num
             // If the API has changed, disable the bot and send a message
             if (!state.isDisabled()) {
                 state.setDisabled(true);
-                await writeMiscProperty('disabled', 'true');
+                await pgStorageClient.writeMiscProperty('disabled', 'true');
                 await sendUpdateMessage(state.getAllTrackingChannels(),
                     'The hiscores API has changed, the bot is now disabled. Please fix this, then re-enable the bot',
                     'wrench',
@@ -201,12 +202,12 @@ export async function updatePlayer(rsn: string, spoofedDiff?: Record<string, num
     if (!data.onHiScores && state.isPlayerOnHiScores(rsn)) {
         // If player was previously on the hiscores, take them off
         state.removePlayerFromHiScores(rsn);
-        await writePlayerHiScoreStatus(rsn, false);
+        await pgStorageClient.writePlayerHiScoreStatus(rsn, false);
         await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), `**${rsn}** has fallen off the hiscores`, 'unhappy', { color: RED_EMBED_COLOR });
     } else if (data.onHiScores && !state.isPlayerOnHiScores(rsn)) {
         // If player was previously off the hiscores, add them back on!
         state.addPlayerToHiScores(rsn);
-        await writePlayerHiScoreStatus(rsn, true);
+        await pgStorageClient.writePlayerHiScoreStatus(rsn, true);
         await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), `**${rsn}** has made it back onto the hiscores`, 'happy', { color: YELLOW_EMBED_COLOR });
     }
 
@@ -217,7 +218,7 @@ export async function updatePlayer(rsn: string, spoofedDiff?: Record<string, num
         // If this player has no levels in the state, prime with initial data (NOT including assumed defaults)
         state.setLevels(rsn, data.levels);
         state.setLastUpdated(rsn, new Date());
-        await writePlayerLevels(rsn, data.levels);
+        await pgStorageClient.writePlayerLevels(rsn, data.levels);
     }
 
     // Check if bosses have changes and send notifications
@@ -227,7 +228,7 @@ export async function updatePlayer(rsn: string, spoofedDiff?: Record<string, num
         // If this player has no bosses in the state, prime with initial data (NOT including assumed defaults)
         state.setBosses(rsn, data.bosses);
         state.setLastUpdated(rsn, new Date());
-        await writePlayerBosses(rsn, data.bosses);
+        await pgStorageClient.writePlayerBosses(rsn, data.bosses);
     }
 
     // Check if clues have changes and send notifications
@@ -237,7 +238,7 @@ export async function updatePlayer(rsn: string, spoofedDiff?: Record<string, num
         // If this player has no clues in the state, prime with initial data (NOT including assumed defaults)
         state.setClues(rsn, data.clues);
         state.setLastUpdated(rsn, new Date());
-        await writePlayerClues(rsn, data.clues);
+        await pgStorageClient.writePlayerClues(rsn, data.clues);
     }
 }
 
@@ -316,7 +317,7 @@ export async function updateLevels(rsn: string, newLevels: Record<IndividualSkil
             await logger.log(`**${rsn}** update: \`${JSON.stringify(diff)}\``, MultiLoggerLevel.Info);
         }
         // Write only updated skills to PG
-        await writePlayerLevels(rsn, filterMap(newLevels, updatedSkills));
+        await pgStorageClient.writePlayerLevels(rsn, filterMap(newLevels, updatedSkills));
         state.setLevels(rsn, newLevels);
         state.setLastUpdated(rsn, new Date());
     }
@@ -396,7 +397,7 @@ export async function updateKillCounts(rsn: string, newScores: Record<Boss, numb
             await logger.log(`**${rsn}** update: \`${JSON.stringify(diff)}\``, MultiLoggerLevel.Info);
         }
         // Write only updated bosses to PG
-        await writePlayerBosses(rsn, filterMap(newScores, updatedBosses));
+        await pgStorageClient.writePlayerBosses(rsn, filterMap(newScores, updatedBosses));
         state.setBosses(rsn, newScores);
         state.setLastUpdated(rsn, new Date());
     }
@@ -468,7 +469,7 @@ export async function updateClues(rsn: string, newScores: Record<IndividualClueT
             await logger.log(`**${rsn}** update: \`${JSON.stringify(diff)}\``, MultiLoggerLevel.Info);
         }
         // Write only updated clues to PG
-        await writePlayerClues(rsn, filterMap(newScores, updatedClues));
+        await pgStorageClient.writePlayerClues(rsn, filterMap(newScores, updatedClues));
         state.setClues(rsn, newScores);
         state.setLastUpdated(rsn, new Date());
     }

@@ -1,16 +1,16 @@
 import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User } from 'discord.js';
+import { TimeoutManager, FileStorage, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel } from 'evanw555.js';
 import { PlayerHiScores, TimeoutType } from './types';
 import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer } from './util';
-import { TimeoutManager, FileStorage, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel } from 'evanw555.js';
-import { fetchAllPlayerBosses, fetchAllPlayerClues, fetchAllPlayerLevels, fetchAllPlayersWithHiScoreStatus, fetchAllTrackedPlayers, fetchAllTrackingChannels, fetchBotCounters, fetchMiscProperty, fetchWeeklyXpSnapshots, initializeTables, writeBotCounter, writeMiscProperty, writeWeeklyXpSnapshots } from './pg-storage';
 import CommandReader from './command-reader';
 import CommandHandler from './command-handler';
 import { fetchHiScores } from './hiscores';
-import { Client as PGClient } from 'pg';
 
 import { AUTH, CONFIG } from './constants';
+
 import state from './instances/state';
 import logger from './instances/logger';
+import pgStorageClient from './instances/pg-storage-client';
 
 // TODO: Deprecate CommandReader in favor of CommandHandler
 const commandReader: CommandReader = new CommandReader();
@@ -34,13 +34,13 @@ const timeoutManager = new TimeoutManager<TimeoutType>(new FileStorage('./data/'
 
 const loadState = async (): Promise<void> => {
     // TODO: Eventually, the whole "deserialize" thing won't be needed. We'll just need one method for loading up all stuff from PG on startup
-    const trackedPlayers = await fetchAllTrackedPlayers();
+    const trackedPlayers = await pgStorageClient.fetchAllTrackedPlayers();
     for (const [ guildId, players ] of Object.entries(trackedPlayers)) {
         for (const rsn of players) {
             state.addTrackedPlayer(guildId, rsn);
         }
     }
-    const trackingChannels = await fetchAllTrackingChannels();
+    const trackingChannels = await pgStorageClient.fetchAllTrackingChannels();
     for (const [ guildId, trackingChannelId ] of Object.entries(trackingChannels)) {
         try {
             const trackingChannel = (await client.channels.fetch(trackingChannelId) as TextBasedChannel);
@@ -56,16 +56,16 @@ const loadState = async (): Promise<void> => {
             }
         }
     }
-    const playersOffHiScores: string[] = await fetchAllPlayersWithHiScoreStatus(false);
+    const playersOffHiScores: string[] = await pgStorageClient.fetchAllPlayersWithHiScoreStatus(false);
     for (const rsn of playersOffHiScores) {
         state.removePlayerFromHiScores(rsn);
     }
-    state.setAllLevels(await fetchAllPlayerLevels());
-    state.setAllBosses(await fetchAllPlayerBosses());
-    state.setAllClues(await fetchAllPlayerClues());
-    state.setBotCounters(await fetchBotCounters());
-    state.setDisabled((await fetchMiscProperty('disabled') ?? 'false') === 'true');
-    state.setTimestamp(new Date(await fetchMiscProperty('timestamp') ?? new Date()));
+    state.setAllLevels(await pgStorageClient.fetchAllPlayerLevels());
+    state.setAllBosses(await pgStorageClient.fetchAllPlayerBosses());
+    state.setAllClues(await pgStorageClient.fetchAllPlayerClues());
+    state.setBotCounters(await pgStorageClient.fetchBotCounters());
+    state.setDisabled((await pgStorageClient.fetchMiscProperty('disabled') ?? 'false') === 'true');
+    state.setTimestamp(new Date(await pgStorageClient.fetchMiscProperty('timestamp') ?? new Date()));
 
     // Now that the state has been loaded, mark it as valid
     state.setValid(true);
@@ -93,7 +93,7 @@ const weeklyTotalXpUpdate = async () => {
     // Get old total XP values
     let oldTotalXpValues: Record<string, number> | undefined;
     try {
-        oldTotalXpValues = await fetchWeeklyXpSnapshots();
+        oldTotalXpValues = await pgStorageClient.fetchWeeklyXpSnapshots();
     } catch (err) {
         await logger.log(`Unable to fetch weekly XP snapshots from PG: \`${err}\``, MultiLoggerLevel.Error);
         return;
@@ -149,7 +149,7 @@ const weeklyTotalXpUpdate = async () => {
 
     // Commit the changes
     try {
-        await writeWeeklyXpSnapshots(newTotalXpValues);
+        await pgStorageClient.writeWeeklyXpSnapshots(newTotalXpValues);
     } catch (err) {
         await logger.log(`Unable to write weekly XP snapshots to PG: \`${err}\``, MultiLoggerLevel.Error);
     }
@@ -192,13 +192,11 @@ client.on('ready', async () => {
         await client.guilds.fetch();
 
         // Attempt to initialize the PG client
-        const pgClient = new PGClient(AUTH.pg);
-        await pgClient.connect();
-        state.setPGClient(pgClient);
-        await logger.log(`PG client connected to \`${pgClient.host}:${pgClient.port}\``);
+        await pgStorageClient.connect();
+        await logger.log(`PG storage client connected: \`${pgStorageClient.toString()}\``);
 
         // Ensure all necessary tables exist, initialize those that don't
-        await initializeTables();
+        await pgStorageClient.initializeTables();
 
         // Deserialize it and load it into the state object
         await loadState();
@@ -241,7 +239,7 @@ client.on('ready', async () => {
             const nextPlayer = state.nextTrackedPlayer();
             if (nextPlayer) {
                 await updatePlayer(nextPlayer);
-                await writeMiscProperty('timestamp', new Date().toJSON());
+                await pgStorageClient.writeMiscProperty('timestamp', new Date().toJSON());
             } else {
                 // No players being tracked
             }
@@ -276,7 +274,7 @@ client.on('messageCreate', async (msg) => {
         // If the message was sent by another bot, troll epic style 😈
         if (msg.author.bot) {
             state.incrementBotCounter(msg.author.id);
-            await writeBotCounter(msg.author.id, state.getBotCounter(msg.author.id));
+            await pgStorageClient.writeBotCounter(msg.author.id, state.getBotCounter(msg.author.id));
             // Wait up to 1.5 seconds before sending the message to make it feel more organic
             setTimeout(() => {
                 const replyText = `**<@${msg.author.id}>** has gained a level in **botting** and is now level **${state.getBotCounter(msg.author.id)}**`;

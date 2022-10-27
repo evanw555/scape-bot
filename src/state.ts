@@ -1,6 +1,5 @@
 import { Snowflake, TextBasedChannel } from 'discord.js';
 import { Boss } from 'osrs-json-hiscores';
-import { Client as PGClient } from 'pg';
 import { MultiLoggerLevel } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName } from './types';
 import PlayerQueue from './player-queue';
@@ -24,8 +23,6 @@ export default class State {
     private readonly _playersByGuild: Record<Snowflake, Set<Snowflake>>;
 
     private readonly _trackingChannelsByGuild: Record<Snowflake, TextBasedChannel>;
-
-    private _pgClient?: PGClient;
 
     constructor() {
         this._isValid = false;
@@ -371,17 +368,6 @@ export default class State {
             allGuildIds.add(guildId);
         }
         return Array.from(allGuildIds).sort();
-    }
-
-    setPGClient(pgCliet: PGClient): void {
-        this._pgClient = pgCliet;
-    }
-
-    getPGClient(): PGClient {
-        if (!this._pgClient) {
-            throw new Error('The PG client is not set in the state object!');
-        }
-        return this._pgClient;
     }
 
     /**

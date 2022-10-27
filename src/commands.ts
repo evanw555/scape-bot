@@ -6,10 +6,10 @@ import { SlashCommandName, HiddenCommand, PlayerHiScores, SlashCommand, HiddenCo
 import { replyUpdateMessage, sendUpdateMessage, updatePlayer, getBossName, isValidBoss } from './util';
 import { fetchHiScores } from './hiscores';
 import { CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, CONFIG, BOSS_CHOICES } from './constants';
-import { deleteTrackedPlayer, insertTrackedPlayer, updateTrackingChannel } from './pg-storage';
 
 import state from './instances/state';
 import logger from './instances/logger';
+import pgStorageClient from './instances/pg-storage-client';
 
 import debugLog from './instances/debug-log';
 import infoLog from './instances/info-log';
@@ -78,7 +78,7 @@ const slashCommands: SlashCommandsType = {
             if (state.isTrackingPlayer(guildId, rsn)) {
                 await interaction.reply({ content: 'That player is already being tracked', ephemeral: true });
             } else {
-                await insertTrackedPlayer(guildId, rsn);
+                await pgStorageClient.insertTrackedPlayer(guildId, rsn);
                 state.addTrackedPlayer(guildId, rsn);
                 await updatePlayer(rsn);
                 await interaction.reply(`Now tracking player **${rsn}**`);
@@ -102,7 +102,7 @@ const slashCommands: SlashCommandsType = {
                 return;
             }
             if (state.isTrackingPlayer(guildId, rsn)) {
-                await deleteTrackedPlayer(guildId, rsn);
+                await pgStorageClient.deleteTrackedPlayer(guildId, rsn);
                 state.removeTrackedPlayer(guildId, rsn);
                 await interaction.reply(`No longer tracking player **${rsn}**`);
                 // TODO: We need to remove this player's data from PG if they're no longer tracked anywhere
@@ -119,7 +119,7 @@ const slashCommands: SlashCommandsType = {
             const guildId = getInteractionGuildId(interaction);
             // TODO: Can we add a batch delete operation?
             for (const rsn of state.getAllTrackedPlayers(guildId)) {
-                await deleteTrackedPlayer(guildId, rsn);
+                await pgStorageClient.deleteTrackedPlayer(guildId, rsn);
             }
             state.clearAllTrackedPlayers(guildId);
             await interaction.reply({ content: 'No longer tracking any players', ephemeral: true });
@@ -232,7 +232,7 @@ const slashCommands: SlashCommandsType = {
     channel: {
         execute: async (interaction) => {
             const guildId = getInteractionGuildId(interaction);
-            await updateTrackingChannel(guildId, interaction.channelId);
+            await pgStorageClient.updateTrackingChannel(guildId, interaction.channelId);
             const textChannel = interaction.channel as TextBasedChannel;
             state.setTrackingChannel(guildId, textChannel);
             await interaction.reply('Player experience updates will now be sent to this channel');
