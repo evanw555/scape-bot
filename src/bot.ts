@@ -1,8 +1,7 @@
 import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User } from 'discord.js';
 import { PlayerHiScores, TimeoutType } from './types';
 import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer, guildCommandRolePermissionsManager } from './util';
-import { TimeoutManager, FileStorage, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel } from 'evanw555.js';
-import { fetchAllPlayerBosses, fetchAllPlayerClues, fetchAllPlayerLevels, fetchAllPlayersWithHiScoreStatus, fetchAllPrivilegedRoles, fetchAllTrackedPlayers, fetchAllTrackingChannels, fetchBotCounters, fetchMiscProperty, fetchWeeklyXpSnapshots, initializeTables, writeBotCounter, writeMiscProperty, writeWeeklyXpSnapshots } from './pg-storage';
+import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel } from 'evanw555.js';
 import CommandReader from './command-reader';
 import CommandHandler from './command-handler';
 import commands from './commands';
@@ -60,7 +59,7 @@ const loadState = async (): Promise<void> => {
         }
     }
     const playersOffHiScores: string[] = await pgStorageClient.fetchAllPlayersWithHiScoreStatus(false);
-    const privilegedRoles = await fetchAllPrivilegedRoles();
+    const privilegedRoles = await pgStorageClient.fetchAllPrivilegedRoles();
     for (const [ guildId, roleId ] of Object.entries(privilegedRoles)) {
         try {
             // Initial guild fetch happens in 'ready' event handler before loadState is invoked

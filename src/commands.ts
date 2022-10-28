@@ -6,7 +6,6 @@ import { SlashCommandsType, HiddenCommandsType, CommandsType, PlayerHiScores } f
 import { replyUpdateMessage, sendUpdateMessage, updatePlayer, getBossName, isValidBoss, guildCommandRolePermissionsManager } from './util';
 import { fetchHiScores } from './hiscores';
 import { CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, CONFIG, BOSS_CHOICES, INVALID_TEXT_CHANNEL } from './constants';
-import { writePrivilegedRole } from './pg-storage';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -280,14 +279,12 @@ const slashCommands: SlashCommandsType = {
             const guild = getInteractionGuild(interaction);
             const mentionable = interaction.options.getMentionable('role', true);
             if (mentionable instanceof Role) {
+                await interaction.deferReply({ ephemeral: true });
                 const newPrivilegedRole = mentionable;
-                await writePrivilegedRole(guild.id, newPrivilegedRole.id);
+                await pgStorageClient.writePrivilegedRole(guild.id, newPrivilegedRole.id);
                 state.setPrivilegedRole(guild.id, newPrivilegedRole);
                 await guildCommandRolePermissionsManager.update(guild);
-                await interaction.reply({
-                    content: `${newPrivilegedRole} can now use **/track**, **/remove**, **/clear**, and **/channel**`,
-                    ephemeral: true
-                });
+                await interaction.editReply(`${newPrivilegedRole} can now use **/track**, **/remove**, **/clear**, and **/channel**`);
             } else {
                 await interaction.reply({
                     content: 'Can only give a mentionable role (**@everyone**, **@Gamers**, etc.) privileges',
