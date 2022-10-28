@@ -8,16 +8,26 @@ import {
     SlashCommandBuilder
 } from 'discord.js';
 import { MultiLoggerLevel } from 'evanw555.js';
-import commands, { INVALID_TEXT_CHANNEL } from './commands';
-import { BuiltSlashCommand, SlashCommandName, CommandOption, CommandWithOptions, SlashCommand } from './types';
+import { INVALID_TEXT_CHANNEL, UNAUTHORIZED_USER, STATE_DISABLED, UNAUTHORIZED_ROLE } from './constants';
+import {
+    BuiltSlashCommand,
+    SlashCommandName,
+    CommandOption,
+    CommandWithOptions,
+    SlashCommand,
+    SlashCommandsType
+} from './types';
 
 import state from './instances/state';
 import logger from './instances/logger';
 
-const UNAUTHORIZED_USER = 'err/unauthorized-user';
-const STATE_DISABLED = 'err/state-disabled';
-
 class CommandHandler {
+    commands: SlashCommandsType;
+
+    constructor(commands: SlashCommandsType) {
+        this.commands = commands;
+    }
+
     /**
      * Asserts the interacting user has administrator permissions in the
      * guild or is a bot admin.
@@ -31,6 +41,31 @@ class CommandHandler {
         }
     }
 
+    static isAdmin(interaction: Interaction) {
+        return interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)
+            || state.isAdmin(interaction.user.id);
+    }
+
+    static assertHasPrivilegedRole(interaction: Interaction) {
+        if (!interaction.guild) {
+            throw new Error(INVALID_TEXT_CHANNEL);
+        }
+        // If there is no saved privileged role then reject the command
+        if (!state.hasPrivilegedRole(interaction.guild.id)) {
+            throw new Error(UNAUTHORIZED_ROLE);
+        } 
+        const privilegedRole = state.getPrivilegedRole(interaction.guild.id);
+        const role = interaction.guild.roles.cache.get(privilegedRole.id);
+        // If the saved role does not exist, then it has been removed
+        if (!role) {
+            logger.log(`Privileged role in state is no longer valid in the guild '${interaction.guild.id}'`, MultiLoggerLevel.Warn);
+            throw new Error(UNAUTHORIZED_ROLE);
+        }
+        if (!role.members.has(interaction.user.id)) {
+            throw new Error(UNAUTHORIZED_ROLE);
+        }
+    }
+
     static failIfDisabled() {
         if (state.isDisabled()) {
             throw new Error(STATE_DISABLED);
@@ -39,10 +74,6 @@ class CommandHandler {
 
     static async sendEmptyResponse(interaction: AutocompleteInteraction) {
         await interaction.respond([]);
-    }
-
-    static isValidCommand(commandName: string): commandName is SlashCommandName {
-        return Object.prototype.hasOwnProperty.call(commands, commandName);
     }
 
     static isCommandWithOptions(command: SlashCommand): command is CommandWithOptions {
@@ -63,6 +94,15 @@ class CommandHandler {
         } else if (err.message === STATE_DISABLED) {
             await interaction.reply({
                 content: 'I can\'t do that while I\'m disabled',
+                ephemeral: true
+            });
+        } else if (err.message === UNAUTHORIZED_ROLE) {
+            const guildId = interaction.guildId as string;
+            const content = state.hasPrivilegedRole(guildId)
+                ? `You must have the ${state.getPrivilegedRole(guildId)} role to use this command`
+                : 'You are not an admin and there is no role set for this command';
+            await interaction.reply({
+                content,
                 ephemeral: true
             });
         } else {
@@ -98,28 +138,66 @@ class CommandHandler {
                 builder = builder.addStringOption((option) => CommandHandler.buildCommandOption(option, optionInfo));
             } else if (optionInfo.type === ApplicationCommandOptionType.Integer) {
                 builder = builder.addIntegerOption((option) => CommandHandler.buildCommandOption(option, optionInfo));
+            } else if (optionInfo.type === ApplicationCommandOptionType.Mentionable) {
+                builder = builder.addMentionableOption((option => CommandHandler.buildCommandOption(option, optionInfo)));
+            } else if (optionInfo.type === ApplicationCommandOptionType.Role) {
+                builder = builder.addRoleOption((option => CommandHandler.buildCommandOption(option, optionInfo)));
             }
         });
         return builder;
     }
-
-    buildCommands(): ApplicationCommandDataResolvable[] {
+    /**
+     * Flexible method that takes static slash command data and uses the key/value arguments
+     * to filter the list.
+     */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    static filterCommands(commands: SlashCommandsType, field: keyof SlashCommand, value: any = true) {
         const commandKeys = Object.keys(commands) as SlashCommandName[];
+        return commandKeys.filter((c: SlashCommandName) => (commands[c][field] === value));
+    }
+
+    isValidCommand(commandName: string): commandName is SlashCommandName {
+        return Object.prototype.hasOwnProperty.call(this.commands, commandName);
+    }
+
+    /**
+     * Gets all privileged command keys (names), i.e. commands where the 'privileged
+     * field is true.
+     */
+    getPrivilegedCommandKeys() {
+        const commandKeys = Object.keys(this.commands) as SlashCommandName[];
+        return commandKeys.filter(name => this.commands[name].privileged);
+    }
+
+    /**
+     * Takes a command key (name) and instantiates a new SlashCommandBuilder to create
+     * a new command using the corresponding data in the static command list.
+     */
+    buildCommand(key: SlashCommandName): ApplicationCommandDataResolvable {
+        const commandInfo = this.commands[key];
+        let command: BuiltSlashCommand = new SlashCommandBuilder()
+            .setName(key)
+            .setDescription(commandInfo.text);
+        // If command has the privileged flag, set the command permissions to admin
+        if (commandInfo.privileged) {
+            command = command.setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
+        }
+        // Build the command options if they exist
+        if (commandInfo.options) {
+            command = CommandHandler.buildCommandOptions(command, commandInfo.options);
+        }
+        return command;
+    }
+
+    /**
+     * Gets the static command data, filters out guild-only commands, and uses the
+     * command builder to create slash commands objects registerable with Discord.
+     */
+    buildCommands(): ApplicationCommandDataResolvable[] {
+        const commandKeys = Object.keys(this.commands) as SlashCommandName[];
         const data: ApplicationCommandDataResolvable[] = [];
         commandKeys.forEach((key) => {
-            const commandInfo = commands[key];
-            let command: BuiltSlashCommand = new SlashCommandBuilder()
-                .setName(key)
-                .setDescription(commandInfo.text);
-            // If command has the privileged flag, set the command permissions to admin
-            if (commandInfo.privileged) {
-                command = command.setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
-            }
-            // Build the command options if they exist
-            if (commandInfo.options) {
-                command = CommandHandler.buildCommandOptions(command, commandInfo.options);
-            }
-            data.push(command);
+            data.push(this.buildCommand(key));
         });
         return data;
     }
@@ -128,11 +206,11 @@ class CommandHandler {
         if (!interaction.isChatInputCommand()) {
             return;
         }
-        if (!CommandHandler.isValidCommand(interaction.commandName)) {
+        if (!this.isValidCommand(interaction.commandName)) {
             await interaction.reply((`**${interaction.commandName}** is not a valid command, use **/help** to see a list of commands`));
             return;
         }
-        const command = commands[interaction.commandName];
+        const command = this.commands[interaction.commandName];
         const debugString = `\`${interaction.user.tag}\` executed command \`${interaction.toString()}\` in ${interaction.channel}`;
         try {
             if (command.failIfDisabled) {
@@ -140,6 +218,12 @@ class CommandHandler {
             }
             if (command.privileged) {
                 CommandHandler.assertIsAdmin(interaction);
+            }
+            if (command.privilegedRole) {
+                // Only need to check role if user is not an admin
+                if (!CommandHandler.isAdmin(interaction)) { 
+                    CommandHandler.assertHasPrivilegedRole(interaction);
+                }
             }
             if (typeof command.execute === 'function') {
                 await command.execute(interaction);
@@ -160,11 +244,11 @@ class CommandHandler {
         if (!interaction.isAutocomplete()) {
             return;
         }
-        if (!CommandHandler.isValidCommand(interaction.commandName)) {
+        if (!this.isValidCommand(interaction.commandName)) {
             await CommandHandler.sendEmptyResponse(interaction);
             return;
         }
-        const command = commands[interaction.commandName];
+        const command = this.commands[interaction.commandName];
         const focusedOption = interaction.options.getFocused(true);
         const debugString = `\`${interaction.user.tag}\` called autocomplete for \`${interaction.commandName}\` in ${interaction.channel} with value \`${focusedOption.value}\``;
         if (!CommandHandler.isCommandWithOptions(command)) {

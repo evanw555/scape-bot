@@ -183,4 +183,13 @@ describe('PGStorageClient Tests', () => {
         const result = await pgStorageClient.purgeUntrackedPlayerData();
         expect(Object.keys(result).length).equals(0);
     });
+
+    it('can read and write privileged roles', async () => {
+        const roleId = randInt(1000, 5000).toString();
+        await pgStorageClient.writePrivilegedRole('12345', roleId);
+
+        const results = await pgStorageClient.fetchAllPrivilegedRoles();
+        expect('12345' in results).true;
+        expect(results['12345']).equals(roleId);
+    });
 });

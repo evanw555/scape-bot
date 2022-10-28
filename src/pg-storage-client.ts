@@ -7,7 +7,7 @@ import { IndividualSkillName, IndividualClueType, MiscPropertyName } from './typ
 
 import logger from './instances/logger';
 
-type TableName = 'weekly_xp_snapshots' | 'player_levels' | 'player_bosses' | 'player_clues' | 'tracked_players' | 'tracking_channels' | 'player_hiscore_status' | 'bot_counters' | 'misc_properties';
+type TableName = 'weekly_xp_snapshots' | 'player_levels' | 'player_bosses' | 'player_clues' | 'tracked_players' | 'tracking_channels' | 'player_hiscore_status' | 'bot_counters' | 'privileged_roles' | 'misc_properties';
 
 export default class PGStorageClient {
     private static readonly TABLES: Record<TableName, string> = {
@@ -19,6 +19,7 @@ export default class PGStorageClient {
         'tracking_channels': 'CREATE TABLE tracking_channels (guild_id BIGINT PRIMARY KEY, channel_id BIGINT);',
         'player_hiscore_status': 'CREATE TABLE player_hiscore_status (rsn VARCHAR(12) PRIMARY KEY, on_hiscores BOOLEAN);',
         'bot_counters': 'CREATE TABLE bot_counters (user_id BIGINT PRIMARY KEY, counter INTEGER);',
+        'privileged_roles': 'CREATE TABLE privileged_roles (guild_id BIGINT PRIMARY KEY, role_id BIGINT);',
         'misc_properties': 'CREATE TABLE misc_properties (name VARCHAR(32) PRIMARY KEY, value VARCHAR(2048));'
     };
 
@@ -226,6 +227,19 @@ export default class PGStorageClient {
             }
         }
         return rowsDeleted;
+    }
+
+    async fetchAllPrivilegedRoles(): Promise<Record<Snowflake, Snowflake>> {
+        const result: Record<Snowflake, Snowflake> = {};
+        const queryResult = await this.client.query<{guild_id: Snowflake, role_id: Snowflake}>('SELECT * FROM privileged_roles;');
+        for (const row of queryResult.rows) {
+            result[row.guild_id] = row.role_id;
+        }
+        return result;
+    }
+    
+    async writePrivilegedRole(guildId: Snowflake, roleId: Snowflake): Promise<void> {
+        await this.client.query('INSERT INTO privileged_roles VALUES ($1, $2) ON CONFLICT (guild_id) DO UPDATE SET role_id = EXCLUDED.role_id;', [guildId, roleId]);
     }
     
     async fetchMiscProperty(name: MiscPropertyName): Promise<string | null> {
