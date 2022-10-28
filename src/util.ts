@@ -1,15 +1,18 @@
+import axios, { AxiosError } from 'axios';
 import { Boss, BOSSES, INVALID_FORMAT_ERROR, FORMATTED_BOSS_NAMES } from 'osrs-json-hiscores';
-import { ChatInputCommandInteraction, TextBasedChannel } from 'discord.js';
+import { ApplicationCommandPermissionType, ChatInputCommandInteraction, Guild, TextBasedChannel } from 'discord.js';
 import { addReactsSync, MultiLoggerLevel, randChoice } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName, PlayerHiScores } from './types';
 import { fetchHiScores } from './hiscores';
-import { BOSS_EMBED_COLOR, CLUES_NO_ALL, CLUE_EMBED_COLOR, COMPLETE_VERB_BOSSES, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, DOPE_COMPLETE_VERBS, DOPE_KILL_VERBS, GRAY_EMBED_COLOR, RED_EMBED_COLOR, SKILLS_NO_OVERALL, SKILL_EMBED_COLOR, YELLOW_EMBED_COLOR } from './constants';
+import { AUTH, BOSS_EMBED_COLOR, CLUES_NO_ALL, CLUE_EMBED_COLOR, COMPLETE_VERB_BOSSES, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, DOPE_COMPLETE_VERBS, DOPE_KILL_VERBS, GRAY_EMBED_COLOR, RED_EMBED_COLOR, SKILLS_NO_OVERALL, SKILL_EMBED_COLOR, YELLOW_EMBED_COLOR } from './constants';
 
 import { CONSTANTS } from './constants';
 
 import state from './instances/state';
 import logger from './instances/logger';
 import pgStorageClient from './instances/pg-storage-client';
+import slashCommands from './commands';
+import CommandHandler from './command-handler';
 
 const validSkills: Set<string> = new Set(CONSTANTS.skills);
 const validClues: Set<string> = new Set(CLUES_NO_ALL);
@@ -495,3 +498,110 @@ export function getNextFridayEvening(): Date {
     }
     return nextFriday;
 }
+
+class BearerTokenService {
+    static DISCORD_TOKEN_ENDPOINT = 'https://discord.com/api/v10/oauth2/token';
+
+    grantType: string;
+    scope: string;
+    token?: string;
+
+    constructor(grantType: string, scope: string) {
+        this.grantType = grantType;
+        this.scope = scope;
+    }
+
+    async get(): Promise<string> {
+        try {
+            if (this.token) {
+                return this.token; 
+            }
+            const response = await axios.post(
+                BearerTokenService.DISCORD_TOKEN_ENDPOINT,
+                {
+                    grant_type: this.grantType,
+                    scope: this.scope
+                },
+                {
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    auth: { username: AUTH.clientId, password: AUTH.clientSecret }
+                }
+            );
+            if (!response.data && typeof response.data.access_token !== 'string') {
+                throw new Error(`None or invalid response data: ${response.data}`);
+            }
+            this.token = response.data.access_token as string;
+            return this.token;
+        } catch (err) {
+            if (err instanceof AxiosError) {
+                logger.log(`Failed with status ${err.status}: ${err.message}`, MultiLoggerLevel.Debug);
+            }
+            logger.log(`There was an error refreshing the bearerToken: ${err}`, MultiLoggerLevel.Error);
+            throw err;
+        }
+    }
+}
+
+// TODO: This service needs to call to refresh the bearerToken when the API returns
+// a token expired response.
+export class GuildCommandRolePermissionsManager {
+    tokenService: BearerTokenService;
+
+    constructor() {
+        this.tokenService = new BearerTokenService(
+            'client_credentials',
+            'applications.commands.permissions.update'
+        );
+    }
+
+    /**
+     * This method gets the privileged role for the guild argument and overwrites the application
+     * commands for this guild with new permissions set to this role. Any existing role(s) will be
+     * removed before the new one is added.
+     */
+    async update(guild: Guild) {
+        // If guild has set a privileged role
+        if (state.hasPrivilegedRole(guild.id)) {
+            const bearerToken = await this.tokenService.get();
+            const privilegedRole = state.getPrivilegedRole(guild.id);
+            const privilegedCommandKeys = CommandHandler.filterCommands(slashCommands, 'privileged') as string[];
+            const guildCommands = await guild.commands.fetch();
+            const privilegedGuildCommands = guildCommands.filter(guildCommand =>
+                privilegedCommandKeys.indexOf(guildCommand.name) > -1);
+            // Create new command permissions object with new role for each privileged command
+            const commandPermissionsList = privilegedGuildCommands.map(c => ({
+                command: c.id,
+                token: bearerToken,
+                permissions: [{
+                    id: privilegedRole.id,
+                    type: ApplicationCommandPermissionType.Role,
+                    permission: true
+                }]
+            }));
+            const results = await Promise.all(commandPermissionsList.map(async (commandPermissions) => {
+                const commandId = commandPermissions.command;
+                // Get the current permissions if exists for the command
+                try {
+                    const permissions = await guild.commands.permissions.fetch({ command: commandId });
+                    if (permissions.length) {
+                        const roles: string[] = [];
+                        // For each role, remove the associated permission for the command
+                        permissions.forEach(permission => roles.push(permission.id));
+                        await guild.commands.permissions.remove({
+                            command: commandId,
+                            roles,
+                            token: bearerToken
+                        });
+                    }
+                } catch (err) {
+                    logger.log(`Failed to find existing permissions for command '${commandId}' due to ${err}`, MultiLoggerLevel.Error);
+                }
+                // Set the new permissions for the command
+                return guild.commands.permissions.add(commandPermissions);
+            }));
+            logger.log(`Updated guild '${guild.id}' command permissions: \`${JSON.stringify(results)}\``, MultiLoggerLevel.Debug);
+        }
+    }
+}
+
+export const guildCommandRolePermissionsManager = new GuildCommandRolePermissionsManager();
