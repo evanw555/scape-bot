@@ -34,18 +34,16 @@ const getHelpText = (hidden: boolean, privileged = false) => {
     return `\`\`\`asciidoc\n${innerText}\`\`\``;
 };
 
-const getInteractionGuildId = (interaction: ChatInputCommandInteraction): string => {
-    if (typeof interaction.guildId !== 'string') {
-        throw new Error(INVALID_TEXT_CHANNEL);
-    }
-    return interaction.guildId;
-};
-
 const getInteractionGuild = (interaction: ChatInputCommandInteraction): Guild => {
     if (!(interaction.guild instanceof Guild)) {
         throw new Error(INVALID_TEXT_CHANNEL);
     }
     return interaction.guild;
+};
+
+const getInteractionGuildId = (interaction: ChatInputCommandInteraction): string => {
+    const guild = getInteractionGuild(interaction);
+    return guild.id;
 };
 
 const slashCommands: SlashCommandsType = {
@@ -278,10 +276,13 @@ const slashCommands: SlashCommandsType = {
         execute: async (interaction) => {
             const guild = getInteractionGuild(interaction);
             const privilegedRole = interaction.options.getRole('role', true);
+            // Defer the reply since calls to the command permissions update endpoint can take some time
             await interaction.deferReply({ ephemeral: true });
             await pgStorageClient.writePrivilegedRole(guild.id, privilegedRole.id);
             state.setPrivilegedRole(guild.id, privilegedRole);
+            // Use the service to update permissions for privileged commands in the guild
             await guildCommandRolePermissionsManager.update(guild);
+            // Complete the reply
             await interaction.editReply(`${privilegedRole} can now use **/track**, **/remove**, **/clear**, and **/channel**`);
         },
         text: 'Set a non-admin server role that can use /track, /remove, /clear, and /channel',

@@ -245,15 +245,20 @@ client.on('ready', async () => {
 
         // Register global slash commands on startup
         if (client.application) {
+            // Builds the command using static command data and SlashCommandBuilder
             const globalCommands = commandHandler.buildGlobalCommands();
+            // Send built commands in request to Discord to set global commands
             const results = await client.application.commands.set(globalCommands);
             await logger.log(`Refreshed ${results.size} application (/) commands`);
         }
 
-        // Register guild slash command on startup
+        // Register guild slash command on startup, first build the commands
         const guildCommands = commandHandler.buildGuildCommands();
+        // For each guild, set the guild commands and permissions if necessary
         const results = await Promise.all(client.guilds.cache.map(async (guild) => {
+            // Send built commands in request to Discord to set guild commands
             const results = await guild.commands.set(guildCommands);
+            // If a privileged role exists, call the command permissions update endpoint
             if (state.hasPrivilegedRole(guild.id)) {
                 await guildCommandRolePermissionsManager.update(guild);
             }

@@ -112,7 +112,10 @@ class CommandHandler {
         });
         return builder;
     }
-
+    /**
+     * Flexible method that takes static slash command data and uses the key/value arguments
+     * to filter the list.
+     */
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     static filterCommands(commands: SlashCommandsType, field: keyof SlashCommand, value: any = true) {
         const commandKeys = Object.keys(commands) as SlashCommandName[];
@@ -123,21 +126,35 @@ class CommandHandler {
         return Object.prototype.hasOwnProperty.call(this.commands, commandName);
     }
 
+    /**
+     * Gets all global command keys (names), i.e. commands where the 'guild' field is not true.
+     */
     getGlobalCommandKeys() {
         const commandKeys = Object.keys(this.commands) as SlashCommandName[];
         return commandKeys.filter(name => !this.commands[name].guild);
     }
 
+    /**
+     * Gets all guild commands keys (names), i.e. commands where the 'guild' field is true.
+     */
     getGuildCommandKeys() {
         const commandKeys = Object.keys(this.commands) as SlashCommandName[];
         return commandKeys.filter(name => this.commands[name].guild);
     }
 
+    /**
+     * Gets all privileged command keys (names), i.e. commands where the 'privileged
+     * field is true.
+     */
     getPrivilegedCommandKeys() {
         const commandKeys = Object.keys(this.commands) as SlashCommandName[];
         return commandKeys.filter(name => this.commands[name].privileged);
     }
 
+    /**
+     * Takes a command key (name) and instantiates a new SlashCommandBuilder to create
+     * a new command using the corresponding data in the static command list.
+     */
     buildCommand(key: SlashCommandName): ApplicationCommandDataResolvable {
         const commandInfo = this.commands[key];
         let command: BuiltSlashCommand = new SlashCommandBuilder()
@@ -154,6 +171,10 @@ class CommandHandler {
         return command;
     }
 
+    /**
+     * Gets the static command data, filters out guild-only commands, and uses the
+     * command builder to create slash commands objects registerable with Discord.
+     */
     buildGlobalCommands(): ApplicationCommandDataResolvable[] {
         const commandKeys = this.getGlobalCommandKeys();
         const data: ApplicationCommandDataResolvable[] = [];
@@ -163,6 +184,10 @@ class CommandHandler {
         return data;
     }
 
+    /**
+     * Gets the static command data, filters out non-guild commands, and uses the
+     * command builder to create slash command objects registerable to Discord guilds.
+     */
     buildGuildCommands(): ApplicationCommandDataResolvable[] {
         const commandKeys = this.getGuildCommandKeys();
         const data: ApplicationCommandDataResolvable[] = [];
