@@ -104,8 +104,10 @@ class CommandHandler {
                 builder = builder.addStringOption((option) => CommandHandler.buildCommandOption(option, optionInfo));
             } else if (optionInfo.type === ApplicationCommandOptionType.Integer) {
                 builder = builder.addIntegerOption((option) => CommandHandler.buildCommandOption(option, optionInfo));
-            } else if(optionInfo.type === ApplicationCommandOptionType.Mentionable) {
+            } else if (optionInfo.type === ApplicationCommandOptionType.Mentionable) {
                 builder = builder.addMentionableOption((option => CommandHandler.buildCommandOption(option, optionInfo)));
+            } else if (optionInfo.type === ApplicationCommandOptionType.Role) {
+                builder = builder.addRoleOption((option => CommandHandler.buildCommandOption(option, optionInfo)));
             }
         });
         return builder;

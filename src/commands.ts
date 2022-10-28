@@ -1,4 +1,4 @@
-import { ApplicationCommandOptionType, ChatInputCommandInteraction, Guild, Message, PermissionFlagsBits, Role, TextBasedChannel } from 'discord.js';
+import { ApplicationCommandOptionType, ChatInputCommandInteraction, Guild, Message, PermissionFlagsBits, TextBasedChannel } from 'discord.js';
 import { FORMATTED_BOSS_NAMES, Boss, BOSSES } from 'osrs-json-hiscores';
 import { exec } from 'child_process';
 import { MultiLoggerLevel, randChoice, randInt } from 'evanw555.js';
@@ -270,27 +270,19 @@ const slashCommands: SlashCommandsType = {
     },
     role: {
         options: [{
-            type: ApplicationCommandOptionType.Mentionable,
+            type: ApplicationCommandOptionType.Role,
             name: 'role',
             description: 'Server Role',
             required: true
         }],
         execute: async (interaction) => {
             const guild = getInteractionGuild(interaction);
-            const mentionable = interaction.options.getMentionable('role', true);
-            if (mentionable instanceof Role) {
-                await interaction.deferReply({ ephemeral: true });
-                const newPrivilegedRole = mentionable;
-                await pgStorageClient.writePrivilegedRole(guild.id, newPrivilegedRole.id);
-                state.setPrivilegedRole(guild.id, newPrivilegedRole);
-                await guildCommandRolePermissionsManager.update(guild);
-                await interaction.editReply(`${newPrivilegedRole} can now use **/track**, **/remove**, **/clear**, and **/channel**`);
-            } else {
-                await interaction.reply({
-                    content: 'Can only give a mentionable role (**@everyone**, **@Gamers**, etc.) privileges',
-                    ephemeral: true
-                });
-            }
+            const privilegedRole = interaction.options.getRole('role', true);
+            await interaction.deferReply({ ephemeral: true });
+            await pgStorageClient.writePrivilegedRole(guild.id, privilegedRole.id);
+            state.setPrivilegedRole(guild.id, privilegedRole);
+            await guildCommandRolePermissionsManager.update(guild);
+            await interaction.editReply(`${privilegedRole} can now use **/track**, **/remove**, **/clear**, and **/channel**`);
         },
         text: 'Set a non-admin server role that can use /track, /remove, /clear, and /channel',
         privileged: true

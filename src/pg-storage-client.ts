@@ -197,10 +197,6 @@ export default class PGStorageClient {
         return result;
     }
     
-    async deletePrivilegedRole(guildId: Snowflake, roleId: Snowflake): Promise<void> {
-        await this.client.query('DELETE FROM privileged_roles WHERE guild_id = $1 AND role_id = $2;', [guildId, roleId]);
-    }
-    
     async writePrivilegedRole(guildId: Snowflake, roleId: Snowflake): Promise<void> {
         await this.client.query('INSERT INTO privileged_roles VALUES ($1, $2) ON CONFLICT (guild_id) DO UPDATE SET role_id = EXCLUDED.role_id;', [guildId, roleId]);
     }
