@@ -59,7 +59,8 @@ export default class PGStorageClient {
         const result: Record<Snowflake, number> = {};
         const res = await this.client.query<{rsn: string, xp: number}>('SELECT * FROM weekly_xp_snapshots;');
         for (const row of res.rows) {
-            result[row.rsn] = row.xp;
+            // Big ints are returned as strings in node-postgres
+            result[row.rsn] = parseInt(row.xp.toString());
         }
         return result;
     }
