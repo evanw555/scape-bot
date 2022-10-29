@@ -1,11 +1,12 @@
-import { ApplicationCommandOptionType, ChatInputCommandInteraction, Message, PermissionFlagsBits, TextBasedChannel } from 'discord.js';
+import { ApplicationCommandOptionType, ChatInputCommandInteraction, Guild, Message, PermissionFlagsBits, TextBasedChannel } from 'discord.js';
 import { FORMATTED_BOSS_NAMES, Boss, BOSSES } from 'osrs-json-hiscores';
 import { exec } from 'child_process';
 import { MultiLoggerLevel, randChoice, randInt } from 'evanw555.js';
-import { SlashCommandName, HiddenCommand, PlayerHiScores, SlashCommand, HiddenCommandName, Command } from './types';
-import { replyUpdateMessage, sendUpdateMessage, updatePlayer, getBossName, isValidBoss } from './util';
+import { SlashCommandsType, HiddenCommandsType, CommandsType, PlayerHiScores } from './types';
+import { replyUpdateMessage, sendUpdateMessage, updatePlayer, getBossName, isValidBoss, setGuildCommandRolePermissions } from './util';
 import { fetchHiScores } from './hiscores';
-import { CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, CONFIG, BOSS_CHOICES } from './constants';
+import CommandHandler from './command-handler';
+import { CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, CONFIG, BOSS_CHOICES, INVALID_TEXT_CHANNEL } from './constants';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -15,10 +16,6 @@ import debugLog from './instances/debug-log';
 import infoLog from './instances/info-log';
 
 const validSkills = new Set<string>(CONSTANTS.skills);
-
-type CommandsType = Record<string, Command>;
-type SlashCommandsType = Record<SlashCommandName, SlashCommand>;
-type HiddenCommandsType = Record<HiddenCommandName, HiddenCommand>;
 
 const getHelpText = (hidden: boolean, privileged = false) => {
     const commands: CommandsType = hidden ? hiddenCommands : slashCommands;
@@ -38,13 +35,30 @@ const getHelpText = (hidden: boolean, privileged = false) => {
     return `\`\`\`asciidoc\n${innerText}\`\`\``;
 };
 
-export const INVALID_TEXT_CHANNEL = 'err/invalid-text-channel';
+const getGuildCommandsListString = (markdown = false): string => {
+    const guildCommands = CommandHandler.filterCommands(slashCommands, 'guild');
+    const bold = (key: string) => `${markdown ? '**' : ''}/${key}${markdown ? '**' : ''}`;
+    return guildCommands.reduce((str, key, idx) => {
+        if (idx === guildCommands.length - 1) {
+            return str += `, and ${bold(key)}`;
+        } else if (idx === 0) {
+            return str += `${bold(key)}`;
+        } else {
+            return str += `, ${bold(key)}`;
+        }
+    }, '');
+};
 
-const getInteractionGuildId = (interaction: ChatInputCommandInteraction): string => {
-    if (typeof interaction.guildId !== 'string') {
+const getInteractionGuild = (interaction: ChatInputCommandInteraction): Guild => {
+    if (!(interaction.guild instanceof Guild)) {
         throw new Error(INVALID_TEXT_CHANNEL);
     }
-    return interaction.guildId;
+    return interaction.guild;
+};
+
+const getInteractionGuildId = (interaction: ChatInputCommandInteraction): string => {
+    const guild = getInteractionGuild(interaction);
+    return guild.id;
 };
 
 const slashCommands: SlashCommandsType = {
@@ -85,6 +99,8 @@ const slashCommands: SlashCommandsType = {
             }
         },
         text: 'Tracks a player and gives updates when they level up',
+        privileged: true,
+        guild: true,
         failIfDisabled: true
     },
     remove: {
@@ -112,6 +128,8 @@ const slashCommands: SlashCommandsType = {
             }
         },
         text: 'Stops tracking a player',
+        privileged: true,
+        guild: true,
         failIfDisabled: true
     },
     clear: {
@@ -128,6 +146,7 @@ const slashCommands: SlashCommandsType = {
         },
         text: 'Stops tracking all players',
         privileged: true,
+        guild: true,
         failIfDisabled: true
     },
     list: {
@@ -239,6 +258,7 @@ const slashCommands: SlashCommandsType = {
         },
         text: 'All player updates will be sent to the channel where this command is issued',
         privileged: true,
+        guild: true,
         failIfDisabled: true
     },
     details: {
@@ -259,6 +279,27 @@ const slashCommands: SlashCommandsType = {
             }
         },
         text: 'Show details of when each tracked player was last updated',
+        privileged: true
+    },
+    role: {
+        options: [{
+            type: ApplicationCommandOptionType.Role,
+            name: 'role',
+            description: 'Server role',
+            required: true
+        }],
+        execute: async (interaction) => {
+            const guild = getInteractionGuild(interaction);
+            const privilegedRole = interaction.options.getRole('role', true);
+            // Defer the reply since calls to the command permissions update endpoint can take some time
+            await interaction.deferReply({ ephemeral: true });
+            await pgStorageClient.writePrivilegedRole(guild.id, privilegedRole.id);
+            state.setPrivilegedRole(guild.id, privilegedRole);
+            // Use the service to update permissions for privileged commands in the guild
+            await setGuildCommandRolePermissions(guild);
+            await interaction.editReply(`${privilegedRole} can now use ${getGuildCommandsListString(true)}`);
+        },
+        text: 'Set a non-admin server role that can use commands like /track, /remove, and more',
         privileged: true
     }
 };

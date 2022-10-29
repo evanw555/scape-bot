@@ -1,5 +1,5 @@
 import { Boss, BOSSES, INVALID_FORMAT_ERROR, FORMATTED_BOSS_NAMES } from 'osrs-json-hiscores';
-import { ChatInputCommandInteraction, TextBasedChannel } from 'discord.js';
+import { ApplicationCommandPermissionType, ChatInputCommandInteraction, Guild, TextBasedChannel } from 'discord.js';
 import { addReactsSync, MultiLoggerLevel, randChoice } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName, PlayerHiScores } from './types';
 import { fetchHiScores } from './hiscores';
@@ -10,6 +10,9 @@ import { CONSTANTS } from './constants';
 import state from './instances/state';
 import logger from './instances/logger';
 import pgStorageClient from './instances/pg-storage-client';
+import discordApiClient from './instances/discord-api-client';
+import slashCommands from './commands';
+import CommandHandler from './command-handler';
 
 const validSkills: Set<string> = new Set(CONSTANTS.skills);
 const validClues: Set<string> = new Set(CLUES_NO_ALL);
@@ -494,4 +497,53 @@ export function getNextFridayEvening(): Date {
         nextFriday.setHours(nextFriday.getHours() + (24 * 7));
     }
     return nextFriday;
+}
+
+export async function setGuildCommandRolePermissions(guild: Guild): Promise<void> {
+    // If guild has set a privileged role
+    if (state.hasPrivilegedRole(guild.id)) {
+        const privilegedRole = state.getPrivilegedRole(guild.id);
+        const privilegedCommandKeys = CommandHandler.filterCommands(slashCommands, 'privileged') as string[];
+        const guildCommands = await guild.commands.fetch();
+        // By wrapping this code block in wrapRequest() we can attempt it again
+        // with a new token if it fails due to an expired bearer token.
+        discordApiClient.wrapRequest(async () => {
+            const bearerToken = await discordApiClient.getToken();
+            const privilegedGuildCommands = guildCommands.filter(guildCommand =>
+                privilegedCommandKeys.indexOf(guildCommand.name) > -1);
+            // Create new command permissions object with new role for each privileged command
+            const commandPermissionsList = privilegedGuildCommands.map(c => ({
+                command: c.id,
+                token: bearerToken,
+                permissions: [{
+                    id: privilegedRole.id,
+                    type: ApplicationCommandPermissionType.Role,
+                    permission: true
+                }]
+            }));
+            const results = await Promise.all(commandPermissionsList.map(async (commandPermissions) => {
+                const commandId = commandPermissions.command;
+                // Get the current permissions if exists for the command
+                let permissions;
+                try {
+                    permissions = await guild.commands.permissions.fetch({ command: commandId });
+                } catch (err) {
+                    logger.log(`Failed to find existing permissions for command '${commandId}' due to ${err}`, MultiLoggerLevel.Error);
+                }
+                if (permissions && permissions.length) {
+                    const roles: string[] = [];
+                    // For each role, remove the associated permission for the command
+                    permissions.forEach(permission => roles.push(permission.id));
+                    await guild.commands.permissions.remove({
+                        command: commandId,
+                        roles,
+                        token: bearerToken
+                    });
+                }
+                // Set the new permissions for the command
+                return guild.commands.permissions.add(commandPermissions);
+            }));
+            logger.log(`Updated guild '${guild.id}' command permissions: \`${JSON.stringify(results)}\``, MultiLoggerLevel.Debug);
+        });
+    }
 }

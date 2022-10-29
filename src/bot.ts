@@ -1,9 +1,10 @@
 import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User } from 'discord.js';
-import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel } from 'evanw555.js';
 import { PlayerHiScores, TimeoutType } from './types';
-import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer } from './util';
+import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer, setGuildCommandRolePermissions } from './util';
+import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel } from 'evanw555.js';
 import CommandReader from './command-reader';
 import CommandHandler from './command-handler';
+import commands from './commands';
 import { fetchHiScores } from './hiscores';
 import TimeoutStorage from './timeout-storage';
 
@@ -12,10 +13,11 @@ import { AUTH, CONFIG, TIMEOUTS_PROPERTY } from './constants';
 import state from './instances/state';
 import logger from './instances/logger';
 import pgStorageClient from './instances/pg-storage-client';
+import discordApiClient from './instances/discord-api-client';
 
 // TODO: Deprecate CommandReader in favor of CommandHandler
 const commandReader: CommandReader = new CommandReader();
-const commandHandler: CommandHandler = new CommandHandler();
+const commandHandler: CommandHandler = new CommandHandler(commands);
 
 export async function sendRestartMessage(downtimeMillis: number): Promise<void> {
     const text = `ScapeBot online after **${getDurationString(downtimeMillis)}** of downtime. In **${client.guilds.cache.size}** guild(s).\n`;
@@ -58,6 +60,28 @@ const loadState = async (): Promise<void> => {
         }
     }
     const playersOffHiScores: string[] = await pgStorageClient.fetchAllPlayersWithHiScoreStatus(false);
+    const privilegedRoles = await pgStorageClient.fetchAllPrivilegedRoles();
+    for (const [ guildId, roleId ] of Object.entries(privilegedRoles)) {
+        try {
+            // Initial guild fetch happens in 'ready' event handler before loadState is invoked
+            const guild = client.guilds.cache.find(g => g.id === guildId);
+            if (!guild) {
+                logger.log(`Bot is not connected to guildId '${guildId} for privileged role '${roleId}'`);
+                break;
+            }
+            const privilegedRole = guild.roles.cache.find(r => r.id === roleId);
+            if (privilegedRole) {
+                state.setPrivilegedRole(guildId, privilegedRole);
+            }
+        } catch (err) {
+            if (err instanceof Error) {
+                // TODO: Handle cleanup if DiscordApiError[50001]: Missing Access; once 'guildDelete'
+                // event handler is set up, this should only happen if the bot is kicked while the
+                // bot client is down.
+                logger.log(`Failed to set privileged role for guild ${guildId} due to: ${err.toString()}`, MultiLoggerLevel.Error);
+            }
+        }
+    }
     for (const rsn of playersOffHiScores) {
         state.removePlayerFromHiScores(rsn);
     }
@@ -191,6 +215,9 @@ client.on('ready', async () => {
 
         // Fetch guilds to load them into the cache
         await client.guilds.fetch();
+        
+        // Cache a valid bearer token
+        await discordApiClient.fetchToken();
 
         // Attempt to initialize the PG client
         await pgStorageClient.connect();
@@ -222,10 +249,26 @@ client.on('ready', async () => {
 
         // Register global slash commands on startup
         if (client.application) {
-            const commands = commandHandler.buildCommands();
-            const results = await client.application.commands.set(commands);
+            // Builds the command using static command data and SlashCommandBuilder
+            const globalCommands = commandHandler.buildGlobalCommands();
+            // Send built commands in request to Discord to set global commands
+            const results = await client.application.commands.set(globalCommands);
             await logger.log(`Refreshed ${results.size} application (/) commands`);
         }
+
+        // Register guild slash command on startup, first build the commands
+        const guildCommands = commandHandler.buildGuildCommands();
+        // For each guild, set the guild commands and permissions if necessary
+        const results = await Promise.all(client.guilds.cache.map(async (guild) => {
+            // Send built commands in request to Discord to set guild commands
+            const results = await guild.commands.set(guildCommands);
+            // If a privileged role exists, call the command permissions update endpoint
+            if (state.hasPrivilegedRole(guild.id)) {
+                await setGuildCommandRolePermissions(guild);
+            }
+            return results;
+        }));
+        await logger.log(`Refreshed ${guildCommands.length} guild (/) commands for ${results.length} guilds`);
 
         // Notify the admin that the bot has restarted
         sendRestartMessage(downtimeMillis);
@@ -250,8 +293,14 @@ client.on('ready', async () => {
     }, CONFIG.refreshInterval);
 });
 
-client.on('guildCreate', (guild) => {
+client.on('guildCreate', async (guild) => {
     try {
+        const results = await guild.commands.set(commandHandler.buildGuildCommands());
+        if (state.hasPrivilegedRole(guild.id)) {
+            await setGuildCommandRolePermissions(guild);
+        }
+        await logger.log(`Registered ${results.size} (/) commands for guild '${guild.id}'`, MultiLoggerLevel.Debug);
+
         const systemChannel = guild.systemChannel;
         if (systemChannel) {
             systemChannel.send(`Thanks for adding ${client.user} to your server! Use **/track** to start tracking `
@@ -290,9 +339,11 @@ client.on('messageCreate', async (msg) => {
     }
 });
 
-client.on('interactionCreate', commandHandler.handleChatInputCommand);
+client.on('interactionCreate', (interaction) =>
+    commandHandler.handleChatInputCommand(interaction));
 
-client.on('interactionCreate', commandHandler.handleAutocomplete);
+client.on('interactionCreate', (interaction) =>
+    commandHandler.handleAutocomplete(interaction));
 
 // Login!!!
 client.login(AUTH.token);
