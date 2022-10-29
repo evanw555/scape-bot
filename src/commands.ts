@@ -5,6 +5,7 @@ import { MultiLoggerLevel, randChoice, randInt } from 'evanw555.js';
 import { SlashCommandsType, HiddenCommandsType, CommandsType, PlayerHiScores } from './types';
 import { replyUpdateMessage, sendUpdateMessage, updatePlayer, getBossName, isValidBoss, setGuildCommandRolePermissions } from './util';
 import { fetchHiScores } from './hiscores';
+import CommandHandler from './command-handler';
 import { CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, CONFIG, BOSS_CHOICES, INVALID_TEXT_CHANNEL } from './constants';
 
 import state from './instances/state';
@@ -32,6 +33,20 @@ const getHelpText = (hidden: boolean, privileged = false) => {
         .map(key => `${hidden ? '' : '/'}${key.padEnd(maxLengthKey)} :: ${commands[key].text}`)
         .join('\n');
     return `\`\`\`asciidoc\n${innerText}\`\`\``;
+};
+
+const getGuildCommandsListString = (markdown = false): string => {
+    const guildCommands = CommandHandler.filterCommands(slashCommands, 'guild');
+    const bold = (key: string) => `${markdown ? '**' : ''}/${key}${markdown ? '**' : ''}`;
+    return guildCommands.reduce((str, key, idx) => {
+        if (idx === guildCommands.length - 1) {
+            return str += `, and ${bold(key)}`;
+        } else if (idx === 0) {
+            return str += `${bold(key)}`;
+        } else {
+            return str += `, ${bold(key)}`;
+        }
+    }, '');
 };
 
 const getInteractionGuild = (interaction: ChatInputCommandInteraction): Guild => {
@@ -270,7 +285,7 @@ const slashCommands: SlashCommandsType = {
         options: [{
             type: ApplicationCommandOptionType.Role,
             name: 'role',
-            description: 'Server Role',
+            description: 'Server role',
             required: true
         }],
         execute: async (interaction) => {
@@ -282,9 +297,9 @@ const slashCommands: SlashCommandsType = {
             state.setPrivilegedRole(guild.id, privilegedRole);
             // Use the service to update permissions for privileged commands in the guild
             await setGuildCommandRolePermissions(guild);
-            await interaction.editReply(`${privilegedRole} can now use **/track**, **/remove**, **/clear**, and **/channel**`);
+            await interaction.editReply(`${privilegedRole} can now use ${getGuildCommandsListString(true)}`);
         },
-        text: 'Set a non-admin server role that can use /track, /remove, /clear, and /channel',
+        text: 'Set a non-admin server role that can use commands like /track, /remove, and more',
         privileged: true
     }
 };
