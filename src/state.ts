@@ -1,4 +1,4 @@
-import { APIRole, Role, Snowflake, TextBasedChannel } from 'discord.js';
+import { Snowflake, TextBasedChannel } from 'discord.js';
 import { Boss } from 'osrs-json-hiscores';
 import { MultiLoggerLevel } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName } from './types';
@@ -23,7 +23,6 @@ export default class State {
     private readonly _playersByGuild: Record<Snowflake, Set<Snowflake>>;
 
     private readonly _trackingChannelsByGuild: Record<Snowflake, TextBasedChannel>;
-    private readonly _privilegedRolesByGuild: Record<Snowflake, Role | APIRole>;
 
     constructor() {
         this._isValid = false;
@@ -40,7 +39,6 @@ export default class State {
         this._guildsByPlayer = {};
         this._playersByGuild = {};
         this._trackingChannelsByGuild = {};
-        this._privilegedRolesByGuild = {};
     }
 
     isValid(): boolean {
@@ -195,21 +193,6 @@ export default class State {
         return this.getGuildsTrackingPlayer(rsn)
             .filter(guildId => this.hasTrackingChannel(guildId))
             .map(guildId => this.getTrackingChannel(guildId));
-    }
-
-    getPrivilegedRole(guildId: Snowflake): Role | APIRole {
-        if (!this._privilegedRolesByGuild[guildId]) {
-            throw new Error('Privileged role does not exist');
-        }
-        return this._privilegedRolesByGuild[guildId];
-    }
-
-    setPrivilegedRole(guildId: Snowflake, role: Role | APIRole): void {
-        this._privilegedRolesByGuild[guildId] = role;
-    }
-
-    hasPrivilegedRole(guildId: Snowflake): boolean {
-        return guildId in this._privilegedRolesByGuild;
     }
 
     getLastUpdated(rsn: string): Date | undefined {

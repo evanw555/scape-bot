@@ -48,7 +48,3 @@ export const COMPLETE_VERB_BOSSES: Set<Boss> = new Set<Boss>([
     'tombsOfAmascut',
     'tombsOfAmascutExpertMode'
 ]);
-
-export const INVALID_TEXT_CHANNEL = 'err/invalid-text-channel';
-export const UNAUTHORIZED_USER = 'err/unauthorized-user';
-export const STATE_DISABLED = 'err/state-disabled';

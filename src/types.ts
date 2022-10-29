@@ -16,8 +16,7 @@ export interface ScapeBotAuth {
     token: string,
     adminUserId: Snowflake,
     pg: ClientConfig,
-    clientId: Snowflake,
-    clientSecret: string,
+    clientId?: Snowflake,
     guildId?: Snowflake
 }
 
@@ -57,13 +56,9 @@ export type MiscPropertyName = 'timestamp' | 'disabled' | typeof TIMEOUTS_PROPER
 
 export type BuiltSlashCommand = SlashCommandBuilder | Omit<SlashCommandBuilder, 'addSubcommand' | 'addSubcommandGroup'>;
 
-export type SlashCommandName = 'help' | 'ping' | 'track' | 'remove' | 'clear' | 'list' | 'check' | 'channel' | 'kc' | 'details' | 'role';
+export type SlashCommandName = 'help' | 'ping' | 'track' | 'remove' | 'clear' | 'list' | 'check' | 'channel' | 'kc' | 'details';
 
 export type HiddenCommandName = 'help' | 'log' | 'thumbnail' | 'thumbnail99' | 'spoof' | 'spoofverbose' | 'uptime' | 'kill' | 'enable';
-
-export type CommandsType = Record<string, Command>;
-export type SlashCommandsType = Record<SlashCommandName, SlashCommand>;
-export type HiddenCommandsType = Record<HiddenCommandName, HiddenCommand>;
 
 export interface CommandOptionChoice {
     name: string,
@@ -85,9 +80,8 @@ export interface Command {
 }
 
 export interface SlashCommand extends Command {
-    options?: CommandOption[],
+    options?: CommandOption[]
     execute: (interaction: ChatInputCommandInteraction) => Promise<void>,
-    guild?: boolean
 }
 
 export interface HiddenCommand extends Command {
