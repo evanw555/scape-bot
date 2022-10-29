@@ -214,7 +214,9 @@ class CommandHandler {
             if (command.privileged) {
                 if (command.guild) {
                     // TODO: This code needs to check that the interacting user has the role that is granted privilege.
-                } else CommandHandler.assertIsAdmin(interaction);
+                } else {
+                    CommandHandler.assertIsAdmin(interaction);
+                }
             }
             if (typeof command.execute === 'function') {
                 await command.execute(interaction);
