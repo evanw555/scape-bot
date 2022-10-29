@@ -1,6 +1,6 @@
 import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User } from 'discord.js';
 import { PlayerHiScores, TimeoutType } from './types';
-import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer, guildCommandRolePermissionsManager } from './util';
+import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer, setGuildCommandRolePermissions } from './util';
 import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel } from 'evanw555.js';
 import CommandReader from './command-reader';
 import CommandHandler from './command-handler';
@@ -13,6 +13,7 @@ import { AUTH, CONFIG, TIMEOUTS_PROPERTY } from './constants';
 import state from './instances/state';
 import logger from './instances/logger';
 import pgStorageClient from './instances/pg-storage-client';
+import discordApiClient from './instances/discord-api-client';
 
 // TODO: Deprecate CommandReader in favor of CommandHandler
 const commandReader: CommandReader = new CommandReader();
@@ -214,6 +215,9 @@ client.on('ready', async () => {
 
         // Fetch guilds to load them into the cache
         await client.guilds.fetch();
+        
+        // Cache a valid bearer token
+        await discordApiClient.fetchToken();
 
         // Attempt to initialize the PG client
         await pgStorageClient.connect();
@@ -260,7 +264,7 @@ client.on('ready', async () => {
             const results = await guild.commands.set(guildCommands);
             // If a privileged role exists, call the command permissions update endpoint
             if (state.hasPrivilegedRole(guild.id)) {
-                await guildCommandRolePermissionsManager.update(guild);
+                await setGuildCommandRolePermissions(guild);
             }
             return results;
         }));
@@ -293,7 +297,7 @@ client.on('guildCreate', async (guild) => {
     try {
         const results = await guild.commands.set(commandHandler.buildGuildCommands());
         if (state.hasPrivilegedRole(guild.id)) {
-            await guildCommandRolePermissionsManager.update(guild);
+            await setGuildCommandRolePermissions(guild);
         }
         await logger.log(`Registered ${results.size} (/) commands for guild '${guild.id}'`, MultiLoggerLevel.Debug);
 

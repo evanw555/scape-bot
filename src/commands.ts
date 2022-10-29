@@ -3,7 +3,7 @@ import { FORMATTED_BOSS_NAMES, Boss, BOSSES } from 'osrs-json-hiscores';
 import { exec } from 'child_process';
 import { MultiLoggerLevel, randChoice, randInt } from 'evanw555.js';
 import { SlashCommandsType, HiddenCommandsType, CommandsType, PlayerHiScores } from './types';
-import { replyUpdateMessage, sendUpdateMessage, updatePlayer, getBossName, isValidBoss, guildCommandRolePermissionsManager } from './util';
+import { replyUpdateMessage, sendUpdateMessage, updatePlayer, getBossName, isValidBoss, setGuildCommandRolePermissions } from './util';
 import { fetchHiScores } from './hiscores';
 import { CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, CONFIG, BOSS_CHOICES, INVALID_TEXT_CHANNEL } from './constants';
 
@@ -281,8 +281,7 @@ const slashCommands: SlashCommandsType = {
             await pgStorageClient.writePrivilegedRole(guild.id, privilegedRole.id);
             state.setPrivilegedRole(guild.id, privilegedRole);
             // Use the service to update permissions for privileged commands in the guild
-            await guildCommandRolePermissionsManager.update(guild);
-            // Complete the reply
+            await setGuildCommandRolePermissions(guild);
             await interaction.editReply(`${privilegedRole} can now use **/track**, **/remove**, **/clear**, and **/channel**`);
         },
         text: 'Set a non-admin server role that can use /track, /remove, /clear, and /channel',
