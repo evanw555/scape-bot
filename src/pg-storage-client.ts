@@ -24,7 +24,7 @@ export default class PGStorageClient {
     };
 
     // List of tables that should be purged if the player corresponding to a row is missing from tracked_players
-    private static readonly PURGABLE_PLAYER_TABLES: TableName[] = [
+    private static readonly PURGEABLE_PLAYER_TABLES: TableName[] = [
         'weekly_xp_snapshots',
         'player_levels',
         'player_bosses',
@@ -220,7 +220,7 @@ export default class PGStorageClient {
      */
     async purgeUntrackedPlayerData(): Promise<Record<string, number>> {
         const rowsDeleted: Record<string, number> = {};
-        for (const table of PGStorageClient.PURGABLE_PLAYER_TABLES) {
+        for (const table of PGStorageClient.PURGEABLE_PLAYER_TABLES) {
             const result = await this.client.query(`DELETE FROM ${table} WHERE rsn NOT IN (SELECT p.rsn FROM tracked_players p);`);
             if (result.rowCount > 0) {
                 rowsDeleted[table] = result.rowCount;

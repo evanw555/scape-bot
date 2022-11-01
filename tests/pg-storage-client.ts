@@ -153,12 +153,12 @@ describe('PGStorageClient Tests', () => {
     });
 
     it('can purge untracked players from other tables', async () => {
-        // Insert some purgable rows
+        // Insert some purgeable rows
         await pgStorageClient.writePlayerLevels('purgeMe1', { cooking: 10, crafting: 20 });
         await pgStorageClient.writePlayerClues('purgeMe1', { master: 3 });
         await pgStorageClient.writePlayerLevels('purgeMe2', { attack: 10, strength: 20, hitpoints: 30, magic: 40 });
         await pgStorageClient.writePlayerHiScoreStatus('purgeMe2', true);
-        // Insert a non-purgable row
+        // Insert a non-purgeable row
         await pgStorageClient.insertTrackedPlayer('12345', 'keepMe1');
         await pgStorageClient.insertTrackedPlayer('12345', 'keepMe2');
         await pgStorageClient.writePlayerLevels('keepMe1', { fletching: 50, agility: 50, runecraft: 55 });
@@ -171,7 +171,7 @@ describe('PGStorageClient Tests', () => {
             'keepMe2': 700
         });
 
-        // Expect that only rows for the purgable players were deleted
+        // Expect that only rows for the purgeable players were deleted
         const result2 = await pgStorageClient.purgeUntrackedPlayerData();
         expect(result2['player_levels']).equals(6);
         expect('player_bosses' in result2).false;
