@@ -1,9 +1,10 @@
 import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User } from 'discord.js';
-import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel } from 'evanw555.js';
 import { PlayerHiScores, TimeoutType } from './types';
 import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer } from './util';
+import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel } from 'evanw555.js';
 import CommandReader from './command-reader';
 import CommandHandler from './command-handler';
+import commands from './commands';
 import { fetchHiScores } from './hiscores';
 import TimeoutStorage from './timeout-storage';
 
@@ -15,7 +16,7 @@ import pgStorageClient from './instances/pg-storage-client';
 
 // TODO: Deprecate CommandReader in favor of CommandHandler
 const commandReader: CommandReader = new CommandReader();
-const commandHandler: CommandHandler = new CommandHandler();
+const commandHandler: CommandHandler = new CommandHandler(commands);
 
 export async function sendRestartMessage(downtimeMillis: number): Promise<void> {
     const text = `ScapeBot online after **${getDurationString(downtimeMillis)}** of downtime. In **${client.guilds.cache.size}** guild(s).\n`;
@@ -58,6 +59,28 @@ const loadState = async (): Promise<void> => {
         }
     }
     const playersOffHiScores: string[] = await pgStorageClient.fetchAllPlayersWithHiScoreStatus(false);
+    const privilegedRoles = await pgStorageClient.fetchAllPrivilegedRoles();
+    for (const [ guildId, roleId ] of Object.entries(privilegedRoles)) {
+        try {
+            // Initial guild fetch happens in 'ready' event handler before loadState is invoked
+            const guild = client.guilds.cache.find(g => g.id === guildId);
+            if (!guild) {
+                logger.log(`Bot is not connected to guildId '${guildId} for privileged role '${roleId}'`);
+                break;
+            }
+            const privilegedRole = guild.roles.cache.find(r => r.id === roleId);
+            if (privilegedRole) {
+                state.setPrivilegedRole(guildId, privilegedRole);
+            }
+        } catch (err) {
+            if (err instanceof Error) {
+                // TODO: Handle cleanup if DiscordApiError[50001]: Missing Access; once 'guildDelete'
+                // event handler is set up, this should only happen if the bot is kicked while the
+                // bot client is down.
+                logger.log(`Failed to set privileged role for guild ${guildId} due to: ${err.toString()}`, MultiLoggerLevel.Error);
+            }
+        }
+    }
     for (const rsn of playersOffHiScores) {
         state.removePlayerFromHiScores(rsn);
     }
@@ -222,8 +245,10 @@ client.on('ready', async () => {
 
         // Register global slash commands on startup
         if (client.application) {
-            const commands = commandHandler.buildCommands();
-            const results = await client.application.commands.set(commands);
+            // Builds the command using static command data and SlashCommandBuilder
+            const globalCommands = commandHandler.buildCommands();
+            // Send built commands in request to Discord to set global commands
+            const results = await client.application.commands.set(globalCommands);
             await logger.log(`Refreshed ${results.size} application (/) commands`);
         }
 
@@ -290,9 +315,11 @@ client.on('messageCreate', async (msg) => {
     }
 });
 
-client.on('interactionCreate', commandHandler.handleChatInputCommand);
+client.on('interactionCreate', (interaction) =>
+    commandHandler.handleChatInputCommand(interaction));
 
-client.on('interactionCreate', commandHandler.handleAutocomplete);
+client.on('interactionCreate', (interaction) =>
+    commandHandler.handleAutocomplete(interaction));
 
 // Login!!!
 client.login(AUTH.token);
