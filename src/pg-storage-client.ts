@@ -7,8 +7,10 @@ import { IndividualSkillName, IndividualClueType, MiscPropertyName } from './typ
 
 import logger from './instances/logger';
 
+type TableName = 'weekly_xp_snapshots' | 'player_levels' | 'player_bosses' | 'player_clues' | 'tracked_players' | 'tracking_channels' | 'player_hiscore_status' | 'bot_counters' | 'misc_properties';
+
 export default class PGStorageClient {
-    private static readonly TABLES: Record<string, string> = {
+    private static readonly TABLES: Record<TableName, string> = {
         'weekly_xp_snapshots': 'CREATE TABLE weekly_xp_snapshots (rsn VARCHAR(12) PRIMARY KEY, xp BIGINT);',
         'player_levels': 'CREATE TABLE player_levels (rsn VARCHAR(12), skill VARCHAR(12), level SMALLINT, PRIMARY KEY (rsn, skill));',
         'player_bosses': 'CREATE TABLE player_bosses (rsn VARCHAR(12), boss VARCHAR(32), score SMALLINT, PRIMARY KEY (rsn, boss));',
@@ -19,6 +21,15 @@ export default class PGStorageClient {
         'bot_counters': 'CREATE TABLE bot_counters (user_id BIGINT PRIMARY KEY, counter INTEGER);',
         'misc_properties': 'CREATE TABLE misc_properties (name VARCHAR(32) PRIMARY KEY, value VARCHAR(2048));'
     };
+
+    // List of tables that should be purged if the player corresponding to a row is missing from tracked_players
+    private static readonly PURGABLE_PLAYER_TABLES: TableName[] = [
+        'weekly_xp_snapshots',
+        'player_levels',
+        'player_bosses',
+        'player_clues',
+        'player_hiscore_status'
+    ];
 
     private readonly client: Client;
 
@@ -49,6 +60,20 @@ export default class PGStorageClient {
     
     async doesTableExist(name: string): Promise<boolean> {
         return (await this.client.query<{ exists: boolean }>('SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = $1);', [name])).rows[0].exists;
+    }
+
+    /**
+     * Delete all rows from the given table.
+     * THIS SHOULD ONLY BE USED FOR TESTING.
+     *
+     * @param table Name of the table to delete rows from
+     */
+    async clearTable(table: TableName): Promise<void> {
+        await this.client.query(`DELETE FROM ${table};`);
+    }
+
+    getTableNames(): TableName[] {
+        return Object.keys(PGStorageClient.TABLES) as TableName[];
     }
     
     async writeWeeklyXpSnapshots(snapshots: Record<Snowflake, number>): Promise<void> {
@@ -185,6 +210,22 @@ export default class PGStorageClient {
     
     async writeBotCounter(userId: Snowflake, counter: number): Promise<void> {
         await this.client.query('INSERT INTO bot_counters VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET counter = EXCLUDED.counter;', [userId, counter]);
+    }
+
+    /**
+     * Deletes all rows (in all player-related tables) referencing a player that is not tracked in any guilds.
+     *
+     * @returns Mapping from table name to the number of rows deleted from it (if any)
+     */
+    async purgeUntrackedPlayerData(): Promise<Record<string, number>> {
+        const rowsDeleted: Record<string, number> = {};
+        for (const table of PGStorageClient.PURGABLE_PLAYER_TABLES) {
+            const result = await this.client.query(`DELETE FROM ${table} WHERE rsn NOT IN (SELECT p.rsn FROM tracked_players p);`);
+            if (result.rowCount > 0) {
+                rowsDeleted[table] = result.rowCount;
+            }
+        }
+        return rowsDeleted;
     }
     
     async fetchMiscProperty(name: MiscPropertyName): Promise<string | null> {

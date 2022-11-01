@@ -19,6 +19,7 @@ describe('PGStorageClient Tests', () => {
     });
 
     before(async () => {
+        // Before the entire test suite, connect the PG storage client
         try {
             await pgStorageClient.connect();
         } catch (err) {
@@ -27,7 +28,16 @@ describe('PGStorageClient Tests', () => {
 
         expect(pgStorageClient.toString()).equals('PGStorageClient@localhost:5432');
 
+        // Initialize all tables and assert that they exist
         await pgStorageClient.initializeTables();
+        console.log('ALL');
+    });
+
+    beforeEach(async () => {
+        // Clear rows from all tables before each test method
+        for (const table of pgStorageClient.getTableNames()) {
+            await pgStorageClient.clearTable(table);
+        }
     });
 
     it('can read and write weekly XP snapshots', async () => {
@@ -140,5 +150,37 @@ describe('PGStorageClient Tests', () => {
 
         // Missing properties should simply be returned as an explicit null
         expect(await pgStorageClient.fetchMiscProperty('invalid_property_name' as MiscPropertyName)).is.null;
+    });
+
+    it('can purge untracked players from other tables', async () => {
+        // Insert some purgable rows
+        await pgStorageClient.writePlayerLevels('purgeMe1', { cooking: 10, crafting: 20 });
+        await pgStorageClient.writePlayerClues('purgeMe1', { master: 3 });
+        await pgStorageClient.writePlayerLevels('purgeMe2', { attack: 10, strength: 20, hitpoints: 30, magic: 40 });
+        await pgStorageClient.writePlayerHiScoreStatus('purgeMe2', true);
+        // Insert a non-purgable row
+        await pgStorageClient.insertTrackedPlayer('12345', 'keepMe1');
+        await pgStorageClient.insertTrackedPlayer('12345', 'keepMe2');
+        await pgStorageClient.writePlayerLevels('keepMe1', { fletching: 50, agility: 50, runecraft: 55 });
+        await pgStorageClient.writePlayerBosses('keepMe1', { hespori: 5 });
+        await pgStorageClient.writeWeeklyXpSnapshots({
+            'purgeMe1': 100,
+            'purgeMe2': 300,
+            'purgeMe3': 500,
+            'keepMe1': 600,
+            'keepMe2': 700
+        });
+
+        // Expect that only rows for the purgable players were deleted
+        const result2 = await pgStorageClient.purgeUntrackedPlayerData();
+        expect(result2['player_levels']).equals(6);
+        expect('player_bosses' in result2).false;
+        expect(result2['player_clues']).equals(1);
+        expect(result2['player_hiscore_status']).equals(1);
+        expect(result2['weekly_xp_snapshots']).equals(3);
+
+        // A subsequent invocation should result in no deletions
+        const result = await pgStorageClient.purgeUntrackedPlayerData();
+        expect(Object.keys(result).length).equals(0);
     });
 });

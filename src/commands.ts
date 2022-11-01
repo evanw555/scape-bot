@@ -1,7 +1,7 @@
 import { ApplicationCommandOptionType, ChatInputCommandInteraction, Message, PermissionFlagsBits, TextBasedChannel } from 'discord.js';
 import { FORMATTED_BOSS_NAMES, Boss, BOSSES } from 'osrs-json-hiscores';
 import { exec } from 'child_process';
-import { MultiLoggerLevel, randChoice, randInt } from 'evanw555.js';
+import { MultiLoggerLevel, naturalJoin, randChoice, randInt } from 'evanw555.js';
 import { SlashCommandName, HiddenCommand, PlayerHiScores, SlashCommand, HiddenCommandName, Command } from './types';
 import { replyUpdateMessage, sendUpdateMessage, updatePlayer, getBossName, isValidBoss } from './util';
 import { fetchHiScores } from './hiscores';
@@ -105,8 +105,14 @@ const slashCommands: SlashCommandsType = {
                 await pgStorageClient.deleteTrackedPlayer(guildId, rsn);
                 state.removeTrackedPlayer(guildId, rsn);
                 await interaction.reply(`No longer tracking player **${rsn}**`);
-                // TODO: We need to remove this player's data from PG if they're no longer tracked anywhere
-                // ...
+                // If this player is now globally untracked, purge untracked player data
+                if (!state.isPlayerTrackedInAnyGuilds(rsn)) {
+                    const purgeResults = await pgStorageClient.purgeUntrackedPlayerData();
+                    // If any rows were deleted, log this
+                    if (Object.keys(purgeResults).length > 0) {
+                        await logger.log(`(\`/remove\`) **${rsn}** now globally untracked, purged rows: \`${JSON.stringify(purgeResults)}\``, MultiLoggerLevel.Warn);
+                    }
+                }
             } else {
                 await interaction.reply({ content: 'That player is not currently being tracked', ephemeral: true });
             }
@@ -118,13 +124,21 @@ const slashCommands: SlashCommandsType = {
         execute: async (interaction) => {
             const guildId = getInteractionGuildId(interaction);
             // TODO: Can we add a batch delete operation?
-            for (const rsn of state.getAllTrackedPlayers(guildId)) {
+            const playersToRemove = state.getAllTrackedPlayers(guildId);
+            for (const rsn of playersToRemove) {
                 await pgStorageClient.deleteTrackedPlayer(guildId, rsn);
             }
             state.clearAllTrackedPlayers(guildId);
             await interaction.reply({ content: 'No longer tracking any players', ephemeral: true });
-            // TODO: We need to remove these players' data from PG if they're no longer tracked anywhere
-            // ...
+            // If some of the removed players are now globally untracked, purge untracked player data
+            const globallyUntrackedPlayers = playersToRemove.filter(rsn => !state.isPlayerTrackedInAnyGuilds(rsn));
+            if (globallyUntrackedPlayers.length > 0) {
+                const purgeResults = await pgStorageClient.purgeUntrackedPlayerData();
+                // If any rows were deleted, log this
+                if (Object.keys(purgeResults).length > 0) {
+                    await logger.log(`(\`/clear\`) **${naturalJoin(globallyUntrackedPlayers, '&')}** now globally untracked, purged rows: \`${JSON.stringify(purgeResults)}\``, MultiLoggerLevel.Warn);
+                }
+            }
         },
         text: 'Stops tracking all players',
         privileged: true,
