@@ -194,11 +194,12 @@ client.on('ready', async () => {
         logger.log(`Logged in as: ${client.user?.tag}`);
         logger.log(`Config=${JSON.stringify(CONFIG)}`);
 
-        // Determine the admin user and the admin user's DM channel
+        // Determine the maintainer user and the maintainer user's DM channel
+        // TODO: We will support multiple maintainers soon, so pick one to create the DM for
         if (AUTH.adminUserId) {
             const admin: User = await client.users.fetch(AUTH.adminUserId);
             if (admin) {
-                state.setAdminId(admin.id);
+                state.addMaintainerId(admin.id);
                 const adminDmChannel: TextBasedChannel = await admin.createDM();
                 logger.log(`Determined admin user: ${admin.username}`);
                 // The admin DM channel should only be used for WARN and above logs

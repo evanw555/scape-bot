@@ -30,20 +30,17 @@ class CommandHandler {
 
     /**
      * Asserts the interacting user has administrator permissions in the
-     * guild or is a bot admin.
+     * guild or is a bot maintainer.
      */
     static assertIsAdmin(interaction: Interaction) {
-        if (
-            !interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)
-            && !state.isAdmin(interaction.user.id)
-        ) {
+        if (!CommandHandler.isAdmin(interaction)) {
             throw new Error(UNAUTHORIZED_USER);
         }
     }
 
     static isAdmin(interaction: Interaction) {
         return interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)
-            || state.isAdmin(interaction.user.id);
+            || state.isMaintainer(interaction.user.id);
     }
 
     static assertHasPrivilegedRole(interaction: Interaction) {

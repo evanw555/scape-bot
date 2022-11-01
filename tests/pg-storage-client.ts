@@ -142,6 +142,15 @@ describe('PGStorageClient Tests', () => {
         expect(result['55555']).equals(counterValue);
     });
 
+    it('can read and write privileged roles', async () => {
+        const roleId = randInt(1000, 5000).toString();
+        await pgStorageClient.writePrivilegedRole('12345', roleId);
+
+        const results = await pgStorageClient.fetchAllPrivilegedRoles();
+        expect('12345' in results).true;
+        expect(results['12345']).equals(roleId);
+    });
+
     it('can read and write misc properties', async () => {
         await pgStorageClient.writeMiscProperty('disabled', 'true');
         expect(await pgStorageClient.fetchMiscProperty('disabled')).equals('true');
@@ -182,14 +191,5 @@ describe('PGStorageClient Tests', () => {
         // A subsequent invocation should result in no deletions
         const result = await pgStorageClient.purgeUntrackedPlayerData();
         expect(Object.keys(result).length).equals(0);
-    });
-
-    it('can read and write privileged roles', async () => {
-        const roleId = randInt(1000, 5000).toString();
-        await pgStorageClient.writePrivilegedRole('12345', roleId);
-
-        const results = await pgStorageClient.fetchAllPrivilegedRoles();
-        expect('12345' in results).true;
-        expect(results['12345']).equals(roleId);
     });
 });

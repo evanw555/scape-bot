@@ -14,6 +14,7 @@ export interface AnyObject {
 
 export interface ScapeBotAuth {
     token: string,
+    // TODO: Support multiple "maintainers" and specify one UserId to log to via DM
     adminUserId: Snowflake,
     pg: ClientConfig,
     clientId?: Snowflake,

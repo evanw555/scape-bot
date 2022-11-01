@@ -16,7 +16,7 @@ export default class State {
     private readonly _clues: Record<string, Partial<Record<IndividualClueType, number>>>;
     private readonly _botCounters: Record<Snowflake, number>;
     private readonly _lastUpdate: Record<string, Date>;
-    private _adminId?: Snowflake;
+    private readonly _maintainerIds: Set<Snowflake>;
 
     private readonly _masterPlayerQueue: PlayerQueue;
     private readonly _guildsByPlayer: Record<Snowflake, Set<Snowflake>>;
@@ -35,6 +35,7 @@ export default class State {
 
         this._botCounters = {};
         this._lastUpdate = {};
+        this._maintainerIds = new Set();
 
         this._masterPlayerQueue = new PlayerQueue();
         this._guildsByPlayer = {};
@@ -220,12 +221,12 @@ export default class State {
         this._lastUpdate[rsn] = date;
     }
 
-    setAdminId(adminId: string): void {
-        this._adminId = adminId;
+    addMaintainerId(userId: Snowflake): void {
+        this._maintainerIds.add(userId);
     }
 
-    isAdmin(adminId: string): boolean {
-        return this._adminId !== undefined && this._adminId === adminId;
+    isMaintainer(userId: Snowflake): boolean {
+        return this._maintainerIds.has(userId);
     }
 
     hasLevels(rsn: string): boolean {
