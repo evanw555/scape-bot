@@ -37,16 +37,7 @@ const getHelpText = (hidden: boolean, privileged = false) => {
 
 const getRoleCommandsListString = (markdown = false): string => {
     const guildCommands = CommandHandler.filterCommands(slashCommands, 'privilegedRole');
-    const bold = (key: string) => `${markdown ? '**' : ''}/${key}${markdown ? '**' : ''}`;
-    return guildCommands.reduce((str, key, idx) => {
-        if (idx === guildCommands.length - 1) {
-            return str += `, and ${bold(key)}`;
-        } else if (idx === 0) {
-            return str += `${bold(key)}`;
-        } else {
-            return str += `, ${bold(key)}`;
-        }
-    }, '');
+    return naturalJoin(guildCommands.map(c => '/' + c), { bold: markdown });
 };
 
 const getInteractionGuild = (interaction: ChatInputCommandInteraction): Guild => {
@@ -80,8 +71,9 @@ const slashCommands: SlashCommandsType = {
             const guildId = getInteractionGuildId(interaction);
             await interaction.reply({
                 embeds: [{
-                    description: `**Players:** ${state.getAllTrackedPlayers(guildId).length}
-                                  **Role:** ${state.hasPrivilegedRole(guildId) ? state.getPrivilegedRole(guildId) : 'None'}`,
+                    description: `**Players:** ${state.getAllTrackedPlayers(guildId).length}\n`
+                               + `**Channel:** ${state.hasTrackingChannel(guildId) ? state.getTrackingChannel(guildId) : 'None'}\n`
+                               + `**Role:** ${state.hasPrivilegedRole(guildId) ? state.getPrivilegedRole(guildId) : 'None'}`,
                     color: SKILL_EMBED_COLOR,
                     title: 'Information'
                 }],
@@ -170,7 +162,7 @@ const slashCommands: SlashCommandsType = {
                 const purgeResults = await pgStorageClient.purgeUntrackedPlayerData();
                 // If any rows were deleted, log this
                 if (Object.keys(purgeResults).length > 0) {
-                    await logger.log(`(\`/clear\`) **${naturalJoin(globallyUntrackedPlayers, '&')}** now globally untracked, purged rows: \`${JSON.stringify(purgeResults)}\``, MultiLoggerLevel.Warn);
+                    await logger.log(`(\`/clear\`) ${naturalJoin(globallyUntrackedPlayers, { bold: true })} now globally untracked, purged rows: \`${JSON.stringify(purgeResults)}\``, MultiLoggerLevel.Warn);
                 }
             }
         },
@@ -183,7 +175,7 @@ const slashCommands: SlashCommandsType = {
             const guildId = getInteractionGuildId(interaction);
             if (state.isTrackingAnyPlayers(guildId)) {
                 await interaction.reply({
-                    content: `Currently tracking players **${state.getAllTrackedPlayers(guildId).join('**, **')}**.\nUse **/track** to track more players!`,
+                    content: `Currently tracking players ${naturalJoin(state.getAllTrackedPlayers(guildId), { bold: true })}.\nUse **/track** to track more players!`,
                     ephemeral: true
                 });
             } else {
