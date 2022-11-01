@@ -101,7 +101,7 @@ const slashCommands: SlashCommandsType = {
                 await interaction.reply(`Now tracking player **${rsn}**!\nUse **/list** to see tracked players.`);
             }
         },
-        text: 'Tracks a player and gives updates when they level up',
+        text: 'Tracks a player and posts updates when they level up, kill a boss, complete a clue, and more',
         privilegedRole: true,
         failIfDisabled: true
     },
@@ -216,7 +216,7 @@ const slashCommands: SlashCommandsType = {
                 }
             }
         },
-        text: 'Show the current levels for some player',
+        text: 'Shows all available hiscores data for some player',
         failIfDisabled: true
     },
     kc: {
@@ -262,7 +262,7 @@ const slashCommands: SlashCommandsType = {
                 }
             }
         },
-        text: 'Show kill count of a boss for some player',
+        text: 'Shows the kill count of a boss for some player',
         failIfDisabled: true
     },
     channel: {
@@ -294,7 +294,7 @@ const slashCommands: SlashCommandsType = {
                 });
             }
         },
-        text: 'Show details of when each tracked player was last updated',
+        text: 'Shows details of when each tracked player was last updated',
         privileged: true
     },
     role: {
@@ -314,7 +314,7 @@ const slashCommands: SlashCommandsType = {
                 ephemeral: true
             });
         },
-        text: 'Set a non-admin server role that can use commands like /track, /remove, and more',
+        text: 'Sets a non-admin server role that can use commands like /track, /remove, and more',
         privileged: true
     }
 };
