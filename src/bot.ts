@@ -1,4 +1,4 @@
-import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User } from 'discord.js';
+import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, ActivityType } from 'discord.js';
 import { PlayerHiScores, TimeoutType } from './types';
 import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer } from './util';
 import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel } from 'evanw555.js';
@@ -274,6 +274,28 @@ client.on('ready', async () => {
             }
         }
     }, CONFIG.refreshInterval);
+
+    // Set a timeout interval for updating the bot user activity
+    // TODO: should this use the timeout manager?
+    setInterval(() => {
+        if (client.user) {
+            if (state.isDisabled()) {
+                client.user.setPresence({
+                    status: 'dnd',
+                    activities: [{
+                        name: '🔧 Undergoing maintenance...',
+                    }]
+                });
+            } else {
+                client.user.setPresence({
+                    status: 'online',
+                    activities: [{
+                        name: `Tracking ${state.getNumGloballyTrackedPlayers()} players`
+                    }]
+                });
+            }
+        }
+    }, 60000); // TODO: Adjust this with config file
 });
 
 client.on('guildCreate', (guild) => {

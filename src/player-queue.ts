@@ -76,10 +76,6 @@ export default class PlayerQueue {
         }
     }
 
-    toSortedArray(): string[] {
-        return this.activeQueue.toSortedArray().concat(this.inactiveQueue.toSortedArray()).sort();
-    }
-
     private isActive(rsn: string): boolean {
         // If user had an update in the last week
         return new Date().getTime() - this.getLastActive(rsn) < 1000 * 60 * 60 * 24 * 7;
@@ -87,5 +83,13 @@ export default class PlayerQueue {
 
     private getLastActive(rsn: string): number {
         return this.lastActive[rsn] ?? 0;
+    }
+
+    toSortedArray(): string[] {
+        return this.activeQueue.toSortedArray().concat(this.inactiveQueue.toSortedArray()).sort();
+    }
+
+    size(): number {
+        return this.activeQueue.size() + this.inactiveQueue.size();
     }
 }

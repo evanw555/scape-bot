@@ -140,6 +140,10 @@ export default class State {
         return this._masterPlayerQueue.toSortedArray();
     }
 
+    getNumGloballyTrackedPlayers(): number {
+        return this._masterPlayerQueue.size();
+    }
+
     clearAllTrackedPlayers(guildId: Snowflake): void {
         for (const rsn of this.getAllTrackedPlayers(guildId)) {
             this.removeTrackedPlayer(guildId, rsn);
