@@ -6,7 +6,7 @@ import { PlayerHiScores, SlashCommandsType, HiddenCommandsType, CommandsType } f
 import { replyUpdateMessage, sendUpdateMessage, updatePlayer, getBossName, isValidBoss } from './util';
 import { fetchHiScores } from './hiscores';
 import CommandHandler from './command-handler';
-import { CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, CONFIG, BOSS_CHOICES, INVALID_TEXT_CHANNEL } from './constants';
+import { CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, CONFIG, BOSS_CHOICES, INVALID_TEXT_CHANNEL, SKILL_EMBED_COLOR } from './constants';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -74,6 +74,21 @@ const slashCommands: SlashCommandsType = {
             await interaction.reply({ content: getHelpText(false, isAdmin), ephemeral: true });
         },
         text: 'Shows help'
+    },
+    info: {
+        execute: async (interaction) => {
+            const guildId = getInteractionGuildId(interaction);
+            await interaction.reply({
+                embeds: [{
+                    description: `**Players:** ${state.getAllTrackedPlayers(guildId).length}
+                                  **Role:** ${state.hasPrivilegedRole(guildId) ? state.getPrivilegedRole(guildId) : 'None'}`,
+                    color: SKILL_EMBED_COLOR,
+                    title: 'Information'
+                }],
+                ephemeral: true
+            });
+        },
+        text: 'Shows information about ScapeBot in this guild'
     },
     track: {
         options: [{
