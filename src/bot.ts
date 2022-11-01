@@ -280,8 +280,8 @@ client.on('guildCreate', (guild) => {
     try {
         const systemChannel = guild.systemChannel;
         if (systemChannel) {
-            systemChannel.send(`Thanks for adding ${client.user} to your server! Use **/track** to start tracking `
-                + 'scapers, and **/help** for a list of useful commands.');
+            systemChannel.send(`Thanks for adding ${client.user} to your server! Admins: to get started, please use **/channel**`
+                + ' in the text channel that should receive player updates and **/help** for a list of useful commands.');
         } else {
             // Can this even happen?
             logger.log(`There is no system channel defined for guild ${guild.id}`, MultiLoggerLevel.Warn);

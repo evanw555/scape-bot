@@ -90,12 +90,15 @@ const slashCommands: SlashCommandsType = {
                 return;
             }
             if (state.isTrackingPlayer(guildId, rsn)) {
-                await interaction.reply({ content: 'That player is already being tracked', ephemeral: true });
+                await interaction.reply({
+                    content: 'That player is already being tracked!\nUse **/check** to check their hiscores.',
+                    ephemeral: true
+                });
             } else {
                 await pgStorageClient.insertTrackedPlayer(guildId, rsn);
                 state.addTrackedPlayer(guildId, rsn);
                 await updatePlayer(rsn);
-                await interaction.reply(`Now tracking player **${rsn}**`);
+                await interaction.reply(`Now tracking player **${rsn}**!\nUse **/list** to see tracked players.`);
             }
         },
         text: 'Tracks a player and gives updates when they level up',
@@ -119,7 +122,7 @@ const slashCommands: SlashCommandsType = {
             if (state.isTrackingPlayer(guildId, rsn)) {
                 await pgStorageClient.deleteTrackedPlayer(guildId, rsn);
                 state.removeTrackedPlayer(guildId, rsn);
-                await interaction.reply(`No longer tracking player **${rsn}**`);
+                await interaction.reply(`No longer tracking player **${rsn}**.\nYou can still use **/check** to see this player's hiscores.`);
                 // If this player is now globally untracked, purge untracked player data
                 if (!state.isPlayerTrackedInAnyGuilds(rsn)) {
                     const purgeResults = await pgStorageClient.purgeUntrackedPlayerData();
@@ -129,7 +132,7 @@ const slashCommands: SlashCommandsType = {
                     }
                 }
             } else {
-                await interaction.reply({ content: 'That player is not currently being tracked', ephemeral: true });
+                await interaction.reply({ content: 'That player is not currently being tracked.', ephemeral: true });
             }
         },
         text: 'Stops tracking a player',
@@ -145,7 +148,7 @@ const slashCommands: SlashCommandsType = {
                 await pgStorageClient.deleteTrackedPlayer(guildId, rsn);
             }
             state.clearAllTrackedPlayers(guildId);
-            await interaction.reply({ content: 'No longer tracking any players', ephemeral: true });
+            await interaction.reply({ content: 'No longer tracking any players.\nUse **/track** to track more players.', ephemeral: true });
             // If some of the removed players are now globally untracked, purge untracked player data
             const globallyUntrackedPlayers = playersToRemove.filter(rsn => !state.isPlayerTrackedInAnyGuilds(rsn));
             if (globallyUntrackedPlayers.length > 0) {
@@ -165,11 +168,14 @@ const slashCommands: SlashCommandsType = {
             const guildId = getInteractionGuildId(interaction);
             if (state.isTrackingAnyPlayers(guildId)) {
                 await interaction.reply({
-                    content: `Currently tracking players **${state.getAllTrackedPlayers(guildId).join('**, **')}**`,
+                    content: `Currently tracking players **${state.getAllTrackedPlayers(guildId).join('**, **')}**.\nUse **/track** to track more players!`,
                     ephemeral: true
                 });
             } else {
-                await interaction.reply({ content: 'Currently not tracking any players', ephemeral: true });
+                await interaction.reply({
+                    content: 'Currently not tracking any players.\nUse **/track** to track more players!',
+                    ephemeral: true
+                });
             }
         },
         text: 'Lists all the players currently being tracked'
@@ -265,7 +271,7 @@ const slashCommands: SlashCommandsType = {
             await pgStorageClient.updateTrackingChannel(guildId, interaction.channelId);
             const textChannel = interaction.channel as TextBasedChannel;
             state.setTrackingChannel(guildId, textChannel);
-            await interaction.reply('Player experience updates will now be sent to this channel');
+            await interaction.reply('Player updates will now be sent to this channel!\nUse **/track** to start tracking players.');
         },
         text: 'All player updates will be sent to the channel where this command is issued',
         privilegedRole: true,
@@ -283,7 +289,7 @@ const slashCommands: SlashCommandsType = {
                 });
             } else {
                 await interaction.reply({
-                    content: 'Currently not tracking any players',
+                    content: 'Currently not tracking any players.\nUse **/track** to track more players.',
                     ephemeral: true
                 });
             }
@@ -304,7 +310,7 @@ const slashCommands: SlashCommandsType = {
             await pgStorageClient.writePrivilegedRole(guild.id, privilegedRole.id);
             state.setPrivilegedRole(guild.id, privilegedRole);
             await interaction.reply({
-                content: `${privilegedRole} can now use ${getRoleCommandsListString(true)}`,
+                content: `${privilegedRole} can now use ${getRoleCommandsListString(true)}.`,
                 ephemeral: true
             });
         },
