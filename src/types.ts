@@ -81,13 +81,13 @@ export interface CommandOption {
 export interface Command {
     text: string,
     privileged?: boolean,
+    privilegedRole?: boolean,
     failIfDisabled?: boolean
 }
 
 export interface SlashCommand extends Command {
     options?: CommandOption[],
-    execute: (interaction: ChatInputCommandInteraction) => Promise<void>,
-    privilegedRole?: boolean
+    execute: (interaction: ChatInputCommandInteraction) => Promise<void>
 }
 
 export interface HiddenCommand extends Command {
