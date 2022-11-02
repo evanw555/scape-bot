@@ -315,10 +315,13 @@ client.on('guildCreate', (guild) => {
             logger.log(`Failed to handle guildCreate event due to: ${err.toString()}`, MultiLoggerLevel.Error);
         }
     }
+    // TODO: Reduce this back down to debug once we see how this plays out
+    logger.log(`Bot has been added to guild _${guild.name}_, now in **${client.guilds.cache.size}** guilds`, MultiLoggerLevel.Warn);
 });
 
 client.on('guildDelete', (guild) => {
-    logger.log(`Bot has been removed from guild ${guild.id}`, MultiLoggerLevel.Debug);
+    // TODO: Reduce this back down to debug once we see how this plays out
+    logger.log(`Bot has been removed from guild _${guild.name}_, now in **${client.guilds.cache.size}** guilds`, MultiLoggerLevel.Warn);
 });
 
 client.on('messageCreate', async (msg) => {
