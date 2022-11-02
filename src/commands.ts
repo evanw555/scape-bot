@@ -17,13 +17,16 @@ import infoLog from './instances/info-log';
 
 const validSkills = new Set<string>(CONSTANTS.skills);
 
-const getHelpText = (hidden: boolean, privileged = false) => {
+const getHelpText = (hidden: boolean, privileged = false, hasPrivilegedRole = false) => {
     const commands: CommandsType = hidden ? hiddenCommands : slashCommands;
     const commandKeys = Object.keys(commands).filter((key) => {
         if (hidden || privileged) {
             return true;
         }
-        return !commands[key].privileged;
+        if (hasPrivilegedRole) {
+            return !commands[key].privileged;
+        }
+        return !commands[key].privileged && !commands[key].privilegedRole;
     });
     commandKeys.sort();
     const maxLengthKey = Math.max(...commandKeys.map((key) => {
@@ -62,7 +65,13 @@ const slashCommands: SlashCommandsType = {
     help: {
         execute: async (interaction) => {
             const isAdmin = interaction.memberPermissions?.has(PermissionFlagsBits.Administrator);
-            await interaction.reply({ content: getHelpText(false, isAdmin), ephemeral: true });
+            const guild = getInteractionGuild(interaction);
+            let hasPrivilegedRole;
+            if (state.hasPrivilegedRole(guild.id)) {
+                const role = guild.roles.cache.get(state.getPrivilegedRole(guild.id).id);
+                hasPrivilegedRole = role?.members.has(interaction.user.id);
+            }
+            await interaction.reply({ content: getHelpText(false, isAdmin, hasPrivilegedRole), ephemeral: true });
         },
         text: 'Shows help'
     },
