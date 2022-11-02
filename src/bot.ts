@@ -1,4 +1,4 @@
-import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel } from 'discord.js';
+import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel, ActivityType } from 'discord.js';
 import { PlayerHiScores, TimeoutType } from './types';
 import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer } from './util';
 import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel } from 'evanw555.js';
@@ -292,7 +292,8 @@ client.on('ready', async () => {
                 client.user.setPresence({
                     status: 'online',
                     activities: [{
-                        name: `Tracking ${state.getNumGloballyTrackedPlayers()} players`
+                        name: `Updates for ${state.getNumGloballyTrackedPlayers()} players`,
+                        type: ActivityType.Streaming
                     }]
                 });
             }
