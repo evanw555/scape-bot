@@ -1,4 +1,4 @@
-import { ApplicationCommandOptionType, ChatInputCommandInteraction, Guild, Message, PermissionFlagsBits, TextBasedChannel } from 'discord.js';
+import { ApplicationCommandOptionType, ChatInputCommandInteraction, Guild, Message, PermissionFlagsBits, TextChannel } from 'discord.js';
 import { FORMATTED_BOSS_NAMES, Boss, BOSSES } from 'osrs-json-hiscores';
 import { exec } from 'child_process';
 import { MultiLoggerLevel, naturalJoin, randChoice, randInt } from 'evanw555.js';
@@ -284,10 +284,16 @@ const slashCommands: SlashCommandsType = {
     channel: {
         execute: async (interaction) => {
             const guildId = getInteractionGuildId(interaction);
-            await pgStorageClient.updateTrackingChannel(guildId, interaction.channelId);
-            const textChannel = interaction.channel as TextBasedChannel;
-            state.setTrackingChannel(guildId, textChannel);
-            await interaction.reply('Player updates will now be sent to this channel!\nUse **/track** to start tracking players.');
+            if (interaction.channel instanceof TextChannel) {
+                await pgStorageClient.updateTrackingChannel(guildId, interaction.channelId);
+                state.setTrackingChannel(guildId, interaction.channel);
+                await interaction.reply('Player updates will now be sent to this channel!\nUse **/track** to start tracking players.');
+            } else {
+                await interaction.reply({
+                    content: 'This channel cannot be used to track player updates! Please use **/channel** in a valid guild text channel',
+                    ephemeral: true
+                });
+            }
         },
         text: 'All player updates will be sent to the channel where this command is issued',
         privilegedRole: true,

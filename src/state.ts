@@ -1,4 +1,4 @@
-import { APIRole, Role, Snowflake, TextBasedChannel } from 'discord.js';
+import { APIRole, Role, Snowflake, TextChannel } from 'discord.js';
 import { Boss } from 'osrs-json-hiscores';
 import { MultiLoggerLevel } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName } from './types';
@@ -22,7 +22,7 @@ export default class State {
     private readonly _guildsByPlayer: Record<Snowflake, Set<Snowflake>>;
     private readonly _playersByGuild: Record<Snowflake, Set<Snowflake>>;
 
-    private readonly _trackingChannelsByGuild: Record<Snowflake, TextBasedChannel>;
+    private readonly _trackingChannelsByGuild: Record<Snowflake, TextChannel>;
     private readonly _privilegedRolesByGuild: Record<Snowflake, Role | APIRole>;
 
     constructor() {
@@ -174,14 +174,14 @@ export default class State {
         return !this._playersOffHiScores.has(rsn);
     }
 
-    getTrackingChannel(guildId: Snowflake): TextBasedChannel {
+    getTrackingChannel(guildId: Snowflake): TextChannel {
         if (!this._trackingChannelsByGuild[guildId]) {
             throw new Error('Tracking channel does not exist');
         }
         return this._trackingChannelsByGuild[guildId];
     }
 
-    setTrackingChannel(guildId: Snowflake, channel: TextBasedChannel): void {
+    setTrackingChannel(guildId: Snowflake, channel: TextChannel): void {
         // Theoretically this should always be true, but ensure the instance exists just to be sure
         if (channel) {
             this._trackingChannelsByGuild[guildId] = channel;
@@ -192,11 +192,11 @@ export default class State {
         return guildId in this._trackingChannelsByGuild;
     }
 
-    getAllTrackingChannels(): TextBasedChannel[] {
+    getAllTrackingChannels(): TextChannel[] {
         return Object.values(this._trackingChannelsByGuild);
     }
 
-    getTrackingChannelsForPlayer(rsn: string): TextBasedChannel[] {
+    getTrackingChannelsForPlayer(rsn: string): TextChannel[] {
         return this.getGuildsTrackingPlayer(rsn)
             .filter(guildId => this.hasTrackingChannel(guildId))
             .map(guildId => this.getTrackingChannel(guildId));

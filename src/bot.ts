@@ -1,4 +1,4 @@
-import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User } from 'discord.js';
+import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel } from 'discord.js';
 import { PlayerHiScores, TimeoutType } from './types';
 import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer } from './util';
 import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel } from 'evanw555.js';
@@ -21,7 +21,7 @@ const commandHandler: CommandHandler = new CommandHandler(commands);
 export async function sendRestartMessage(downtimeMillis: number): Promise<void> {
     const text = `ScapeBot online after **${getDurationString(downtimeMillis)}** of downtime. In **${client.guilds.cache.size}** guild(s).\n`;
     await logger.log(text + timeoutManager.toStrings().join('\n') || '_none._', MultiLoggerLevel.Warn);
-    await logger.log(client.guilds.cache.toJSON().map((guild, i) => `**${i + 1}.** _${guild.name}_ with **${state.getAllTrackedPlayers(guild.id).length}** in ${state.hasTrackingChannel(guild.id) ? state.getTrackingChannel(guild.id) : 'N/A'}`).join('\n'), MultiLoggerLevel.Warn);
+    await logger.log(client.guilds.cache.toJSON().map((guild, i) => `**${i + 1}.** _${guild.name}_ with **${state.getAllTrackedPlayers(guild.id).length}** in ${state.hasTrackingChannel(guild.id) ? `\`#${state.getTrackingChannel(guild.id).name}\`` : 'N/A'}`).join('\n'), MultiLoggerLevel.Warn);
     // TODO: Use this if you need to troubleshoot...
     // await logger.log(state.toDebugString());
 }
@@ -45,9 +45,11 @@ const loadState = async (): Promise<void> => {
     const trackingChannels = await pgStorageClient.fetchAllTrackingChannels();
     for (const [ guildId, trackingChannelId ] of Object.entries(trackingChannels)) {
         try {
-            const trackingChannel = (await client.channels.fetch(trackingChannelId) as TextBasedChannel);
-            if (trackingChannel) {
+            const trackingChannel = await client.channels.fetch(trackingChannelId);
+            if (trackingChannel instanceof TextChannel) {
                 state.setTrackingChannel(guildId, trackingChannel);
+            } else {
+                await logger.log(`Could not fetch tracking channel \`${trackingChannelId}\` for guild \`${guildId}\`: expected _TextChannel_ but found \`${trackingChannel}\``, MultiLoggerLevel.Error);
             }
         } catch (err) {
             if (err instanceof Error) {
