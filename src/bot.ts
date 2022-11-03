@@ -289,11 +289,12 @@ client.on('ready', async () => {
                     }]
                 });
             } else {
+                const numTracked = state.getNumGloballyTrackedPlayers();
                 client.user.setPresence({
                     status: 'online',
                     activities: [{
-                        name: `Updates for ${state.getNumGloballyTrackedPlayers()} players`,
-                        type: ActivityType.Streaming
+                        name: `${numTracked} player${numTracked === 1 ? '' : 's'} grind`,
+                        type: ActivityType.Watching
                     }]
                 });
             }
