@@ -86,7 +86,15 @@ export interface Command {
 export interface SlashCommand extends Command {
     options?: CommandOption[],
     execute: (interaction: ChatInputCommandInteraction) => Promise<void>,
-    privileged?: boolean,
+    /**
+     * If true, this command can only be invoked (and seen in help text) by guild admins (or bot maintainers).
+     * Mutually exclusive with 'privilegedRole'.
+     */
+    admin?: boolean,
+    /**
+     * If true, this command can only be invoked (and seen in help text) by those with the privileged role (or admins/maintainers).
+     * Mutually exclusive with 'admin'.
+     */
     privilegedRole?: boolean
 }
 

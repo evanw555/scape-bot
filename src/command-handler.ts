@@ -32,13 +32,13 @@ class CommandHandler {
      * Asserts the interacting user has administrator permissions in the
      * guild or is a bot maintainer.
      */
-    static assertIsAdmin(interaction: Interaction) {
-        if (!CommandHandler.isAdmin(interaction)) {
+    static assertIsAdminOrMaintainer(interaction: Interaction) {
+        if (!CommandHandler.isAdminOrMaintainer(interaction)) {
             throw new Error(UNAUTHORIZED_USER);
         }
     }
 
-    static isAdmin(interaction: Interaction) {
+    static isAdminOrMaintainer(interaction: Interaction) {
         return interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)
             || state.isMaintainer(interaction.user.id);
     }
@@ -158,12 +158,11 @@ class CommandHandler {
     }
 
     /**
-     * Gets all privileged command keys (names), i.e. commands where the 'privileged
-     * field is true.
+     * Gets all admin command keys (names), i.e. commands where the 'admin' field is true.
      */
-    getPrivilegedCommandKeys() {
+    getAdminCommandKeys() {
         const commandKeys = Object.keys(this.commands) as SlashCommandName[];
-        return commandKeys.filter(name => this.commands[name].privileged);
+        return commandKeys.filter(name => this.commands[name].admin);
     }
 
     /**
@@ -175,8 +174,8 @@ class CommandHandler {
         let command: BuiltSlashCommand = new SlashCommandBuilder()
             .setName(key)
             .setDescription(commandInfo.text);
-        // If command has the privileged flag, set the command permissions to admin
-        if (commandInfo.privileged) {
+        // If command has the admin flag, set the command permissions to admin
+        if (commandInfo.admin) {
             command = command.setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
         }
         // Build the command options if they exist
@@ -213,12 +212,12 @@ class CommandHandler {
             if (command.failIfDisabled) {
                 CommandHandler.failIfDisabled();
             }
-            if (command.privileged) {
-                CommandHandler.assertIsAdmin(interaction);
+            if (command.admin) {
+                CommandHandler.assertIsAdminOrMaintainer(interaction);
             }
             if (command.privilegedRole) {
-                // Only need to check role if user is not an admin
-                if (!CommandHandler.isAdmin(interaction)) { 
+                // Only need to check role if user is not an admin or maintainer
+                if (!CommandHandler.isAdminOrMaintainer(interaction)) {
                     CommandHandler.assertHasPrivilegedRole(interaction);
                 }
             }

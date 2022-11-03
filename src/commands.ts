@@ -17,17 +17,17 @@ import infoLog from './instances/info-log';
 
 const validSkills = new Set<string>(CONSTANTS.skills);
 
-const getHelpText = (hidden: boolean, privileged = false, hasPrivilegedRole = false) => {
+const getHelpText = (hidden: boolean, isAdmin = false, hasPrivilegedRole = false) => {
     const commands: CommandsType = hidden ? hiddenCommands : slashCommands;
     const commandKeys = Object.keys(commands).filter((key) => {
-        if (hidden || privileged) {
+        if (hidden || isAdmin) {
             return true;
         }
         const command = commands[key] as SlashCommand;
         if (hasPrivilegedRole) {
-            return !command.privileged;
+            return !command.admin;
         }
-        return !command.privileged && !command.privilegedRole;
+        return !command.admin && !command.privilegedRole;
     });
     commandKeys.sort();
     const maxLengthKey = Math.max(...commandKeys.map((key) => {
@@ -318,7 +318,7 @@ const slashCommands: SlashCommandsType = {
             }
         },
         text: 'Shows details of when each tracked player was last updated',
-        privileged: true
+        admin: true
     },
     role: {
         options: [{
@@ -338,7 +338,7 @@ const slashCommands: SlashCommandsType = {
             });
         },
         text: 'Sets a non-admin server role that can use commands like /track, /remove, and more',
-        privileged: true
+        admin: true
     }
 };
 
