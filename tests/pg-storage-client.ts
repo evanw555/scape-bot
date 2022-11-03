@@ -192,4 +192,8 @@ describe('PGStorageClient Tests', () => {
         const result = await pgStorageClient.purgeUntrackedPlayerData();
         expect(Object.keys(result).length).equals(0);
     });
+
+    it('can purge guild data', async () => {
+        // TODO: Add tests here
+    });
 });

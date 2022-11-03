@@ -321,9 +321,17 @@ client.on('guildCreate', (guild) => {
     logger.log(`Bot has been added to guild _${guild.name}_, now in **${client.guilds.cache.size}** guilds`, MultiLoggerLevel.Warn);
 });
 
-client.on('guildDelete', (guild) => {
+client.on('guildDelete', async (guild) => {
+    // Purge all data related to this guild from PG and from the state
+    const purgeGuildResult = await pgStorageClient.purgeGuildData(guild.id);
+    state.clearAllTrackedPlayers(guild.id);
+    state.clearTrackingChannel(guild.id);
+    state.clearPrivilegedRole(guild.id);
+    // Now that some players may be globally untracked, run the player purging procedure
+    const purgePlayersResult = await pgStorageClient.purgeUntrackedPlayerData();
     // TODO: Reduce this back down to debug once we see how this plays out
-    logger.log(`Bot has been removed from guild _${guild.name}_, now in **${client.guilds.cache.size}** guilds`, MultiLoggerLevel.Warn);
+    await logger.log(`Bot has been removed from guild _${guild.name}_, now in **${client.guilds.cache.size}** guilds`, MultiLoggerLevel.Warn);
+    await logger.log(`Purged guild rows: \`${JSON.stringify(purgeGuildResult)}\`\nPurged player rows: \`${JSON.stringify(purgePlayersResult)}\``, MultiLoggerLevel.Warn);
 });
 
 client.on('messageCreate', async (msg) => {

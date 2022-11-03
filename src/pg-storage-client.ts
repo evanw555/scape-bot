@@ -32,6 +32,13 @@ export default class PGStorageClient {
         'player_hiscore_status'
     ];
 
+    // List of tables that should be purged when a guild removes this bot
+    private static readonly PURGEABLE_GUILD_TABLES: TableName[] = [
+        'tracked_players',
+        'tracking_channels',
+        'privileged_roles'
+    ];
+
     private readonly client: Client;
 
     constructor(clientConfig: ClientConfig) {
@@ -215,6 +222,7 @@ export default class PGStorageClient {
 
     /**
      * Deletes all rows (in all player-related tables) referencing a player that is not tracked in any guilds.
+     * THIS SHOULD BE CALLED EVERY TIME ANY PLAYERS ARE REMOVED FROM THE STATE.
      *
      * @returns Mapping from table name to the number of rows deleted from it (if any)
      */
@@ -222,6 +230,23 @@ export default class PGStorageClient {
         const rowsDeleted: Record<string, number> = {};
         for (const table of PGStorageClient.PURGEABLE_PLAYER_TABLES) {
             const result = await this.client.query(`DELETE FROM ${table} WHERE rsn NOT IN (SELECT p.rsn FROM tracked_players p);`);
+            if (result.rowCount > 0) {
+                rowsDeleted[table] = result.rowCount;
+            }
+        }
+        return rowsDeleted;
+    }
+
+    /**
+     * Deletes all rows (in all guild-related tables) referencing a particular guild.
+     *
+     * @param guildId ID of the guild which we should purge all data for
+     * @returns Mapping from table name to the number of rows deleted from it (if any)
+     */
+    async purgeGuildData(guildId: Snowflake): Promise<Record<string, number>> {
+        const rowsDeleted: Record<string, number> = {};
+        for (const table of PGStorageClient.PURGEABLE_GUILD_TABLES) {
+            const result = await this.client.query(`DELETE FROM ${table} WHERE guild_id = $1;`, [guildId]);
             if (result.rowCount > 0) {
                 rowsDeleted[table] = result.rowCount;
             }

@@ -182,10 +182,11 @@ export default class State {
     }
 
     setTrackingChannel(guildId: Snowflake, channel: TextChannel): void {
-        // Theoretically this should always be true, but ensure the instance exists just to be sure
-        if (channel) {
-            this._trackingChannelsByGuild[guildId] = channel;
-        }
+        this._trackingChannelsByGuild[guildId] = channel;
+    }
+
+    clearTrackingChannel(guildId: Snowflake): void {
+        delete this._trackingChannelsByGuild[guildId];
     }
 
     hasTrackingChannel(guildId: Snowflake): boolean {
@@ -211,6 +212,10 @@ export default class State {
 
     setPrivilegedRole(guildId: Snowflake, role: Role | APIRole): void {
         this._privilegedRolesByGuild[guildId] = role;
+    }
+
+    clearPrivilegedRole(guildId: Snowflake): void {
+        delete this._privilegedRolesByGuild[guildId];
     }
 
     hasPrivilegedRole(guildId: Snowflake): boolean {
