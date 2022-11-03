@@ -339,9 +339,10 @@ client.on('messageCreate', async (msg) => {
                 sendUpdateMessage([msg.channel], replyText, 'overall');
             }, randInt(0, 1500));
             return;
+        } else if (state.isMaintainer(msg.author.id)) {
+            // Else, process the command as normal
+            commandReader.read(msg);
         }
-        // Else, process the command as normal
-        commandReader.read(msg);
     }
 });
 

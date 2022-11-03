@@ -23,10 +23,7 @@ class CommandReader {
         if (Object.prototype.hasOwnProperty.call(hiddenCommands, command)) {
             const commandName = command as HiddenCommandName;
             const commandInfo: HiddenCommand = hiddenCommands[commandName];
-            // Only maintainers can use privileged message-based commands
-            if (commandInfo.privileged && !state.isMaintainer(msg.author.id)) {
-                msg.channel.send('You can\'t do that');
-            } else if (commandInfo.failIfDisabled && state.isDisabled()) {
+            if (commandInfo.failIfDisabled && state.isDisabled()) {
                 msg.channel.send('I can\'t do that while I\'m disabled');
             } else {
                 try {
