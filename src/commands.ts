@@ -2,7 +2,7 @@ import { ApplicationCommandOptionType, ChatInputCommandInteraction, Guild, Messa
 import { FORMATTED_BOSS_NAMES, Boss, BOSSES } from 'osrs-json-hiscores';
 import { exec } from 'child_process';
 import { MultiLoggerLevel, naturalJoin, randChoice, randInt } from 'evanw555.js';
-import { PlayerHiScores, SlashCommandsType, HiddenCommandsType, CommandsType } from './types';
+import { PlayerHiScores, SlashCommandsType, HiddenCommandsType, CommandsType, SlashCommand } from './types';
 import { replyUpdateMessage, sendUpdateMessage, updatePlayer, getBossName, isValidBoss } from './util';
 import { fetchHiScores } from './hiscores';
 import CommandHandler from './command-handler';
@@ -23,10 +23,11 @@ const getHelpText = (hidden: boolean, privileged = false, hasPrivilegedRole = fa
         if (hidden || privileged) {
             return true;
         }
+        const command = commands[key] as SlashCommand;
         if (hasPrivilegedRole) {
-            return !commands[key].privileged;
+            return !command.privileged;
         }
-        return !commands[key].privileged && !commands[key].privilegedRole;
+        return !command.privileged && !command.privilegedRole;
     });
     commandKeys.sort();
     const maxLengthKey = Math.max(...commandKeys.map((key) => {
@@ -379,8 +380,7 @@ export const hiddenCommands: HiddenCommandsType = {
         fn: (msg) => {
             msg.channel.send(getHelpText(true));
         },
-        text: 'Shows help for hidden commands',
-        privileged: true
+        text: 'Shows help for hidden commands'
     },
     log: {
         fn: (msg) => {
@@ -458,8 +458,7 @@ export const hiddenCommands: HiddenCommandsType = {
                 process.exit(1);
             });
         },
-        text: 'Kills the bot',
-        privileged: true
+        text: 'Kills the bot'
     },
     // TODO: We need to re-enable this somehow, perhaps we can just create a view into the state object?
     // state: {
@@ -499,8 +498,7 @@ export const hiddenCommands: HiddenCommandsType = {
             msg.reply('Enabling the bot... If the API format is still not supported, the bot will disable itself.');
             state.setDisabled(false);
         },
-        text: 'Enables the bot, this should be used after the bot has been disabled due to an incompatible API change',
-        privileged: true
+        text: 'Enables the bot, this should be used after the bot has been disabled due to an incompatible API change'
     }
 };
 
