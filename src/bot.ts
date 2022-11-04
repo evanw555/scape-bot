@@ -1,4 +1,4 @@
-import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel, ActivityType, DMChannel } from 'discord.js';
+import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel, ActivityType } from 'discord.js';
 import { PlayerHiScores, TimeoutType } from './types';
 import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer } from './util';
 import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel } from 'evanw555.js';
@@ -19,9 +19,13 @@ const commandReader: CommandReader = new CommandReader();
 const commandHandler: CommandHandler = new CommandHandler(commands);
 
 export async function sendRestartMessage(downtimeMillis: number): Promise<void> {
-    const text = `ScapeBot online after **${getDurationString(downtimeMillis)}** of downtime. In **${client.guilds.cache.size}** guild(s).\n`;
+    const text = `ScapeBot online after **${getDurationString(downtimeMillis)}** of downtime. In **${client.guilds.cache.size}** guild(s) tracking ${state.getNumGloballyTrackedPlayers()} player(s).\n`;
     await logger.log(text + timeoutManager.toStrings().join('\n') || '_none._', MultiLoggerLevel.Fatal);
-    await logger.log(client.guilds.cache.toJSON().map((guild, i) => `**${i + 1}.** _${guild.name}_ with **${state.getAllTrackedPlayers(guild.id).length}** in ${state.hasTrackingChannel(guild.id) ? `\`#${state.getTrackingChannel(guild.id).name}\`` : 'N/A'}`).join('\n'), MultiLoggerLevel.Warn);
+    await logger.log(client.guilds.cache.toJSON().map((guild, i) => {
+        return `**${i + 1}.** _${guild.name}_ with **${state.getAllTrackedPlayers(guild.id).length}**`
+            + state.hasTrackingChannel(guild.id) ? ` in \`#${state.getTrackingChannel(guild.id).name}\`` : ''
+            + state.hasPrivilegedRole(guild.id) ? ` with role \`${state.getPrivilegedRole(guild.id).name}\`` : '';
+    }).join('\n'), MultiLoggerLevel.Warn);
     // TODO: Use this if you need to troubleshoot...
     // await logger.log(state.toDebugString());
 }
@@ -345,16 +349,20 @@ client.on('guildCreate', (guild) => {
 });
 
 client.on('guildDelete', async (guild) => {
-    // Purge all data related to this guild from PG and from the state
-    const purgeGuildResult = await pgStorageClient.purgeGuildData(guild.id);
-    state.clearAllTrackedPlayers(guild.id);
-    state.clearTrackingChannel(guild.id);
-    state.clearPrivilegedRole(guild.id);
-    // Now that some players may be globally untracked, run the player purging procedure
-    const purgePlayersResult = await pgStorageClient.purgeUntrackedPlayerData();
     // TODO: Reduce this back down to debug once we see how this plays out
-    await logger.log(`Bot has been removed from guild _${guild.name}_, now in **${client.guilds.cache.size}** guilds`, MultiLoggerLevel.Warn);
-    await logger.log(`Purged guild rows: \`${JSON.stringify(purgeGuildResult)}\`\nPurged player rows: \`${JSON.stringify(purgePlayersResult)}\``, MultiLoggerLevel.Error);
+    await logger.log(`Bot has been removed from guild _${guild.name}_, now in **${client.guilds.cache.size}** guilds`, MultiLoggerLevel.Error);
+    try {
+        // Purge all data related to this guild from PG and from the state
+        const purgeGuildResult = await pgStorageClient.purgeGuildData(guild.id);
+        state.clearAllTrackedPlayers(guild.id);
+        state.clearTrackingChannel(guild.id);
+        state.clearPrivilegedRole(guild.id);
+        // Now that some players may be globally untracked, run the player purging procedure
+        const purgePlayersResult = await pgStorageClient.purgeUntrackedPlayerData();
+        await logger.log(`Purged guild rows: \`${JSON.stringify(purgeGuildResult)}\`\nPurged player rows: \`${JSON.stringify(purgePlayersResult)}\``, MultiLoggerLevel.Warn);
+    } catch (err) {
+        await logger.log(`Failed to purge \`${guild.id}\` guild data from state/PG: \`${err}\``, MultiLoggerLevel.Error);
+    }
 });
 
 client.on('messageCreate', async (msg) => {
