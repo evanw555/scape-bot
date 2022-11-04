@@ -104,12 +104,25 @@ describe('PGStorageClient Tests', () => {
     });
 
     it('can update tracking channels', async () => {
+        // Expect that nothing is present on a fresh start
+        const results = await pgStorageClient.fetchAllTrackingChannels();
+        expect('12345' in results).false;
+
+        // Insert new row
         const trackingChannelId = randInt(1000, 5000).toString();
         await pgStorageClient.updateTrackingChannel('12345', trackingChannelId);
 
-        const results = await pgStorageClient.fetchAllTrackingChannels();
-        expect('12345' in results).true;
-        expect(results['12345']).equals(trackingChannelId);
+        const results2 = await pgStorageClient.fetchAllTrackingChannels();
+        expect('12345' in results2).true;
+        expect(results2['12345']).equals(trackingChannelId);
+
+        // Update the existing row
+        const trackingChannelId2 = randInt(5000, 7000).toString();
+        await pgStorageClient.updateTrackingChannel('12345', trackingChannelId2);
+
+        const results3 = await pgStorageClient.fetchAllTrackingChannels();
+        expect('12345' in results3).true;
+        expect(results3['12345']).equals(trackingChannelId2);
     });
 
     it('can read and write player hi-score statuses', async () => {
@@ -143,12 +156,25 @@ describe('PGStorageClient Tests', () => {
     });
 
     it('can read and write privileged roles', async () => {
+        // Expect that nothing is present on a fresh start
+        const results = await pgStorageClient.fetchAllPrivilegedRoles();
+        expect('12345' in results).false;
+
+        // Insert new row
         const roleId = randInt(1000, 5000).toString();
         await pgStorageClient.writePrivilegedRole('12345', roleId);
 
-        const results = await pgStorageClient.fetchAllPrivilegedRoles();
-        expect('12345' in results).true;
-        expect(results['12345']).equals(roleId);
+        const results2 = await pgStorageClient.fetchAllPrivilegedRoles();
+        expect('12345' in results2).true;
+        expect(results2['12345']).equals(roleId);
+
+        // Update the existing row
+        const roleId2 = randInt(5000, 7000).toString();
+        await pgStorageClient.writePrivilegedRole('12345', roleId2);
+
+        const results3 = await pgStorageClient.fetchAllPrivilegedRoles();
+        expect('12345' in results3).true;
+        expect(results3['12345']).equals(roleId2);
     });
 
     it('can read and write misc properties', async () => {
@@ -194,6 +220,26 @@ describe('PGStorageClient Tests', () => {
     });
 
     it('can purge guild data', async () => {
-        // TODO: Add tests here
+        // Insert some rows to purge
+        await pgStorageClient.updateTrackingChannel('12345', '111');
+        await pgStorageClient.writePrivilegedRole('12345', '222');
+        await pgStorageClient.insertTrackedPlayer('12345', 'player1');
+        await pgStorageClient.insertTrackedPlayer('12345', 'player2');
+        // Insert some rows to keep
+        await pgStorageClient.updateTrackingChannel('7890', '111');
+        await pgStorageClient.insertTrackedPlayer('7890', 'player1');
+        await pgStorageClient.insertTrackedPlayer('7890', 'player2');
+        await pgStorageClient.insertTrackedPlayer('7890', 'player3');
+
+        // Expect that only rows the purged guild were deleted
+        const result = await pgStorageClient.purgeGuildData('12345');
+        expect(result['tracking_channels']).equals(1);
+        expect(result['privileged_roles']).equals(1);
+        expect(result['tracked_players']).equals(2);
+
+        const result2 = await pgStorageClient.purgeGuildData('7890');
+        expect(result2['tracking_channels']).equals(1);
+        expect('privileged_roles' in result2).false;
+        expect(result2['tracked_players']).equals(3);
     });
 });
