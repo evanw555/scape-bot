@@ -494,8 +494,9 @@ export const hiddenCommands: HiddenCommandsType = {
     //     privileged: true
     // },
     enable: {
-        fn: (msg: Message) => {
+        fn: async (msg: Message) => {
             msg.reply('Enabling the bot... If the API format is still not supported, the bot will disable itself.');
+            await pgStorageClient.writeMiscProperty('disabled', 'false');
             state.setDisabled(false);
         },
         text: 'Enables the bot, this should be used after the bot has been disabled due to an incompatible API change'
