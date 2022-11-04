@@ -193,7 +193,7 @@ export async function updatePlayer(rsn: string, spoofedDiff?: Record<string, num
                     { color: GRAY_EMBED_COLOR });
             }
         } else {
-            logger.log(`Error while fetching player hiscores for ${rsn}: \`${err}\``, MultiLoggerLevel.Error);
+            logger.log(`Error while fetching player hiscores for ${rsn}: \`${err}\``, MultiLoggerLevel.Warn);
         }
         return;
     }

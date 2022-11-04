@@ -1,4 +1,4 @@
-import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel, ActivityType } from 'discord.js';
+import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel, ActivityType, DMChannel } from 'discord.js';
 import { PlayerHiScores, TimeoutType } from './types';
 import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer } from './util';
 import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel } from 'evanw555.js';
@@ -20,7 +20,7 @@ const commandHandler: CommandHandler = new CommandHandler(commands);
 
 export async function sendRestartMessage(downtimeMillis: number): Promise<void> {
     const text = `ScapeBot online after **${getDurationString(downtimeMillis)}** of downtime. In **${client.guilds.cache.size}** guild(s).\n`;
-    await logger.log(text + timeoutManager.toStrings().join('\n') || '_none._', MultiLoggerLevel.Warn);
+    await logger.log(text + timeoutManager.toStrings().join('\n') || '_none._', MultiLoggerLevel.Fatal);
     await logger.log(client.guilds.cache.toJSON().map((guild, i) => `**${i + 1}.** _${guild.name}_ with **${state.getAllTrackedPlayers(guild.id).length}** in ${state.hasTrackingChannel(guild.id) ? `\`#${state.getTrackingChannel(guild.id).name}\`` : 'N/A'}`).join('\n'), MultiLoggerLevel.Warn);
     // TODO: Use this if you need to troubleshoot...
     // await logger.log(state.toDebugString());
@@ -196,23 +196,46 @@ client.on('ready', async () => {
         logger.log(`Logged in as: ${client.user?.tag}`);
         logger.log(`Config=${JSON.stringify(CONFIG)}`);
 
-        // Determine the maintainer user and the maintainer user's DM channel
-        // TODO: We will support multiple maintainers soon, so pick one to create the DM for
-        if (AUTH.adminUserId) {
-            const admin: User = await client.users.fetch(AUTH.adminUserId);
-            if (admin) {
-                state.addMaintainerId(admin.id);
-                const adminDmChannel: TextBasedChannel = await admin.createDM();
-                logger.log(`Determined admin user: ${admin.username}`);
-                // The admin DM channel should only be used for WARN and above logs
-                logger.addOutput(async (text: string) => {
-                    await adminDmChannel.send(text);
-                }, MultiLoggerLevel.Warn);
-            } else {
-                await logger.log('Could not fetch the admin user!', MultiLoggerLevel.Error);
+        // Read the maintainer user IDs
+        if (AUTH.maintainerUserIds) {
+            for (const maintainerUserId of AUTH.maintainerUserIds) {
+                state.addMaintainerId(maintainerUserId);
             }
         } else {
-            await logger.log('No admin user ID was specified in auth.json!', MultiLoggerLevel.Error);
+            await logger.log('No maintainer user IDs were specified in auth.json!', MultiLoggerLevel.Warn);
+        }
+
+        // Set up channel loggers
+        if (AUTH.channelLoggers) {
+            for (const channelLoggerConfig of AUTH.channelLoggers) {
+                let channelLogger: TextBasedChannel | undefined = undefined;
+                try {
+                    if (channelLoggerConfig.dm) {
+                        // Set up this channel logger via DM
+                        const loggerUser: User = await client.users.fetch(channelLoggerConfig.id);
+                        channelLogger = await loggerUser.createDM();
+                    } else {
+                        // Set up this channel logger via a guild TextChannel
+                        const fetchedChannel = await client.channels.fetch(channelLoggerConfig.id);
+                        if (fetchedChannel instanceof TextChannel) {
+                            channelLogger = fetchedChannel;
+                        } else {
+                            throw new Error(`ID \`${channelLoggerConfig.id}\` does not refer to a TextChannel`);
+                        }
+                    }
+                } catch (err) {
+                    await logger.log(`Unable to set up channel logger with config \`${JSON.stringify(channelLoggerConfig)}\`: \`${err}\``);
+                }
+                // If a channel was properly fetched, add the logger
+                if (channelLogger) {
+                    const channelLoggerToUse = channelLogger;
+                    logger.addOutput(async (text: string) => {
+                        await channelLoggerToUse.send(text);
+                    }, channelLoggerConfig.level);
+                }
+            }
+        } else {
+            await logger.log('No channel loggers were specified in auth.json!', MultiLoggerLevel.Warn);
         }
 
         // Fetch guilds to load them into the cache
@@ -318,7 +341,7 @@ client.on('guildCreate', (guild) => {
         }
     }
     // TODO: Reduce this back down to debug once we see how this plays out
-    logger.log(`Bot has been added to guild _${guild.name}_, now in **${client.guilds.cache.size}** guilds`, MultiLoggerLevel.Warn);
+    logger.log(`Bot has been added to guild _${guild.name}_, now in **${client.guilds.cache.size}** guilds`, MultiLoggerLevel.Error);
 });
 
 client.on('guildDelete', async (guild) => {
@@ -331,7 +354,7 @@ client.on('guildDelete', async (guild) => {
     const purgePlayersResult = await pgStorageClient.purgeUntrackedPlayerData();
     // TODO: Reduce this back down to debug once we see how this plays out
     await logger.log(`Bot has been removed from guild _${guild.name}_, now in **${client.guilds.cache.size}** guilds`, MultiLoggerLevel.Warn);
-    await logger.log(`Purged guild rows: \`${JSON.stringify(purgeGuildResult)}\`\nPurged player rows: \`${JSON.stringify(purgePlayersResult)}\``, MultiLoggerLevel.Warn);
+    await logger.log(`Purged guild rows: \`${JSON.stringify(purgeGuildResult)}\`\nPurged player rows: \`${JSON.stringify(purgePlayersResult)}\``, MultiLoggerLevel.Error);
 });
 
 client.on('messageCreate', async (msg) => {

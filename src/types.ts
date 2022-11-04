@@ -1,4 +1,5 @@
 import { ApplicationCommandOptionType, ChatInputCommandInteraction, Message, SlashCommandBuilder, Snowflake } from 'discord.js';
+import { MultiLoggerLevel } from 'evanw555.js';
 import { Boss, ClueType, SkillName } from 'osrs-json-hiscores';
 import { ClientConfig } from 'pg';
 import { TIMEOUTS_PROPERTY } from './constants';
@@ -14,11 +15,10 @@ export interface AnyObject {
 
 export interface ScapeBotAuth {
     token: string,
-    // TODO: Support multiple "maintainers" and specify one UserId to log to via DM
-    adminUserId: Snowflake,
     pg: ClientConfig,
     clientId?: Snowflake,
-    guildId?: Snowflake
+    maintainerUserIds?: Snowflake[],
+    channelLoggers?: { id: Snowflake, level: MultiLoggerLevel, dm?: boolean }[]
 }
 
 export interface ScapeBotLoggerConfig {
