@@ -326,7 +326,7 @@ client.on('ready', async () => {
                 });
             }
         }
-    }, 60000); // TODO: Adjust this with config file
+    }, CONFIG.presenceUpdateInterval);
 });
 
 client.on('guildCreate', (guild) => {

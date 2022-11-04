@@ -28,6 +28,7 @@ export interface ScapeBotLoggerConfig {
 
 export interface ScapeBotConfig {
     refreshInterval: number,
+    presenceUpdateInterval: number,
     timeZone: string,
     debugLog: ScapeBotLoggerConfig,
     infoLog: ScapeBotLoggerConfig
