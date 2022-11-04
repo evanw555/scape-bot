@@ -23,8 +23,8 @@ export async function sendRestartMessage(downtimeMillis: number): Promise<void> 
     await logger.log(text + timeoutManager.toStrings().join('\n') || '_none._', MultiLoggerLevel.Fatal);
     await logger.log(client.guilds.cache.toJSON().map((guild, i) => {
         return `**${i + 1}.** _${guild.name}_ with **${state.getAllTrackedPlayers(guild.id).length}**`
-            + state.hasTrackingChannel(guild.id) ? ` in \`#${state.getTrackingChannel(guild.id).name}\`` : ''
-            + state.hasPrivilegedRole(guild.id) ? ` with role \`${state.getPrivilegedRole(guild.id).name}\`` : '';
+            + (state.hasTrackingChannel(guild.id) ? ` in \`#${state.getTrackingChannel(guild.id).name}\`` : '')
+            + (state.hasPrivilegedRole(guild.id) ? ` with role \`${state.getPrivilegedRole(guild.id).name}\`` : '');
     }).join('\n'), MultiLoggerLevel.Warn);
     // TODO: Use this if you need to troubleshoot...
     // await logger.log(state.toDebugString());
