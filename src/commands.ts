@@ -14,6 +14,7 @@ import pgStorageClient from './instances/pg-storage-client';
 
 import debugLog from './instances/debug-log';
 import infoLog from './instances/info-log';
+import { AxiosError } from 'axios';
 
 const validSkills = new Set<string>(CONSTANTS.skills);
 
@@ -112,6 +113,21 @@ const slashCommands: SlashCommandsType = {
                     ephemeral: true
                 });
             } else {
+                // Validate that the player exists
+                try {
+                    await fetchHiScores(rsn);
+                } catch (err) {
+                    if ((err instanceof AxiosError) && err.response?.status === 404) {
+                        await interaction.reply({ content: `Cannot track **${rsn}**, as this player doesn't exist (was there a typo?)`, ephemeral: true });
+                    } else {
+                        await interaction.reply({
+                            content: `Cannot track **${rsn}** due to an unexpected error. There may be an outage with the hiscores, please try again in a few minutes.`,
+                            ephemeral: true
+                        });
+                    }
+                    return;
+                }
+                // Finally, actually track the player
                 await pgStorageClient.insertTrackedPlayer(guildId, rsn);
                 state.addTrackedPlayer(guildId, rsn);
                 await updatePlayer(rsn);

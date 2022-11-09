@@ -10,6 +10,7 @@ import { CONSTANTS } from './constants';
 import state from './instances/state';
 import logger from './instances/logger';
 import pgStorageClient from './instances/pg-storage-client';
+import { AxiosError } from 'axios';
 
 const validSkills: Set<string> = new Set(CONSTANTS.skills);
 const validClues: Set<string> = new Set(CLUES_NO_ALL);
@@ -192,6 +193,14 @@ export async function updatePlayer(rsn: string, spoofedDiff?: Record<string, num
                     'wrench',
                     { color: GRAY_EMBED_COLOR });
             }
+        } else if ((err instanceof AxiosError) && err.response?.status === 404) {
+            // If the player doesn't exist (this should be prevented by the validation in /track), remove globally
+            const guildsToRemoveFrom = state.getGuildsTrackingPlayer(rsn);
+            for (const guildId of guildsToRemoveFrom) {
+                state.removeTrackedPlayer(guildId, rsn);
+                await pgStorageClient.deleteTrackedPlayer(guildId, rsn);
+            }
+            await logger.log(`Received \`404\` when fetching hiscores for **${rsn}**, removed player from **${guildsToRemoveFrom.length}** guild(s).`, MultiLoggerLevel.Error);
         } else {
             logger.log(`Error while fetching player hiscores for ${rsn}: \`${err}\``, MultiLoggerLevel.Warn);
         }
