@@ -296,8 +296,13 @@ client.on('ready', async () => {
         if (!state.isDisabled()) {
             const nextPlayer = state.nextTrackedPlayer();
             if (nextPlayer) {
-                await updatePlayer(nextPlayer);
-                await pgStorageClient.writeMiscProperty('timestamp', new Date().toJSON());
+                try {
+                    await updatePlayer(nextPlayer);
+                    await pgStorageClient.writeMiscProperty('timestamp', new Date().toJSON());
+                } catch (err) {
+                    // Emergency fallback in case of unhandled errors
+                    await logger.log(`Unhandled error while updating **${nextPlayer}**: \`${err}\``, MultiLoggerLevel.Error);
+                }
             } else {
                 // No players being tracked
             }
@@ -329,23 +334,23 @@ client.on('ready', async () => {
     }, CONFIG.presenceUpdateInterval);
 });
 
-client.on('guildCreate', (guild) => {
-    try {
-        const systemChannel = guild.systemChannel;
-        if (systemChannel) {
-            systemChannel.send(`Thanks for adding ${client.user} to your server! Admins: to get started, please use **/channel**`
+client.on('guildCreate', async (guild) => {
+    const systemChannel = guild.systemChannel;
+    if (systemChannel) {
+        // Apparently, the bot can still lack message sending permissions to the system channel even if it's populated here
+        try {
+            await systemChannel.send(`Thanks for adding ${client.user} to your server! Admins: to get started, please use **/channel**`
                 + ' in the text channel that should receive player updates and **/help** for a list of useful commands.');
-        } else {
-            // Can this even happen?
-            logger.log(`There is no system channel defined for guild ${guild.id}`, MultiLoggerLevel.Warn);
+        } catch (err) {
+            await logger.log(`Failed to send welcome message to system channel of guild _${guild.name}_: \`${err}\``, MultiLoggerLevel.Error);
+            // TODO: Can we default to a DM to the guild's owner?
         }
-    } catch (err) {
-        if (err instanceof Error) {
-            logger.log(`Failed to handle guildCreate event due to: ${err.toString()}`, MultiLoggerLevel.Error);
-        }
+    } else {
+        // Can this even happen?
+        await logger.log(`There is no system channel defined for guild ${guild.id}`, MultiLoggerLevel.Warn);
     }
     // TODO: Reduce this back down to debug once we see how this plays out
-    logger.log(`Bot has been added to guild _${guild.name}_, now in **${client.guilds.cache.size}** guilds`, MultiLoggerLevel.Error);
+    await logger.log(`Bot has been added to guild _${guild.name}_, now in **${client.guilds.cache.size}** guilds`, MultiLoggerLevel.Error);
 });
 
 client.on('guildDelete', async (guild) => {
