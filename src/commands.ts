@@ -6,7 +6,7 @@ import { PlayerHiScores, SlashCommandsType, HiddenCommandsType, CommandsType, Sl
 import { replyUpdateMessage, sendUpdateMessage, updatePlayer, getBossName, isValidBoss } from './util';
 import { fetchHiScores } from './hiscores';
 import CommandHandler from './command-handler';
-import { CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, CONFIG, BOSS_CHOICES, INVALID_TEXT_CHANNEL, SKILL_EMBED_COLOR } from './constants';
+import { CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, CONFIG, BOSS_CHOICES, INVALID_TEXT_CHANNEL, SKILL_EMBED_COLOR, PLAYER_404_ERROR } from './constants';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -14,7 +14,6 @@ import pgStorageClient from './instances/pg-storage-client';
 
 import debugLog from './instances/debug-log';
 import infoLog from './instances/info-log';
-import { AxiosError } from 'axios';
 
 const validSkills = new Set<string>(CONSTANTS.skills);
 
@@ -117,7 +116,7 @@ const slashCommands: SlashCommandsType = {
                 try {
                     await fetchHiScores(rsn);
                 } catch (err) {
-                    if ((err instanceof AxiosError) && err.response?.status === 404) {
+                    if ((err instanceof Error) && err.message === PLAYER_404_ERROR) {
                         await interaction.reply({ content: `Cannot track **${rsn}**, as this player doesn't exist (was there a typo?)`, ephemeral: true });
                     } else {
                         await interaction.reply({

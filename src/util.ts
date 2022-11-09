@@ -3,14 +3,13 @@ import { ChatInputCommandInteraction, TextBasedChannel } from 'discord.js';
 import { addReactsSync, MultiLoggerLevel, randChoice } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName, PlayerHiScores } from './types';
 import { fetchHiScores } from './hiscores';
-import { BOSS_EMBED_COLOR, CLUES_NO_ALL, CLUE_EMBED_COLOR, COMPLETE_VERB_BOSSES, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, DOPE_COMPLETE_VERBS, DOPE_KILL_VERBS, GRAY_EMBED_COLOR, RED_EMBED_COLOR, SKILLS_NO_OVERALL, SKILL_EMBED_COLOR, YELLOW_EMBED_COLOR } from './constants';
+import { BOSS_EMBED_COLOR, CLUES_NO_ALL, CLUE_EMBED_COLOR, COMPLETE_VERB_BOSSES, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, DOPE_COMPLETE_VERBS, DOPE_KILL_VERBS, GRAY_EMBED_COLOR, PLAYER_404_ERROR, RED_EMBED_COLOR, SKILLS_NO_OVERALL, SKILL_EMBED_COLOR, YELLOW_EMBED_COLOR } from './constants';
 
 import { CONSTANTS } from './constants';
 
 import state from './instances/state';
 import logger from './instances/logger';
 import pgStorageClient from './instances/pg-storage-client';
-import { AxiosError } from 'axios';
 
 const validSkills: Set<string> = new Set(CONSTANTS.skills);
 const validClues: Set<string> = new Set(CLUES_NO_ALL);
@@ -193,7 +192,7 @@ export async function updatePlayer(rsn: string, spoofedDiff?: Record<string, num
                     'wrench',
                     { color: GRAY_EMBED_COLOR });
             }
-        } else if ((err instanceof AxiosError) && err.response?.status === 404) {
+        } else if ((err instanceof Error) && err.message === PLAYER_404_ERROR) {
             // If the player doesn't exist (this should be prevented by the validation in /track), remove globally
             const guildsToRemoveFrom = state.getGuildsTrackingPlayer(rsn);
             for (const guildId of guildsToRemoveFrom) {

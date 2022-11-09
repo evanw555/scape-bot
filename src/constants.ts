@@ -53,3 +53,5 @@ export const INVALID_TEXT_CHANNEL = 'err/invalid-text-channel';
 export const UNAUTHORIZED_USER = 'err/unauthorized-user';
 export const STATE_DISABLED = 'err/state-disabled';
 export const UNAUTHORIZED_ROLE = 'err/unauthorized-role';
+
+export const PLAYER_404_ERROR = 'Request failed with status code 404';
