@@ -6,7 +6,7 @@ import { PlayerHiScores, SlashCommandsType, HiddenCommandsType, CommandsType, Sl
 import { replyUpdateMessage, sendUpdateMessage, updatePlayer, getBossName, isValidBoss } from './util';
 import { fetchHiScores } from './hiscores';
 import CommandHandler from './command-handler';
-import { CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, CONFIG, BOSS_CHOICES, INVALID_TEXT_CHANNEL, SKILL_EMBED_COLOR } from './constants';
+import { CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, CONFIG, BOSS_CHOICES, INVALID_TEXT_CHANNEL, SKILL_EMBED_COLOR, PLAYER_404_ERROR } from './constants';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -100,35 +100,36 @@ const slashCommands: SlashCommandsType = {
             required: true
         }],
         execute: async (interaction) => {
+            // Defer the reply because validation may cause this command to time out
+            await interaction.deferReply({ ephemeral: true });
+
             const guildId = getInteractionGuildId(interaction);
             const rsn = interaction.options.getString('username', true);
             if (!rsn || !rsn.trim()) {
-                await interaction.reply({ content: 'Invalid username', ephemeral: true });
+                await interaction.editReply('Invalid username');
                 return;
             }
             if (state.isTrackingPlayer(guildId, rsn)) {
-                await interaction.reply({
-                    content: 'That player is already being tracked!\nUse **/check** to check their hiscores.',
-                    ephemeral: true
-                });
+                await interaction.editReply('That player is already being tracked!\nUse **/check** to check their hiscores.');
             } else {
                 // Validate that the player exists
-                // TODO: Figure out a way to enable this without timing out the command reply (there's logic to remove invalid players in the update loop in the meantime)
-                // try {
-                //     await fetchHiScores(rsn);
-                // } catch (err) {
-                //     if ((err instanceof Error) && err.message === PLAYER_404_ERROR) {
-                //         await interaction.editReply(`Cannot track **${rsn}**, as this player doesn't exist (was there a typo?)`);
-                //     } else {
-                //         await interaction.editReply(`Cannot track **${rsn}** due to an unexpected error. There may be an outage with the hiscores, please try again in a few minutes.`);
-                //     }
-                //     return;
-                // }
+                try {
+                    await fetchHiScores(rsn);
+                } catch (err) {
+                    if ((err instanceof Error) && err.message === PLAYER_404_ERROR) {
+                        await interaction.editReply(`Cannot track **${rsn}**, as this player doesn't exist (was there a typo?)`);
+                    } else {
+                        await interaction.editReply(`Cannot track **${rsn}** due to an unexpected error. There may be an outage with the hiscores, please try again in a few minutes.`);
+                    }
+                    return;
+                }
                 // Validation successful, so track the player
                 await pgStorageClient.insertTrackedPlayer(guildId, rsn);
                 state.addTrackedPlayer(guildId, rsn);
                 await updatePlayer(rsn);
-                await interaction.reply(`Now tracking player **${rsn}**!\nUse **/list** to see tracked players.`);
+                // Edit the ephemeral reply and follow up with a new public one
+                await interaction.editReply(`Tracking **${rsn}**...`);
+                await interaction.followUp(`Now tracking player **${rsn}**!\nUse **/list** to see tracked players.`);
             }
         },
         text: 'Tracks a player and posts updates when they level up, kill a boss, complete a clue, and more',
