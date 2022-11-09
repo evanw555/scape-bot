@@ -112,25 +112,26 @@ const slashCommands: SlashCommandsType = {
                     ephemeral: true
                 });
             } else {
+                // Defer with an ephemeral reply so we don't time out while validating the player
+                await interaction.deferReply({ ephemeral: true });
                 // Validate that the player exists
                 try {
                     await fetchHiScores(rsn);
                 } catch (err) {
                     if ((err instanceof Error) && err.message === PLAYER_404_ERROR) {
-                        await interaction.reply({ content: `Cannot track **${rsn}**, as this player doesn't exist (was there a typo?)`, ephemeral: true });
+                        await interaction.editReply(`Cannot track **${rsn}**, as this player doesn't exist (was there a typo?)`);
                     } else {
-                        await interaction.reply({
-                            content: `Cannot track **${rsn}** due to an unexpected error. There may be an outage with the hiscores, please try again in a few minutes.`,
-                            ephemeral: true
-                        });
+                        await interaction.editReply(`Cannot track **${rsn}** due to an unexpected error. There may be an outage with the hiscores, please try again in a few minutes.`);
                     }
                     return;
                 }
-                // Finally, actually track the player
+                // Validation successful, so track the player
                 await pgStorageClient.insertTrackedPlayer(guildId, rsn);
                 state.addTrackedPlayer(guildId, rsn);
                 await updatePlayer(rsn);
-                await interaction.reply(`Now tracking player **${rsn}**!\nUse **/list** to see tracked players.`);
+                // Delete the deferred ephemeral reply and follow up with a new public one
+                await interaction.deleteReply();
+                await interaction.followUp(`Now tracking player **${rsn}**!\nUse **/list** to see tracked players.`);
             }
         },
         text: 'Tracks a player and posts updates when they level up, kill a boss, complete a clue, and more',
