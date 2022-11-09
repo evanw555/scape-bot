@@ -280,6 +280,21 @@ client.on('ready', async () => {
             // Send built commands in request to Discord to set global commands
             const results = await client.application.commands.set(globalCommands);
             await logger.log(`Refreshed ${results.size} application (/) commands`);
+
+            // TODO: Remove this temp logic to delete guild commands
+            for (const guild of client.guilds.cache.toJSON()) {
+                const commands = await guild.commands.fetch();
+                for (const command of commands.toJSON()) {
+                    if (command.applicationId === client.application.id) {
+                        try {
+                            await command.delete();
+                            await logger.log(`Delete command \`${command.name}\` from guild _${guild.name}_`, MultiLoggerLevel.Warn);
+                        } catch (err) {
+                            await logger.log(`Failed to delete guild commands in guild _${guild.name}_: \`${err}\``, MultiLoggerLevel.Warn);
+                        }
+                    }
+                }
+            }
         }
 
         // Notify the admin that the bot has restarted
