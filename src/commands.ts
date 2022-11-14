@@ -298,16 +298,42 @@ const slashCommands: SlashCommandsType = {
     },
     channel: {
         execute: async (interaction) => {
-            const guildId = getInteractionGuildId(interaction);
-            if (interaction.channel instanceof TextChannel) {
-                await pgStorageClient.updateTrackingChannel(guildId, interaction.channelId);
-                state.setTrackingChannel(guildId, interaction.channel);
-                await interaction.reply('Player updates will now be sent to this channel!\nUse **/track** to start tracking players.');
-            } else {
-                await interaction.reply({
-                    content: 'This channel cannot be used to track player updates! Please use **/channel** in a valid guild text channel',
-                    ephemeral: true
-                });
+            const guild = getInteractionGuild(interaction);
+            try {
+                if (interaction.channel instanceof TextChannel) {
+                    const botMember = guild.members.me;
+                    if (!botMember) {
+                        throw new Error(`Bot does not have valid membership in guild '${guild.id}'`);
+                    }
+                    const botPermissions = interaction.channel.permissionsFor(botMember);
+                    // A more robust solution would probably be to get default bot permissions (sans overwrites) and
+                    // compare them to the resolved permissions in the specific channel. If the permission bits are
+                    // at all different, then reject the command (since this will result in only partial functionality).
+                    // For now, checking that it can see the channel and send messages in it will cover 99% of cases.
+                    if (
+                        !botPermissions.has(PermissionFlagsBits.ViewChannel)
+                        || !botPermissions.has(PermissionFlagsBits.SendMessages)
+                    ) {
+                        await interaction.reply({
+                            content: 'ScapeBot does not have permission to view and/or send messages in this channel.',
+                            ephemeral: true
+                        });
+                        return;
+                    }
+
+                    await pgStorageClient.updateTrackingChannel(guild.id, interaction.channelId);
+                    state.setTrackingChannel(guild.id, interaction.channel);
+                    await interaction.reply('Player updates will now be sent to this channel!\nUse **/track** to start tracking players.');
+                } else {
+                    await interaction.reply({
+                        content: 'This channel cannot be used to track player updates! Please use **/channel** in a valid guild text channel',
+                        ephemeral: true
+                    });
+                }
+            } catch (err) {
+                if (err instanceof Error) {
+                    logger.log(`Error while setting tracking channel (track) for guild ${guild.id}: ${err.toString()}`, MultiLoggerLevel.Error);
+                }
             }
         },
         text: 'All player updates will be sent to the channel where this command is issued',
