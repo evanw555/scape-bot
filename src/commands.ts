@@ -315,7 +315,7 @@ const slashCommands: SlashCommandsType = {
                         || !botPermissions.has(PermissionFlagsBits.SendMessages)
                     ) {
                         await interaction.reply({
-                            content: 'ScapeBot does not have permission to view and/or send messages in this channel.',
+                            content: 'ScapeBot does not have permission to view and/or send messages in this channel. Please update channel permissions or try a different channel.',
                             ephemeral: true
                         });
                         return;
@@ -333,6 +333,7 @@ const slashCommands: SlashCommandsType = {
             } catch (err) {
                 if (err instanceof Error) {
                     logger.log(`Error while setting tracking channel (track) for guild ${guild.id}: ${err.toString()}`, MultiLoggerLevel.Error);
+                    await interaction.reply(`Couldn't set tracking channel to ${interaction.channel}`);
                 }
             }
         },
