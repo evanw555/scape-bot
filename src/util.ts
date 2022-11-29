@@ -188,7 +188,7 @@ export async function updatePlayer(rsn: string, spoofedDiff?: Record<string, num
                 state.setDisabled(true);
                 await pgStorageClient.writeMiscProperty('disabled', 'true');
                 await sendUpdateMessage(state.getAllTrackingChannels(),
-                    'The hiscores API has changed, the bot is now disabled. Please fix this, then re-enable the bot',
+                    'The hiscores API has changed, the bot is now disabled. Waiting for the bot maintainers to fix this then re-enable...',
                     'wrench',
                     { color: GRAY_EMBED_COLOR });
             }
