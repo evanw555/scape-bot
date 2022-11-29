@@ -1,7 +1,7 @@
-import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel, ActivityType } from 'discord.js';
+import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel, ActivityType, Snowflake } from 'discord.js';
 import { PlayerHiScores, TimeoutType } from './types';
 import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer } from './util';
-import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel } from 'evanw555.js';
+import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel, naturalJoin } from 'evanw555.js';
 import CommandReader from './command-reader';
 import CommandHandler from './command-handler';
 import commands from './commands';
@@ -29,6 +29,15 @@ export async function sendRestartMessage(downtimeMillis: number): Promise<void> 
     // TODO: Use this if you need to troubleshoot...
     // await logger.log(state.toDebugString());
 }
+
+const getGuildName = (guildId: Snowflake): string => {
+    // This function is overly cautious, perhaps unreasonably so...
+    try {
+        return client.guilds.cache.get(guildId)?.name ?? guildId;
+    } catch (err) {
+        return guildId;
+    }
+};
 
 const timeoutCallbacks = {
     [TimeoutType.WeeklyXpUpdate]: async (): Promise<void> => {
@@ -158,22 +167,29 @@ const weeklyTotalXpUpdate = async () => {
         .sort((x, y) => totalXpDiffs[y] - totalXpDiffs[x]);
 
     // Compute the winners and send out an update for each guild
+    const winnerLogs = [];
     for (const guildId of state.getAllRelevantGuilds()) {
         if (state.hasTrackingChannel(guildId)) {
-            // Get the top 3 XP earners for this guild
-            const winners: string[] = sortedPlayers.filter(rsn => state.isTrackingPlayer(guildId, rsn)).slice(0, 3);
+            try {
+                // Get the top 3 XP earners for this guild
+                const winners: string[] = sortedPlayers.filter(rsn => state.isTrackingPlayer(guildId, rsn)).slice(0, 3);
+                // TODO: Temp logic for logging
+                winnerLogs.push(`_${getGuildName(guildId)}_: ` + naturalJoin(winners.map(rsn => `**${rsn}** (${getQuantityWithUnits(totalXpDiffs[rsn])})`), { conjunction: '&' }));
 
-            // Send the message to the tracking channel
-            const medalNames = ['gold', 'silver', 'bronze'];
-            await state.getTrackingChannel(guildId).send({
-                content: '**Biggest XP earners over the last week:**',
-                embeds: winners.map((rsn, i) => {
-                    return {
-                        description: `**${rsn}** with **${getQuantityWithUnits(totalXpDiffs[rsn])} XP**`,
-                        thumbnail: getThumbnail(medalNames[i])
-                    };
-                })
-            });
+                // Send the message to the tracking channel
+                const medalNames = ['gold', 'silver', 'bronze'];
+                await state.getTrackingChannel(guildId).send({
+                    content: '**Biggest XP earners over the last week:**',
+                    embeds: winners.map((rsn, i) => {
+                        return {
+                            description: `**${rsn}** with **${getQuantityWithUnits(totalXpDiffs[rsn])} XP**`,
+                            thumbnail: getThumbnail(medalNames[i])
+                        };
+                    })
+                });
+            } catch (err) {
+                await logger.log(`Failed to compute and send weekly XP info for guild \`${guildId}\`: \`${err}\``, MultiLoggerLevel.Error);
+            }
         }
     }
 
@@ -184,10 +200,14 @@ const weeklyTotalXpUpdate = async () => {
         await logger.log(`Unable to write weekly XP snapshots to PG: \`${err}\``, MultiLoggerLevel.Error);
     }
 
+    // TODO: Temp logging to see how this is working
+    await logger.log(winnerLogs.join('\n'), MultiLoggerLevel.Warn);
+
     // Log all the data used to compute these values
-    await logger.log(`Old Total XP:\n\`\`\`${JSON.stringify(oldTotalXpValues, null, 2)}\`\`\``, MultiLoggerLevel.Warn);
-    await logger.log(`New Total XP:\n\`\`\`${JSON.stringify(newTotalXpValues, null, 2)}\`\`\``, MultiLoggerLevel.Warn);
-    await logger.log(`Total XP Diff:\n\`\`\`${JSON.stringify(totalXpDiffs, null, 2)}\`\`\``, MultiLoggerLevel.Warn);
+    // TODO: Not needed for now, re-enable?
+    // await logger.log(`Old Total XP:\n\`\`\`${JSON.stringify(oldTotalXpValues, null, 2)}\`\`\``, MultiLoggerLevel.Warn);
+    // await logger.log(`New Total XP:\n\`\`\`${JSON.stringify(newTotalXpValues, null, 2)}\`\`\``, MultiLoggerLevel.Warn);
+    // await logger.log(`Total XP Diff:\n\`\`\`${JSON.stringify(totalXpDiffs, null, 2)}\`\`\``, MultiLoggerLevel.Warn);
 };
 
 client.on('ready', async () => {
