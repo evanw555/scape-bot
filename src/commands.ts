@@ -118,8 +118,10 @@ const slashCommands: SlashCommandsType = {
                 } catch (err) {
                     if ((err instanceof Error) && err.message === PLAYER_404_ERROR) {
                         await interaction.editReply(`Cannot track **${rsn}**, as this player doesn't exist (was there a typo?)`);
+                        await logger.log(`\`${interaction.user.tag}\` tried to track nonexistent player **${rsn}**`, MultiLoggerLevel.Warn);
                     } else {
                         await interaction.editReply(`Cannot track **${rsn}** due to an unexpected error. There may be an outage with the hiscores, please try again in a few minutes.`);
+                        await logger.log(`\`${interaction.user.tag}\` tried to track player **${rsn}** but failed (outage?)`, MultiLoggerLevel.Warn);
                     }
                     return;
                 }
@@ -130,6 +132,8 @@ const slashCommands: SlashCommandsType = {
                 // Edit the ephemeral reply and follow up with a new public one
                 await interaction.editReply(`Tracking **${rsn}**...`);
                 await interaction.followUp(`Now tracking player **${rsn}**!\nUse **/list** to see tracked players.`);
+                // TODO: Reduce or remove this logging?
+                await logger.log(`\`${interaction.user.tag}\` has tracked player **${rsn}**`, MultiLoggerLevel.Warn);
             }
         },
         text: 'Tracks a player and posts updates when they level up, kill a boss, complete a clue, and more',
