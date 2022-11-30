@@ -193,13 +193,14 @@ export async function updatePlayer(rsn: string, spoofedDiff?: Record<string, num
                     { color: GRAY_EMBED_COLOR });
             }
         } else if ((err instanceof Error) && err.message === PLAYER_404_ERROR) {
+            // TODO: Should we re-enable the logic to remove 404 players? We haven't confirmed what this means yet.
             // If the player doesn't exist (this should be prevented by the validation in /track), remove globally
-            const guildsToRemoveFrom = state.getGuildsTrackingPlayer(rsn);
-            for (const guildId of guildsToRemoveFrom) {
-                state.removeTrackedPlayer(guildId, rsn);
-                await pgStorageClient.deleteTrackedPlayer(guildId, rsn);
-            }
-            await logger.log(`Received \`404\` when fetching hiscores for **${rsn}**, removed player from **${guildsToRemoveFrom.length}** guild(s).`, MultiLoggerLevel.Error);
+            // const guildsToRemoveFrom = state.getGuildsTrackingPlayer(rsn);
+            // for (const guildId of guildsToRemoveFrom) {
+            //     state.removeTrackedPlayer(guildId, rsn);
+            //     await pgStorageClient.deleteTrackedPlayer(guildId, rsn);
+            // }
+            // await logger.log(`Received \`404\` when fetching hiscores for **${rsn}**, removed player from **${guildsToRemoveFrom.length}** guild(s).`, MultiLoggerLevel.Error);
         } else {
             logger.log(`Error while fetching player hiscores for ${rsn}: \`${err}\``, MultiLoggerLevel.Warn);
         }

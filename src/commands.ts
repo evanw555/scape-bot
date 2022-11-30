@@ -112,20 +112,7 @@ const slashCommands: SlashCommandsType = {
             if (state.isTrackingPlayer(guildId, rsn)) {
                 await interaction.editReply('That player is already being tracked!\nUse **/check** to check their hiscores.');
             } else {
-                // Validate that the player exists
-                try {
-                    await fetchHiScores(rsn);
-                } catch (err) {
-                    if ((err instanceof Error) && err.message === PLAYER_404_ERROR) {
-                        await interaction.editReply(`Cannot track **${rsn}**, as this player doesn't exist (was there a typo?)`);
-                        await logger.log(`\`${interaction.user.tag}\` tried to track nonexistent player **${rsn}**`, MultiLoggerLevel.Warn);
-                    } else {
-                        await interaction.editReply(`Cannot track **${rsn}** due to an unexpected error. There may be an outage with the hiscores, please try again in a few minutes.`);
-                        await logger.log(`\`${interaction.user.tag}\` tried to track player **${rsn}** but failed (outage?)`, MultiLoggerLevel.Warn);
-                    }
-                    return;
-                }
-                // Validation successful, so track the player
+                // Track the player
                 await pgStorageClient.insertTrackedPlayer(guildId, rsn);
                 state.addTrackedPlayer(guildId, rsn);
                 await updatePlayer(rsn);
@@ -134,6 +121,20 @@ const slashCommands: SlashCommandsType = {
                 await interaction.followUp(`Now tracking player **${rsn}**!\nUse **/list** to see tracked players.`);
                 // TODO: Reduce or remove this logging?
                 await logger.log(`\`${interaction.user.tag}\` has tracked player **${rsn}**`, MultiLoggerLevel.Warn);
+                // Validate that the player exists
+                try {
+                    await fetchHiScores(rsn);
+                } catch (err) {
+                    if ((err instanceof Error) && err.message === PLAYER_404_ERROR) {
+                        // If the hiscores returns a 404, just show a warning in the ephemeral reply
+                        await interaction.editReply(`⚠️ **WARNING** ⚠️ **${rsn}** was _not_ found on the hiscores, `
+                            + 'meaning they either are temporarily missing or they don\'t exist at all. '
+                            + 'This player will still be tracked, but please ensure you spelled their username correctly.');
+                        await logger.log(`\`${interaction.user.tag}\` tried to track 404 player **${rsn}**`, MultiLoggerLevel.Warn);
+                    } else {
+                        await logger.log(`\`${interaction.user.tag}\` tried to track player **${rsn}** but failed (outage?)`, MultiLoggerLevel.Warn);
+                    }
+                }
             }
         },
         text: 'Tracks a player and posts updates when they level up, kill a boss, complete a clue, and more',
