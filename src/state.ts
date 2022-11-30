@@ -74,6 +74,10 @@ export default class State {
         this._masterPlayerQueue.markAsActive(rsn, timestamp);
     }
 
+    getNumActivePlayers(): number {
+        return this._masterPlayerQueue.getNumActivePlayers();
+    }
+
     nextTrackedPlayer(): string | undefined {
         return this._masterPlayerQueue.next();
     }

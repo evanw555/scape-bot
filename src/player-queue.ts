@@ -41,6 +41,7 @@ export default class PlayerQueue {
             // If this inactive player is now active, move them to the active queue
             if (inactivePlayer && this.isActive(inactivePlayer)) {
                 this.moveToActiveQueue(inactivePlayer);
+                logger.log(`Moved **${inactivePlayer}** to the _active_ queue`, MultiLoggerLevel.Warn);
             }
             logger.log(`[IQ] ${this.counter}/${counterInterval} -> ${inactivePlayer}`, MultiLoggerLevel.Debug);
             return inactivePlayer;
@@ -49,6 +50,7 @@ export default class PlayerQueue {
             // If this active player is now inactive, move them to the inactive queue
             if (activePlayer && !this.isActive(activePlayer)) {
                 this.moveToInactiveQueue(activePlayer);
+                logger.log(`Moved **${activePlayer}** to the _inactive_ queue`, MultiLoggerLevel.Warn);
             }
             logger.log(`[AQ] ${this.counter}/${counterInterval} -> ${activePlayer}`, MultiLoggerLevel.Debug);
             return activePlayer;
@@ -58,21 +60,23 @@ export default class PlayerQueue {
     private moveToActiveQueue(rsn: string): void {
         this.activeQueue.add(rsn);
         this.inactiveQueue.remove(rsn);
-        logger.log(`Moved **${rsn}** to the _active_ queue`, MultiLoggerLevel.Warn);
     }
 
     private moveToInactiveQueue(rsn: string): void {
         this.inactiveQueue.add(rsn);
         this.activeQueue.remove(rsn);
-        logger.log(`Moved **${rsn}** to the _inactive_ queue`, MultiLoggerLevel.Warn);
     }
 
     markAsActive(rsn: string, timestamp?: Date): void {
-        // Set their "last active" timestamp to right now
+        // Set their "last active" timestamp to right now (or the specified date)
         this.lastActive[rsn] = (timestamp ?? new Date()).getTime();
-        // If they weren't already on the active queue, move them there now
-        if (this.inactiveQueue.contains(rsn) && !this.activeQueue.contains(rsn)) {
+        // If they're now active and weren't already on the active queue, move them there now
+        if (this.isActive(rsn) && this.inactiveQueue.contains(rsn) && !this.activeQueue.contains(rsn)) {
             this.moveToActiveQueue(rsn);
+            // Log if this isn't on reboot
+            if (!timestamp) {
+                logger.log(`Moved **${rsn}** to the _active_ queue`, MultiLoggerLevel.Warn);
+            }
         }
     }
 
@@ -83,6 +87,10 @@ export default class PlayerQueue {
 
     private getLastActive(rsn: string): number {
         return this.lastActive[rsn] ?? 0;
+    }
+
+    getNumActivePlayers(): number {
+        return this.activeQueue.size();
     }
 
     toSortedArray(): string[] {
