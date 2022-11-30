@@ -100,26 +100,31 @@ const slashCommands: SlashCommandsType = {
             required: true
         }],
         execute: async (interaction) => {
-            // Defer the reply because validation may cause this command to time out
-            await interaction.deferReply({ ephemeral: true });
-
             const guildId = getInteractionGuildId(interaction);
             const rsn = interaction.options.getString('username', true);
             if (!rsn || !rsn.trim()) {
-                await interaction.editReply('Invalid username');
+                await interaction.reply({
+                    content: 'Invalid username',
+                    ephemeral: true
+                });
                 return;
             }
             if (state.isTrackingPlayer(guildId, rsn)) {
-                await interaction.editReply('That player is already being tracked!\nUse **/check** to check their hiscores.');
+                await interaction.reply({
+                    content: 'That player is already being tracked!\nUse **/check** to check their hiscores.',
+                    ephemeral: true
+                });
             } else {
+                // Defer the reply because PG and validation may cause this command to time out
+                await interaction.deferReply();
                 // Track the player
                 await pgStorageClient.insertTrackedPlayer(guildId, rsn);
                 state.addTrackedPlayer(guildId, rsn);
                 await updatePlayer(rsn);
-                // Edit the ephemeral reply and follow up with a new public one
-                await interaction.editReply(`Tracking **${rsn}**...`);
-                await interaction.followUp(`Now tracking player **${rsn}**!\nUse **/list** to see tracked players.`);
-                // Validate that the player exists
+                // Edit the reply with an initial success message
+                const replyText = `Now tracking player **${rsn}**!\nUse **/list** to see tracked players.`;
+                await interaction.editReply(replyText);
+                // Validate that the player exists, edit the reply to show a warning if not
                 try {
                     await fetchHiScores(rsn);
                     // TODO: Reduce or remove this logging?
@@ -127,7 +132,7 @@ const slashCommands: SlashCommandsType = {
                 } catch (err) {
                     if ((err instanceof Error) && err.message === PLAYER_404_ERROR) {
                         // If the hiscores returns a 404, just show a warning in the ephemeral reply
-                        await interaction.editReply(`⚠️ **WARNING** ⚠️ **${rsn}** was _not_ found on the hiscores, `
+                        await interaction.editReply(`${replyText}\n\n⚠️ **WARNING:** This player was _not_ found on the hiscores, `
                             + 'meaning they either are temporarily missing or they don\'t exist at all. '
                             + 'This player will still be tracked, but please ensure you spelled their username correctly.');
                         await logger.log(`\`${interaction.user.tag}\` has tracked player **${rsn}** (404)`, MultiLoggerLevel.Warn);
@@ -431,8 +436,8 @@ export const hiddenCommands: HiddenCommandsType = {
     log: {
         fn: (msg) => {
             // Truncate both logs to the Discord max of 2000 characters
-            msg.channel.send(`Info Log:\n\`\`\`${infoLog.toLogArray().join('\n').slice(0, 1950) || 'log empty'}\`\`\``);
-            msg.channel.send(`Debug Log:\`\`\`${debugLog.toLogArray().join('\n').slice(0, 1950) || 'log empty'}\`\`\``);
+            msg.channel.send(`Info Log:\n\`\`\`${infoLog.toLogArray().join('\n').replace(/`/g, '').slice(0, 1950) || 'log empty'}\`\`\``);
+            msg.channel.send(`Debug Log:\`\`\`${debugLog.toLogArray().join('\n').replace(/`/g, '').slice(0, 1950) || 'log empty'}\`\`\``);
         },
         text: 'Prints the bot\'s log'
     },
