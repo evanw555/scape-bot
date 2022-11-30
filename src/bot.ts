@@ -55,6 +55,12 @@ const loadState = async (): Promise<void> => {
             state.addTrackedPlayer(guildId, rsn);
         }
     }
+
+    const playerActivityTimestamps = await pgStorageClient.fetchAllPlayerActivityTimestamps();
+    for (const [ rsn, timestamp ] of Object.entries(playerActivityTimestamps)) {
+        state.markPlayerAsActive(rsn, timestamp);
+    }
+
     const trackingChannels = await pgStorageClient.fetchAllTrackingChannels();
     for (const [ guildId, trackingChannelId ] of Object.entries(trackingChannels)) {
         try {

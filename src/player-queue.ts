@@ -67,9 +67,9 @@ export default class PlayerQueue {
         logger.log(`Moved **${rsn}** to the _inactive_ queue`, MultiLoggerLevel.Warn);
     }
 
-    markAsActive(rsn: string): void {
+    markAsActive(rsn: string, timestamp?: Date): void {
         // Set their "last active" timestamp to right now
-        this.lastActive[rsn] = new Date().getTime();
+        this.lastActive[rsn] = (timestamp ?? new Date()).getTime();
         // If they weren't already on the active queue, move them there now
         if (this.inactiveQueue.contains(rsn) && !this.activeQueue.contains(rsn)) {
             this.moveToActiveQueue(rsn);

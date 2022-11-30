@@ -68,9 +68,10 @@ export default class State {
      * This should be invoked whenever a player experiences some sort of update.
      * This lets the player queue know which players to update more frequently.
      * @param rsn the player to mark as active
+     * @param timestamp optional parameter to set the last-active timestamp, defaults to now
      */
-    markPlayerAsActive(rsn: string): void {
-        this._masterPlayerQueue.markAsActive(rsn);
+    markPlayerAsActive(rsn: string, timestamp?: Date): void {
+        this._masterPlayerQueue.markAsActive(rsn, timestamp);
     }
 
     nextTrackedPlayer(): string | undefined {

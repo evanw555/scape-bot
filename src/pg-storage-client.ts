@@ -7,7 +7,7 @@ import { IndividualSkillName, IndividualClueType, MiscPropertyName } from './typ
 
 import logger from './instances/logger';
 
-type TableName = 'weekly_xp_snapshots' | 'player_levels' | 'player_bosses' | 'player_clues' | 'tracked_players' | 'tracking_channels' | 'player_hiscore_status' | 'bot_counters' | 'privileged_roles' | 'misc_properties';
+type TableName = 'weekly_xp_snapshots' | 'player_levels' | 'player_bosses' | 'player_clues' | 'tracked_players' | 'tracking_channels' | 'player_hiscore_status' | 'player_activity_timestamps' | 'bot_counters' | 'privileged_roles' | 'misc_properties';
 
 export default class PGStorageClient {
     private static readonly TABLES: Record<TableName, string> = {
@@ -18,6 +18,7 @@ export default class PGStorageClient {
         'tracked_players': 'CREATE TABLE tracked_players (guild_id BIGINT, rsn VARCHAR(12), PRIMARY KEY (guild_id, rsn));',
         'tracking_channels': 'CREATE TABLE tracking_channels (guild_id BIGINT PRIMARY KEY, channel_id BIGINT);',
         'player_hiscore_status': 'CREATE TABLE player_hiscore_status (rsn VARCHAR(12) PRIMARY KEY, on_hiscores BOOLEAN);',
+        'player_activity_timestamps': 'CREATE TABLE player_activity_timestamps (rsn VARCHAR(12) PRIMARY KEY, timestamp TIMESTAMPZ);',
         'bot_counters': 'CREATE TABLE bot_counters (user_id BIGINT PRIMARY KEY, counter INTEGER);',
         'privileged_roles': 'CREATE TABLE privileged_roles (guild_id BIGINT PRIMARY KEY, role_id BIGINT);',
         'misc_properties': 'CREATE TABLE misc_properties (name VARCHAR(32) PRIMARY KEY, value VARCHAR(2048));'
@@ -29,7 +30,8 @@ export default class PGStorageClient {
         'player_levels',
         'player_bosses',
         'player_clues',
-        'player_hiscore_status'
+        'player_hiscore_status',
+        'player_activity_timestamps'
     ];
 
     // List of tables that should be purged when a guild removes this bot
@@ -205,6 +207,19 @@ export default class PGStorageClient {
     
     async writePlayerHiScoreStatus(rsn: string, onHiScores: boolean): Promise<void> {
         await this.client.query('INSERT INTO player_hiscore_status VALUES ($1, $2) ON CONFLICT (rsn) DO UPDATE SET on_hiscores = EXCLUDED.on_hiscores;', [rsn, onHiScores]);
+    }
+
+    async fetchAllPlayerActivityTimestamps(): Promise<Record<string, Date>> {
+        const result: Record<string, Date> = {};
+        const queryResult = await this.client.query<{rsn: string, timestamp: Date}>('SELECT * FROM player_activity_timestamps;');
+        for (const row of queryResult.rows) {
+            result[row.rsn] = row.timestamp;
+        }
+        return result;
+    }
+
+    async updatePlayerActivityTimestamp(rsn: string): Promise<void> {
+        await this.client.query('INSERT INTO player_activity_timestamps VALUES ($1, $2) ON CONFLICT (rsn) DO UPDATE SET timestamp = EXCLUDED.timestamp;', [rsn, new Date()]);
     }
     
     async fetchBotCounters(): Promise<Record<Snowflake, number>> {

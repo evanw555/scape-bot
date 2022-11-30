@@ -146,6 +146,10 @@ describe('PGStorageClient Tests', () => {
         expect(offHiScores2.sort().join(',')).equals('player1,player2');
     });
 
+    it('can read and write player activity timestamps', async () => {
+        // TODO: Add tests for this
+    });
+
     it('can read and write bot counters', async () => {
         const counterValue = randInt(1, 100);
         await pgStorageClient.writeBotCounter('55555', counterValue);

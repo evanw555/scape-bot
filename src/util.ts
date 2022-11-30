@@ -323,6 +323,7 @@ export async function updateLevels(rsn: string, newLevels: Record<IndividualSkil
     if (!spoofedDiff) {
         if (updatedSkills.length > 0) {
             state.markPlayerAsActive(rsn);
+            await pgStorageClient.updatePlayerActivityTimestamp(rsn);
             await logger.log(`**${rsn}** update: \`${JSON.stringify(diff)}\``, MultiLoggerLevel.Info);
         }
         // Write only updated skills to PG
@@ -403,6 +404,7 @@ export async function updateKillCounts(rsn: string, newScores: Record<Boss, numb
     if (!spoofedDiff) {
         if (updatedBosses.length > 0) {
             state.markPlayerAsActive(rsn);
+            await pgStorageClient.updatePlayerActivityTimestamp(rsn);
             await logger.log(`**${rsn}** update: \`${JSON.stringify(diff)}\``, MultiLoggerLevel.Info);
         }
         // Write only updated bosses to PG
@@ -475,6 +477,7 @@ export async function updateClues(rsn: string, newScores: Record<IndividualClueT
     if (!spoofedDiff) {
         if (updatedClues.length > 0) {
             state.markPlayerAsActive(rsn);
+            await pgStorageClient.updatePlayerActivityTimestamp(rsn);
             await logger.log(`**${rsn}** update: \`${JSON.stringify(diff)}\``, MultiLoggerLevel.Info);
         }
         // Write only updated clues to PG
