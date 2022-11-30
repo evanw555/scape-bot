@@ -119,20 +119,20 @@ const slashCommands: SlashCommandsType = {
                 // Edit the ephemeral reply and follow up with a new public one
                 await interaction.editReply(`Tracking **${rsn}**...`);
                 await interaction.followUp(`Now tracking player **${rsn}**!\nUse **/list** to see tracked players.`);
-                // TODO: Reduce or remove this logging?
-                await logger.log(`\`${interaction.user.tag}\` has tracked player **${rsn}**`, MultiLoggerLevel.Warn);
                 // Validate that the player exists
                 try {
                     await fetchHiScores(rsn);
+                    // TODO: Reduce or remove this logging?
+                    await logger.log(`\`${interaction.user.tag}\` has tracked player **${rsn}**`, MultiLoggerLevel.Warn);
                 } catch (err) {
                     if ((err instanceof Error) && err.message === PLAYER_404_ERROR) {
                         // If the hiscores returns a 404, just show a warning in the ephemeral reply
                         await interaction.editReply(`⚠️ **WARNING** ⚠️ **${rsn}** was _not_ found on the hiscores, `
                             + 'meaning they either are temporarily missing or they don\'t exist at all. '
                             + 'This player will still be tracked, but please ensure you spelled their username correctly.');
-                        await logger.log(`\`${interaction.user.tag}\` tried to track 404 player **${rsn}**`, MultiLoggerLevel.Warn);
+                        await logger.log(`\`${interaction.user.tag}\` has tracked player **${rsn}** (404)`, MultiLoggerLevel.Warn);
                     } else {
-                        await logger.log(`\`${interaction.user.tag}\` tried to track player **${rsn}** but failed (outage?)`, MultiLoggerLevel.Warn);
+                        await logger.log(`\`${interaction.user.tag}\` has tracked player **${rsn}** (5xx? outage?)`, MultiLoggerLevel.Warn);
                     }
                 }
             }
