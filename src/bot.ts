@@ -179,20 +179,27 @@ const weeklyTotalXpUpdate = async () => {
             try {
                 // Get the top 3 XP earners for this guild
                 const winners: string[] = sortedPlayers.filter(rsn => state.isTrackingPlayer(guildId, rsn)).slice(0, 3);
-                // TODO: Temp logic for logging
-                winnerLogs.push(`_${getGuildName(guildId)}_: ` + naturalJoin(winners.map(rsn => `**${rsn}** (${getQuantityWithUnits(totalXpDiffs[rsn])})`), { conjunction: '&' }));
 
-                // Send the message to the tracking channel
-                const medalNames = ['gold', 'silver', 'bronze'];
-                await state.getTrackingChannel(guildId).send({
-                    content: '**Biggest XP earners over the last week:**',
-                    embeds: winners.map((rsn, i) => {
-                        return {
-                            description: `**${rsn}** with **${getQuantityWithUnits(totalXpDiffs[rsn])} XP**`,
-                            thumbnail: getThumbnail(medalNames[i])
-                        };
-                    })
-                });
+                // Only send out a message if there are any XP earners
+                if (winners.length !== 0) {
+                    // TODO: Temp logic for logging
+                    winnerLogs.push(`_${getGuildName(guildId)}_: ` + naturalJoin(winners.map(rsn => `**${rsn}** (${getQuantityWithUnits(totalXpDiffs[rsn])})`), { conjunction: '&' }));
+
+                    // Send the message to the tracking channel
+                    const medalNames = ['gold', 'silver', 'bronze'];
+                    await state.getTrackingChannel(guildId).send({
+                        content: '**Biggest XP earners over the last week:**',
+                        embeds: winners.map((rsn, i) => {
+                            return {
+                                description: `**${rsn}** with **${getQuantityWithUnits(totalXpDiffs[rsn])} XP**`,
+                                thumbnail: getThumbnail(medalNames[i])
+                            };
+                        })
+                    });
+                } else {
+                    // TODO: Temp logic for logging
+                    winnerLogs.push(`~~_${getGuildName(guildId)}_~~`);
+                }
             } catch (err) {
                 await logger.log(`Failed to compute and send weekly XP info for guild \`${guildId}\`: \`${err}\``, MultiLoggerLevel.Error);
             }
