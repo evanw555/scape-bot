@@ -551,6 +551,55 @@ export const hiddenCommands: HiddenCommandsType = {
             state.setDisabled(false);
         },
         text: 'Enables the bot, this should be used after the bot has been disabled due to an incompatible API change'
+    },
+    rollback: {
+        fn: async (msg: Message) => {
+            const allPlayers: string[] = state.getAllGloballyTrackedPlayers();
+            let numPlayersProcessed = 0;
+            const getStatusText = () => {
+                return `Running rollback procedure (${numPlayersProcessed}/${allPlayers.length})`;
+            };
+            const replyMessage = await msg.reply(getStatusText());
+            for (const rsn of allPlayers) {
+                numPlayersProcessed++;
+                let data: PlayerHiScores;
+                try {
+                    data = await fetchHiScores(rsn);
+                } catch (err) {
+                    await msg.channel.send(`(Rollback) Failed to fetch hiscores for player **${rsn}**: \`${err}\``);
+                    continue;
+                }
+                // TODO: THIS IS JUST TEMP LOGGING FOR NOW
+                const logs: string[] = [];
+                for (const skill of SKILLS_NO_OVERALL) {
+                    const before = state.getLevel(rsn, skill);
+                    const after = data.levelsWithDefaults[skill];
+                    if (after - before < 0) {
+                        logs.push(`**${skill}** dropped from \`${before}\` to \`${after}\``);
+                    }
+                }
+                for (const boss of BOSSES) {
+                    const before = state.getBoss(rsn, boss);
+                    const after = data.bossesWithDefaults[boss];
+                    if (after - before < 0) {
+                        logs.push(`**${boss}** dropped from \`${before}\` to \`${after}\``);
+                    }
+                }
+                for (const clue of CLUES_NO_ALL) {
+                    const before = state.getClue(rsn, clue);
+                    const after = data.cluesWithDefaults[clue];
+                    if (after - before < 0) {
+                        logs.push(`**${clue}** dropped from \`${before}\` to \`${after}\``);
+                    }
+                }
+                if (logs.length > 0) {
+                    await msg.channel.send(`(Rollback) Detected negatives for **${rsn}**:\n` + logs.join('\n'));
+                }
+                // Update original message
+                await replyMessage.edit(getStatusText());
+            }
+        },
+        text: 'Fetches hiscores for each player and saves any negative diffs (only needed in the case of a rollback)'
     }
 };
 

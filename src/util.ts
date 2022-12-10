@@ -131,7 +131,7 @@ export function computeDiff<T extends string>(before: Partial<Record<T, number>>
             }
             // For bizarre cases, fail loudly
             if (typeof thisDiff !== 'number' || isNaN(thisDiff) || thisDiff < 0) {
-                throw new Error(`Invalid ${kind} diff, '${afterValue}' minus '${beforeValue}' is '${thisDiff}'`);
+                throw new Error(`Invalid **${kind}** diff, \`${afterValue}\` minus \`${beforeValue}\` is \`${thisDiff}\``);
             }
             diff[kind] = thisDiff;
         }
