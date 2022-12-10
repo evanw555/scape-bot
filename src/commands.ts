@@ -572,24 +572,30 @@ export const hiddenCommands: HiddenCommandsType = {
                 // TODO: THIS IS JUST TEMP LOGGING FOR NOW
                 const logs: string[] = [];
                 for (const skill of SKILLS_NO_OVERALL) {
-                    const before = state.getLevel(rsn, skill);
-                    const after = data.levelsWithDefaults[skill];
-                    if (after - before < 0) {
-                        logs.push(`**${skill}** dropped from \`${before}\` to \`${after}\``);
+                    if (state.hasLevel(rsn, skill)) {
+                        const before = state.getLevel(rsn, skill);
+                        const after = data.levelsWithDefaults[skill];
+                        if (after - before < 0) {
+                            logs.push(`**${skill}** dropped from \`${before}\` to \`${after}\``);
+                        }
                     }
                 }
                 for (const boss of BOSSES) {
-                    const before = state.getBoss(rsn, boss);
-                    const after = data.bossesWithDefaults[boss];
-                    if (after - before < 0) {
-                        logs.push(`**${boss}** dropped from \`${before}\` to \`${after}\``);
+                    if (state.hasBoss(rsn, boss)) {
+                        const before = state.getBoss(rsn, boss);
+                        const after = data.bossesWithDefaults[boss];
+                        if (after - before < 0) {
+                            logs.push(`**${boss}** dropped from \`${before}\` to \`${after}\``);
+                        }
                     }
                 }
                 for (const clue of CLUES_NO_ALL) {
-                    const before = state.getClue(rsn, clue);
-                    const after = data.cluesWithDefaults[clue];
-                    if (after - before < 0) {
-                        logs.push(`**${clue}** dropped from \`${before}\` to \`${after}\``);
+                    if (state.hasClue(rsn, clue)) {
+                        const before = state.getClue(rsn, clue);
+                        const after = data.cluesWithDefaults[clue];
+                        if (after - before < 0) {
+                            logs.push(`**${clue}** dropped from \`${before}\` to \`${after}\``);
+                        }
                     }
                 }
                 if (logs.length > 0) {
