@@ -281,6 +281,13 @@ export default class State {
         return this._levels[rsn][skill] as number;
     }
 
+    setLevel(rsn: string, skill: IndividualSkillName, level: number): void {
+        if (!this.hasLevels(rsn)) {
+            throw new Error(`Trying to set ${skill} score for ${rsn} without there being pre-existing levels`);
+        }
+        this._levels[rsn][skill] = level;
+    }
+
     hasBosses(rsn: string): boolean {
         return rsn in this._bosses;
     }
@@ -319,6 +326,13 @@ export default class State {
         return this._bosses[rsn][boss] as number;
     }
 
+    setBoss(rsn: string, boss: Boss, score: number): void {
+        if (!this.hasBosses(rsn)) {
+            throw new Error(`Trying to set ${boss} score for ${rsn} without there being pre-existing bosses`);
+        }
+        this._bosses[rsn][boss] = score;
+    }
+
     hasClues(rsn: string): boolean {
         return rsn in this._clues;
     }
@@ -355,6 +369,13 @@ export default class State {
             throw new Error(`Trying to get ${clue} score for ${rsn} without checking if it's in the state`);
         }
         return this._clues[rsn][clue] as number;
+    }
+
+    setClue(rsn: string, clue: IndividualClueType, score: number): void {
+        if (!this.hasClues(rsn)) {
+            throw new Error(`Trying to set ${clue} score for ${rsn} without there being pre-existing clues`);
+        }
+        this._clues[rsn][clue] = score;
     }
 
     getBotCounter(botId: Snowflake): number {

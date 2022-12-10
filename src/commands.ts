@@ -2,7 +2,7 @@ import { ApplicationCommandOptionType, ChatInputCommandInteraction, Guild, Messa
 import { FORMATTED_BOSS_NAMES, Boss, BOSSES } from 'osrs-json-hiscores';
 import { exec } from 'child_process';
 import { MultiLoggerLevel, naturalJoin, randChoice, randInt } from 'evanw555.js';
-import { PlayerHiScores, SlashCommandsType, HiddenCommandsType, CommandsType, SlashCommand } from './types';
+import { PlayerHiScores, SlashCommandsType, HiddenCommandsType, CommandsType, SlashCommand, IndividualSkillName, IndividualClueType } from './types';
 import { replyUpdateMessage, sendUpdateMessage, updatePlayer, getBossName, isValidBoss } from './util';
 import { fetchHiScores } from './hiscores';
 import CommandHandler from './command-handler';
@@ -16,6 +16,10 @@ import debugLog from './instances/debug-log';
 import infoLog from './instances/info-log';
 
 const validSkills = new Set<string>(CONSTANTS.skills);
+
+// Storing rollback-related data as volatile in-memory variables because it doesn't need to be persistent
+let rollbackStaging: { rsn: string, category: 'skill' | 'boss' | 'clue', name: string, score: number }[] = [];
+let rollbackLock = false;
 
 const getHelpText = (hidden: boolean, isAdmin = false, hasPrivilegedRole = false) => {
     const commands: CommandsType = hidden ? hiddenCommands : slashCommands;
@@ -554,56 +558,104 @@ export const hiddenCommands: HiddenCommandsType = {
     },
     rollback: {
         fn: async (msg: Message) => {
-            const allPlayers: string[] = state.getAllGloballyTrackedPlayers();
-            let numPlayersProcessed = 0;
-            const getStatusText = () => {
-                return `Running rollback procedure (${numPlayersProcessed}/${allPlayers.length})`;
-            };
-            const replyMessage = await msg.reply(getStatusText());
-            for (const rsn of allPlayers) {
-                numPlayersProcessed++;
-                let data: PlayerHiScores;
-                try {
-                    data = await fetchHiScores(rsn);
-                } catch (err) {
-                    await msg.channel.send(`(Rollback) Failed to fetch hiscores for player **${rsn}**: \`${err}\``);
-                    continue;
-                }
-                // TODO: THIS IS JUST TEMP LOGGING FOR NOW
-                const logs: string[] = [];
-                for (const skill of SKILLS_NO_OVERALL) {
-                    if (state.hasLevel(rsn, skill)) {
-                        const before = state.getLevel(rsn, skill);
-                        const after = data.levelsWithDefaults[skill];
-                        if (after - before < 0) {
-                            logs.push(`**${skill}** dropped from \`${before}\` to \`${after}\``);
-                        }
-                    }
-                }
-                for (const boss of BOSSES) {
-                    if (state.hasBoss(rsn, boss)) {
-                        const before = state.getBoss(rsn, boss);
-                        const after = data.bossesWithDefaults[boss];
-                        if (after - before < 0) {
-                            logs.push(`**${boss}** dropped from \`${before}\` to \`${after}\``);
-                        }
-                    }
-                }
-                for (const clue of CLUES_NO_ALL) {
-                    if (state.hasClue(rsn, clue)) {
-                        const before = state.getClue(rsn, clue);
-                        const after = data.cluesWithDefaults[clue];
-                        if (after - before < 0) {
-                            logs.push(`**${clue}** dropped from \`${before}\` to \`${after}\``);
-                        }
-                    }
-                }
-                if (logs.length > 0) {
-                    await msg.channel.send(`(Rollback) Detected negatives for **${rsn}**:\n` + logs.join('\n'));
-                }
-                // Update original message
-                await replyMessage.edit(getStatusText());
+            if (rollbackLock) {
+                await msg.reply('Rollback in progress, try again later!');
+                return;
             }
+            rollbackLock = true;
+
+            if (rollbackStaging.length === 0) {
+                const allPlayers: string[] = state.getAllGloballyTrackedPlayers();
+                let numPlayersProcessed = 0;
+                const getStatusText = () => {
+                    return `Checking for rollback-impacted data... **(${numPlayersProcessed}/${allPlayers.length})**`;
+                };
+                const replyMessage = await msg.reply(getStatusText());
+                for (const rsn of allPlayers) {
+                    numPlayersProcessed++;
+                    let data: PlayerHiScores;
+                    try {
+                        data = await fetchHiScores(rsn);
+                    } catch (err) {
+                        await msg.channel.send(`(Rollback) Failed to fetch hiscores for player **${rsn}**: \`${err}\``);
+                        continue;
+                    }
+                    const logs: string[] = [];
+                    for (const skill of SKILLS_NO_OVERALL) {
+                        if (state.hasLevel(rsn, skill)) {
+                            const before = state.getLevel(rsn, skill);
+                            const after = data.levelsWithDefaults[skill];
+                            if (after - before < 0) {
+                                logs.push(`**${skill}** dropped from \`${before}\` to \`${after}\``);
+                                rollbackStaging.push({
+                                    rsn,
+                                    category: 'skill',
+                                    name: skill,
+                                    score: after
+                                });
+                            }
+                        }
+                    }
+                    for (const boss of BOSSES) {
+                        if (state.hasBoss(rsn, boss)) {
+                            const before = state.getBoss(rsn, boss);
+                            const after = data.bossesWithDefaults[boss];
+                            if (after - before < 0) {
+                                logs.push(`**${boss}** dropped from \`${before}\` to \`${after}\``);
+                                rollbackStaging.push({
+                                    rsn,
+                                    category: 'boss',
+                                    name: boss,
+                                    score: after
+                                });
+                            }
+                        }
+                    }
+                    for (const clue of CLUES_NO_ALL) {
+                        if (state.hasClue(rsn, clue)) {
+                            const before = state.getClue(rsn, clue);
+                            const after = data.cluesWithDefaults[clue];
+                            if (after - before < 0) {
+                                logs.push(`**${clue}** dropped from \`${before}\` to \`${after}\``);
+                                rollbackStaging.push({
+                                    rsn,
+                                    category: 'clue',
+                                    name: clue,
+                                    score: after
+                                });
+                            }
+                        }
+                    }
+                    if (logs.length > 0) {
+                        await msg.channel.send(`(Rollback) Detected negatives for **${rsn}**:\n` + logs.join('\n'));
+                    }
+                    // Update original message
+                    await replyMessage.edit(getStatusText());
+                }
+                await msg.channel.send(`Done, use this command again to commit the **${rollbackStaging.length}** change(s) to state/PG.`);
+            } else {
+                await msg.channel.send(`Committing **${rollbackStaging.length}** rollback change(s) to state/PG...`);
+                for (const { rsn, category, name, score } of rollbackStaging) {
+                    switch (category) {
+                    case 'skill':
+                        state.setLevel(rsn, name as IndividualSkillName, score);
+                        await pgStorageClient.writePlayerLevels(rsn, { [name]: score });
+                        break;
+                    case 'boss':
+                        state.setBoss(rsn, name as Boss, score);
+                        await pgStorageClient.writePlayerBosses(rsn, { [name]: score });
+                        break;
+                    case 'clue':
+                        state.setClue(rsn, name as IndividualClueType, score);
+                        await pgStorageClient.writePlayerClues(rsn, { [name]: score });
+                        break;
+                    }
+                }
+                await msg.channel.send('Rollback commit complete!');
+                rollbackStaging = [];
+            }
+
+            rollbackLock = false;
         },
         text: 'Fetches hiscores for each player and saves any negative diffs (only needed in the case of a rollback)'
     }
