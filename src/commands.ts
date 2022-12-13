@@ -105,7 +105,7 @@ const slashCommands: SlashCommandsType = {
         }],
         execute: async (interaction) => {
             const guildId = getInteractionGuildId(interaction);
-            const rsn = interaction.options.getString('username', true);
+            const rsn = interaction.options.getString('username', true).toLowerCase();
             if (!rsn || !rsn.trim()) {
                 await interaction.reply({
                     content: 'Invalid username',
@@ -159,7 +159,7 @@ const slashCommands: SlashCommandsType = {
         }],
         execute: async (interaction) => {
             const guildId = getInteractionGuildId(interaction);
-            const rsn = interaction.options.getString('username', true);
+            const rsn = interaction.options.getString('username', true).toLowerCase();
             if (!rsn || !rsn.trim()) {
                 await interaction.reply({ content: 'Invalid username', ephemeral: true });
                 return;
@@ -233,7 +233,7 @@ const slashCommands: SlashCommandsType = {
             required: true
         }],
         execute: async (interaction) => {
-            const rsn = interaction.options.getString('username', true);
+            const rsn = interaction.options.getString('username', true).toLowerCase();
             try {
                 // Retrieve the player's hiscores data
                 const data = await fetchHiScores(rsn);
@@ -281,7 +281,7 @@ const slashCommands: SlashCommandsType = {
             }
         ],
         execute: async (interaction) => {
-            const rsn = interaction.options.getString('username', true);
+            const rsn = interaction.options.getString('username', true).toLowerCase();
             // This must be a valid boss, since we define the valid choices
             const boss = interaction.options.getString('boss', true) as Boss;
             try {
