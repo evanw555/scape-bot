@@ -429,4 +429,13 @@ export default class State {
     toDebugString(): string {
         return this.getAllGloballyTrackedPlayers().map(rsn => `**${rsn}:** ${this.getTrackingChannelsForPlayer(rsn).join(', ')}`).join('\n');
     }
+
+    /**
+     * @returns String representing the duration between each refresh for any active player and any inactive player
+     */
+    getRefreshDurationString(): string {
+        const activeTime: number = Math.floor(this._masterPlayerQueue.getActiveRefreshDuration() / 1000);
+        const inactiveTime: number = Math.floor(this._masterPlayerQueue.getInactiveRefreshDuration() / 1000);
+        return `**${isNaN(activeTime) ? '???' : activeTime}s** (recently active), **${isNaN(inactiveTime) ? '???' : inactiveTime}s** (inactive)`;
+    }
 }

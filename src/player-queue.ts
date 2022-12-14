@@ -1,5 +1,7 @@
 import { CircularQueue, MultiLoggerLevel } from 'evanw555.js';
 
+import { CONFIG } from './constants';
+
 import logger from './instances/logger';
 
 export default class PlayerQueue {
@@ -30,10 +32,17 @@ export default class PlayerQueue {
         return a || i;
     }
 
-    next(): string | undefined {
+    /**
+     * @returns The counter interval N (queue returns 1 inactive player per N-1 active players)
+     */
+    private getCounterInterval(): number {
         // Don't loop over the active queue more than once before drawing from the inactive queue.
         // N is guaranteed to be at most 10, possibly less on a fresh reboot (active queue empty -> N = 1 -> always draw from the inactive queue)
-        const counterInterval = Math.min(10, 1 + this.activeQueue.size());
+        return Math.min(10, 1 + this.activeQueue.size());
+    }
+
+    next(): string | undefined {
+        const counterInterval = this.getCounterInterval();
         this.counter = (this.counter + 1) % counterInterval;
         // Every N calls we process from the inactive queue, for the remaining N - 1 we process from the active queue
         if (this.counter === 0) {
@@ -91,6 +100,24 @@ export default class PlayerQueue {
 
     getNumActivePlayers(): number {
         return this.activeQueue.size();
+    }
+
+    getNumInactivePlayers(): number {
+        return this.inactiveQueue.size();
+    }
+
+    /**
+     * @returns Milliseconds between a refresh for one active player
+     */
+    getActiveRefreshDuration(): number {
+        return this.getNumActivePlayers() * Math.floor(CONFIG.refreshInterval * this.getCounterInterval() / (this.getCounterInterval() - 1));
+    }
+
+    /**
+     * @returns Milliseconds between a refresh for one inactive player
+     */
+    getInactiveRefreshDuration(): number {
+        return CONFIG.refreshInterval * this.getCounterInterval() * this.getNumInactivePlayers();
     }
 
     toSortedArray(): string[] {

@@ -19,7 +19,9 @@ const commandReader: CommandReader = new CommandReader();
 const commandHandler: CommandHandler = new CommandHandler(commands);
 
 export async function sendRestartMessage(downtimeMillis: number): Promise<void> {
-    const text = `ScapeBot online after **${getDurationString(downtimeMillis)}** of downtime. In **${client.guilds.cache.size}** guild(s) tracking **${state.getNumGloballyTrackedPlayers()}** player(s) (**${state.getNumActivePlayers()}** active).\n`;
+    const text = `ScapeBot online after **${getDurationString(downtimeMillis)}** of downtime. `
+        + `In **${client.guilds.cache.size}** guild(s) tracking **${state.getNumGloballyTrackedPlayers()}** player(s) (**${state.getNumActivePlayers()}** active). `
+        + `Current refresh durations: ${state.getRefreshDurationString()}.\n`;
     await logger.log(text + timeoutManager.toStrings().join('\n') || '_none._', MultiLoggerLevel.Fatal);
     await logger.log(client.guilds.cache.toJSON().map((guild, i) => {
         return `**${i + 1}.** _${guild.name}_ with **${state.getAllTrackedPlayers(guild.id).length}**`
