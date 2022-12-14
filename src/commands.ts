@@ -3,10 +3,10 @@ import { FORMATTED_BOSS_NAMES, Boss, BOSSES } from 'osrs-json-hiscores';
 import { exec } from 'child_process';
 import { MultiLoggerLevel, naturalJoin, randChoice, randInt } from 'evanw555.js';
 import { PlayerHiScores, SlashCommandsType, HiddenCommandsType, CommandsType, SlashCommand, IndividualSkillName, IndividualClueType } from './types';
-import { replyUpdateMessage, sendUpdateMessage, updatePlayer, getBossName, isValidBoss } from './util';
+import { replyUpdateMessage, sendUpdateMessage, updatePlayer, getBossName, isValidBoss, generateDetailsContentString } from './util';
 import { fetchHiScores } from './hiscores';
 import CommandHandler from './command-handler';
-import { CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, CONFIG, BOSS_CHOICES, INVALID_TEXT_CHANNEL, SKILL_EMBED_COLOR, PLAYER_404_ERROR } from './constants';
+import { CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, BOSS_CHOICES, INVALID_TEXT_CHANNEL, SKILL_EMBED_COLOR, PLAYER_404_ERROR } from './constants';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -362,7 +362,7 @@ const slashCommands: SlashCommandsType = {
             if (state.isTrackingAnyPlayers(guildId)) {
                 const sortedPlayers = state.getAllTrackedPlayers(guildId);
                 await interaction.reply({
-                    content: `${sortedPlayers.map(rsn => `**${rsn}**: last updated **${state.getLastUpdated(rsn)?.toLocaleTimeString('en-US', { timeZone: CONFIG.timeZone })}**`).join('\n')}`,
+                    content: generateDetailsContentString(sortedPlayers),
                     ephemeral: true
                 });
             } else {

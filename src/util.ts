@@ -1,11 +1,9 @@
 import { Boss, BOSSES, INVALID_FORMAT_ERROR, FORMATTED_BOSS_NAMES } from 'osrs-json-hiscores';
-import { ChatInputCommandInteraction, TextBasedChannel, TextChannel } from 'discord.js';
+import { ChatInputCommandInteraction, TextBasedChannel } from 'discord.js';
 import { addReactsSync, MultiLoggerLevel, randChoice } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName, PlayerHiScores } from './types';
 import { fetchHiScores } from './hiscores';
-import { BOSS_EMBED_COLOR, CLUES_NO_ALL, CLUE_EMBED_COLOR, COMPLETE_VERB_BOSSES, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, DOPE_COMPLETE_VERBS, DOPE_KILL_VERBS, GRAY_EMBED_COLOR, PLAYER_404_ERROR, RED_EMBED_COLOR, SKILLS_NO_OVERALL, SKILL_EMBED_COLOR, YELLOW_EMBED_COLOR } from './constants';
-
-import { CONSTANTS } from './constants';
+import { CONSTANTS, CONFIG, BOSS_EMBED_COLOR, CLUES_NO_ALL, CLUE_EMBED_COLOR, COMPLETE_VERB_BOSSES, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, DOPE_COMPLETE_VERBS, DOPE_KILL_VERBS, GRAY_EMBED_COLOR, PLAYER_404_ERROR, RED_EMBED_COLOR, SKILLS_NO_OVERALL, SKILL_EMBED_COLOR, YELLOW_EMBED_COLOR } from './constants';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -506,4 +504,30 @@ export function getNextFridayEvening(): Date {
         nextFriday.setHours(nextFriday.getHours() + (24 * 7));
     }
     return nextFriday;
+}
+
+/**
+ * Takes a list of RSN strings and generates the content returned in the /details command,
+ * keeping below the character limit without cutting off midline. If the character limit
+ * is reached, it keeps up to the last line within the limit and adds a final line indicating
+ * how many remaining players there are (ex: "plus 3 more...").
+ */
+export function generateDetailsContentString(players: string[]): string {
+    const CONTENT_MAX_LENGTH = 2000;
+    let contentString = '';
+    for (let i = 0; i < players.length; i++) {
+        const rsn = players[i];
+        const line = `**${rsn}**: last updated **${state.getLastUpdated(rsn)?.toLocaleTimeString('en-US', { timeZone: CONFIG.timeZone })}**\n`;
+        // The cutoff text is based on the remaining players from the previous iteration,
+        // so we can just use the index (instead i + 1 to indicate count)
+        const cutoffText = `**plus ${players.length - i} more...**`;
+        // If appending to the content string will exceed the max character limit, add the
+        // cutoff text and finish
+        if (contentString.length + line.length > CONTENT_MAX_LENGTH - cutoffText.length) {
+            contentString += cutoffText;
+            break;
+        }
+        contentString += line;
+    }
+    return contentString;
 }
