@@ -1,4 +1,4 @@
-import { ApplicationCommandOptionType, ChatInputCommandInteraction, Guild, Message, PermissionFlagsBits, TextChannel } from 'discord.js';
+import { ApplicationCommandOptionType, ChatInputCommandInteraction, Guild, Message, PermissionFlagsBits, Snowflake, TextChannel } from 'discord.js';
 import { FORMATTED_BOSS_NAMES, Boss, BOSSES } from 'osrs-json-hiscores';
 import { exec } from 'child_process';
 import { MultiLoggerLevel, naturalJoin, randChoice, randInt } from 'evanw555.js';
@@ -658,6 +658,36 @@ export const hiddenCommands: HiddenCommandsType = {
             rollbackLock = false;
         },
         text: 'Fetches hiscores for each player and saves any negative diffs (only needed in the case of a rollback)'
+    },
+    removeglobal: {
+        fn: async (msg: Message, rawArgs, rawRsn) => {
+            const rsn = rawRsn.toLowerCase();
+            if (!rsn || !rsn.trim()) {
+                await msg.reply('Invalid username');
+                return;
+            }
+            const guildIds: Snowflake[] = state.getGuildsTrackingPlayer(rsn);
+            if (guildIds.length === 0) {
+                await msg.reply(`**${rsn}** is not tracked by any guilds`);
+                return;
+            }
+            // Remove player from all guilds
+            // TODO: Can we refactor these utils to have bulk methods?
+            for (const guildId of guildIds) {
+                await pgStorageClient.deleteTrackedPlayer(guildId, rsn);
+                state.removeTrackedPlayer(guildId, rsn);
+            }
+            await msg.reply(`Removed **${rsn}** from **${guildIds.length}** guild(s)`);
+            // If no longer globally tracked (should be true), purge PG
+            if (!state.isPlayerTrackedInAnyGuilds(rsn)) {
+                const purgeResults = await pgStorageClient.purgeUntrackedPlayerData();
+                // If any rows were deleted, log this
+                if (Object.keys(purgeResults).length > 0) {
+                    await logger.log(`(\`removeglobal\`) **${rsn}** now globally untracked, purged rows: \`${JSON.stringify(purgeResults)}\``, MultiLoggerLevel.Warn);
+                }
+            }
+        },
+        text: 'Removes a player from all guilds'
     }
 };
 
