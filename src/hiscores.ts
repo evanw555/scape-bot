@@ -99,6 +99,7 @@ export async function fetchHiScores(rsn: string): Promise<PlayerHiScores> {
     }
 
     const result: PlayerHiScores = {
+        displayName: rawPlayerInfo.name,
         onHiScores: stats.skills.overall.rank !== -1,
         totalXp: stats.skills.overall.xp,
         levels,

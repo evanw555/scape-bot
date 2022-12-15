@@ -60,7 +60,7 @@ export type BuiltSlashCommand = SlashCommandBuilder | Omit<SlashCommandBuilder, 
 
 export type SlashCommandName = 'help' | 'ping' | 'info' | 'track' | 'remove' | 'clear' | 'list' | 'check' | 'channel' | 'kc' | 'details' | 'role';
 
-export type HiddenCommandName = 'help' | 'log' | 'thumbnail' | 'thumbnail99' | 'spoof' | 'spoofverbose' | 'uptime' | 'kill' | 'enable' | 'rollback' | 'removeglobal';
+export type HiddenCommandName = 'help' | 'log' | 'thumbnail' | 'thumbnail99' | 'spoof' | 'spoofverbose' | 'uptime' | 'kill' | 'enable' | 'rollback' | 'removeglobal' | 'name';
 
 export type CommandsType = Record<string, Command>;
 export type SlashCommandsType = Record<SlashCommandName, SlashCommand>;
@@ -115,6 +115,7 @@ export interface ParsedCommand {
 }
 
 export interface PlayerHiScores {
+    displayName: string,
     onHiScores: boolean,
     totalXp?: number,
     baseLevel?: number,

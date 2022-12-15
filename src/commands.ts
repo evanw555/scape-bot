@@ -662,11 +662,11 @@ export const hiddenCommands: HiddenCommandsType = {
     },
     removeglobal: {
         fn: async (msg: Message, rawArgs, rawRsn) => {
-            const rsn = rawRsn.toLowerCase();
-            if (!rsn || !rsn.trim()) {
+            if (!rawRsn || !rawRsn.trim()) {
                 await msg.reply('Invalid username');
                 return;
             }
+            const rsn = rawRsn.toLowerCase();
             const guildIds: Snowflake[] = state.getGuildsTrackingPlayer(rsn);
             if (guildIds.length === 0) {
                 await msg.reply(`**${rsn}** is not tracked by any guilds`);
@@ -689,6 +689,22 @@ export const hiddenCommands: HiddenCommandsType = {
             }
         },
         text: 'Removes a player from all guilds'
+    },
+    name: {
+        fn: async (msg: Message, rawArgs, rawRsn) => {
+            if (!rawRsn || !rawRsn.trim()) {
+                await msg.reply('Invalid username');
+                return;
+            }
+            const rsn = rawRsn.toLowerCase();
+            try {
+                const player = await fetchHiScores(rsn);
+                await msg.reply(`Display name of **${rsn}** is **${player.displayName}**`);
+            } catch (err) {
+                await msg.reply(`Unable to fetch display name for **${rsn}**: \`${err}\``);
+            }
+        },
+        text: 'Fetches a player\'s display name'
     }
 };
 
