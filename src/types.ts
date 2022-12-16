@@ -115,7 +115,6 @@ export interface ParsedCommand {
 }
 
 export interface PlayerHiScores {
-    displayName: string,
     onHiScores: boolean,
     totalXp?: number,
     baseLevel?: number,

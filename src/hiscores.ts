@@ -1,17 +1,11 @@
-import hiscores, { Activity, Boss, BOSSES, Player, Skill, Stats } from 'osrs-json-hiscores';
+import hiscores, { Activity, Boss, BOSSES, Skill, Stats } from 'osrs-json-hiscores';
 import { CLUES_NO_ALL, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, SKILLS_NO_OVERALL } from './constants';
 import { IndividualClueType, IndividualSkillName, PlayerHiScores } from './types';
 
 import state from './instances/state';
 
 export async function fetchHiScores(rsn: string): Promise<PlayerHiScores> {
-    const rawPlayerInfo: Player = await hiscores.getStats(rsn);
-
-    const stats: Stats | undefined = rawPlayerInfo[rawPlayerInfo.mode];
-
-    if (!stats) {
-        throw new Error(`Raw hi-scores data for player "${rsn}" doesn't contain stats for mode "${rawPlayerInfo.mode}"`);
-    }
+    const stats: Stats = await hiscores.getStatsByGamemode(rsn);
 
     // Attempt to patch over some of the missing data for this player (default to 1/0 if there's no pre-existing data)
     // The purpose of doing this is to avoid negative skill/kc diffs (caused by weird behavior of the so-called 'API')
@@ -99,7 +93,6 @@ export async function fetchHiScores(rsn: string): Promise<PlayerHiScores> {
     }
 
     const result: PlayerHiScores = {
-        displayName: rawPlayerInfo.name,
         onHiScores: stats.skills.overall.rank !== -1,
         totalXp: stats.skills.overall.xp,
         levels,
