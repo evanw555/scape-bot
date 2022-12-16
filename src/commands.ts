@@ -698,7 +698,7 @@ export const hiddenCommands: HiddenCommandsType = {
             }
             const rsn = rawRsn.toLowerCase();
             try {
-                const displayName = getRSNFormat(rsn);
+                const displayName = await getRSNFormat(rsn);
                 await msg.reply(`Display name of **${rsn}** is **${displayName}**`);
             } catch (err) {
                 await msg.reply(`Unable to fetch display name for **${rsn}**: \`${err}\``);
