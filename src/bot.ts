@@ -1,7 +1,7 @@
 import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel, ActivityType, Snowflake } from 'discord.js';
 import { getRSNFormat } from 'osrs-json-hiscores';
 import { PlayerHiScores, TimeoutType } from './types';
-import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer } from './util';
+import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer, sanitizeRSN } from './util';
 import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel, naturalJoin, chance } from 'evanw555.js';
 import CommandReader from './command-reader';
 import CommandHandler from './command-handler';
@@ -28,6 +28,11 @@ export async function sendRestartMessage(downtimeMillis: number): Promise<void> 
     if (state.getNumPlayerDisplayNames() < state.getNumGloballyTrackedPlayers()) {
         const displayNamesRemaining = state.getNumGloballyTrackedPlayers() - state.getNumPlayerDisplayNames();
         text += `\nℹ️ Loaded **${state.getNumPlayerDisplayNames()}** display names from PG, need to populate **${displayNamesRemaining}** more.`;
+    }
+    // TODO: Temp logic to log how many RSNs are unsanitized
+    const numUnsanitizedRSNs = state.getAllGloballyTrackedPlayers().filter(rsn => rsn !== sanitizeRSN(rsn)).length;
+    if (numUnsanitizedRSNs > 0) {
+        text += `\nℹ️ There are still **${numUnsanitizedRSNs}** unsanitized RSNs!`;
     }
     // Add timeout manager info
     if (timeoutManager.toStrings().length > 0) {
