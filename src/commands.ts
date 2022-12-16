@@ -139,7 +139,8 @@ const slashCommands: SlashCommandsType = {
                         // If the hiscores returns a 404, just show a warning in the ephemeral reply
                         await interaction.editReply(`${replyText}\n\n⚠️ **WARNING:** This player was _not_ found on the hiscores, `
                             + 'meaning they either are temporarily missing or they don\'t exist at all. '
-                            + 'This player will still be tracked, but please ensure you spelled their username correctly.');
+                            + 'This player will still be tracked, but please ensure you spelled their username correctly. '
+                            + 'If you made a typo, please remove this player with **/remove**!');
                         await logger.log(`\`${interaction.user.tag}\` has tracked player **${rsn}** (404)`, MultiLoggerLevel.Warn);
                     } else {
                         await logger.log(`\`${interaction.user.tag}\` has tracked player **${rsn}** (5xx? outage?)`, MultiLoggerLevel.Warn);
