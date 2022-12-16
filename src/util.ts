@@ -210,12 +210,12 @@ export async function updatePlayer(rsn: string, spoofedDiff?: Record<string, num
         // If player was previously on the hiscores, take them off
         state.removePlayerFromHiScores(rsn);
         await pgStorageClient.writePlayerHiScoreStatus(rsn, false);
-        await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), `**${rsn}** has fallen off the hiscores`, 'unhappy', { color: RED_EMBED_COLOR });
+        await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), `**${state.getDisplayName(rsn)}** has fallen off the hiscores`, 'unhappy', { color: RED_EMBED_COLOR });
     } else if (data.onHiScores && !state.isPlayerOnHiScores(rsn)) {
         // If player was previously off the hiscores, add them back on!
         state.addPlayerToHiScores(rsn);
         await pgStorageClient.writePlayerHiScoreStatus(rsn, true);
-        await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), `**${rsn}** has made it back onto the hiscores`, 'happy', { color: YELLOW_EMBED_COLOR });
+        await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), `**${state.getDisplayName(rsn)}** has made it back onto the hiscores`, 'happy', { color: YELLOW_EMBED_COLOR });
     }
 
     // Check if levels have changes and send notifications
@@ -284,7 +284,7 @@ export async function updateLevels(rsn: string, newLevels: Record<IndividualSkil
     for (const skill of updated99Skills) {
         const levelsGained = diff[skill];
         await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn),
-            `**${rsn}** has gained `
+            `**${state.getDisplayName(rsn)}** has gained `
                 + (levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`)
                 + ` in **${skill}** and is now level **99**`,
             skill, {
@@ -301,7 +301,7 @@ export async function updateLevels(rsn: string, newLevels: Record<IndividualSkil
     case 1: {
         const skill = updatedIncompleteSkills[0];
         const levelsGained = diff[skill];
-        const text = `**${rsn}** has gained `
+        const text = `**${state.getDisplayName(rsn)}** has gained `
             + (levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`)
             + ` in **${skill}** and is now level **${newLevels[skill]}**`;
         await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, skill);
@@ -312,7 +312,7 @@ export async function updateLevels(rsn: string, newLevels: Record<IndividualSkil
             const levelsGained = diff[skill];
             return `${levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`} in **${skill}** and is now level **${newLevels[skill]}**`;
         }).join('\n');
-        await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), `**${rsn}** has gained...\n${text}`, 'overall');
+        await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), `**${state.getDisplayName(rsn)}** has gained...\n${text}`, 'overall');
         break;
     }
     }
@@ -372,8 +372,8 @@ export async function updateKillCounts(rsn: string, newScores: Record<Boss, numb
         const scoreIncrease = diff[boss];
         const bossName = getBossName(boss);
         const text = newScores[boss] === 1
-            ? `**${rsn}** ${verb} **${bossName}** for the first time!`
-            : `**${rsn}** ${verb} **${bossName}** `
+            ? `**${state.getDisplayName(rsn)}** ${verb} **${bossName}** for the first time!`
+            : `**${state.getDisplayName(rsn)}** ${verb} **${bossName}** `
                     + (scoreIncrease === 1 ? 'again' : `**${scoreIncrease}** more times`)
                     + ` for a total of **${newScores[boss]}**`;
         sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, boss, { color: BOSS_EMBED_COLOR });
@@ -389,7 +389,7 @@ export async function updateKillCounts(rsn: string, newScores: Record<Boss, numb
         }).join('\n');
         sendUpdateMessage(
             state.getTrackingChannelsForPlayer(rsn),
-            `**${rsn}** ${verb}...\n${text}`,
+            `**${state.getDisplayName(rsn)}** ${verb}...\n${text}`,
             // Show the first boss in the list as the icon
             getBossName(updatedBosses[0]),
             { color: BOSS_EMBED_COLOR }
@@ -449,7 +449,7 @@ export async function updateClues(rsn: string, newScores: Record<IndividualClueT
     case 1: {
         const clue = updatedClues[0];
         const scoreGained = diff[clue];
-        const text = `**${rsn}** has completed `
+        const text = `**${state.getDisplayName(rsn)}** has completed `
             + (scoreGained === 1 ? 'another' : `**${scoreGained}** more`)
             + ` **${clue}** `
             + (scoreGained === 1 ? 'clue' : 'clues')
@@ -463,7 +463,7 @@ export async function updateClues(rsn: string, newScores: Record<IndividualClueT
             return `${scoreGained === 1 ? 'another' : `**${scoreGained}** more`} **${clue}** ${scoreGained === 1 ? 'clue' : 'clues'} for a total of **${newScores[clue]}**`;
         }).join('\n');
         await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn),
-            `**${rsn}** has completed...\n${text}`,
+            `**${state.getDisplayName(rsn)}** has completed...\n${text}`,
             // Show the highest level clue as the icon
             updatedClues[updatedClues.length - 1],
             { color: CLUE_EMBED_COLOR });
@@ -517,7 +517,7 @@ export function generateDetailsContentString(players: string[]): string {
     let contentString = '';
     for (let i = 0; i < players.length; i++) {
         const rsn = players[i];
-        const line = `**${rsn}**: last updated **${state.getLastUpdated(rsn)?.toLocaleTimeString('en-US', { timeZone: CONFIG.timeZone })}**\n`;
+        const line = `**${state.getDisplayName(rsn)}**: last updated **${state.getLastUpdated(rsn)?.toLocaleTimeString('en-US', { timeZone: CONFIG.timeZone })}**\n`;
         // The cutoff text is based on the remaining players from the previous iteration,
         // so we can just use the index (instead i + 1 to indicate count)
         const cutoffText = `**plus ${players.length - i} more...**`;

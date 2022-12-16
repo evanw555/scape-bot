@@ -16,6 +16,7 @@ export default class State {
     private readonly _clues: Record<string, Partial<Record<IndividualClueType, number>>>;
     private readonly _botCounters: Record<Snowflake, number>;
     private readonly _lastUpdate: Record<string, Date>;
+    private readonly _displayNames: Record<string, string>;
     private readonly _maintainerIds: Set<Snowflake>;
 
     private readonly _masterPlayerQueue: PlayerQueue;
@@ -35,6 +36,7 @@ export default class State {
 
         this._botCounters = {};
         this._lastUpdate = {};
+        this._displayNames = {};
         this._maintainerIds = new Set();
 
         this._masterPlayerQueue = new PlayerQueue();
@@ -233,6 +235,14 @@ export default class State {
 
     setLastUpdated(rsn: string, date: Date): void {
         this._lastUpdate[rsn] = date;
+    }
+
+    getDisplayName(rsn: string): string {
+        return this._displayNames[rsn] ?? rsn;
+    }
+
+    setDisplayName(rsn: string, displayName: string): void {
+        this._displayNames[rsn] = displayName;
     }
 
     addMaintainerId(userId: Snowflake): void {

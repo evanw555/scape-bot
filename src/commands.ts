@@ -126,14 +126,21 @@ const slashCommands: SlashCommandsType = {
                 await pgStorageClient.insertTrackedPlayer(guildId, rsn);
                 state.addTrackedPlayer(guildId, rsn);
                 await updatePlayer(rsn);
+                // Attempt to fetch the player's display name
+                try {
+                    const displayName = await getRSNFormat(rsn);
+                    state.setDisplayName(rsn, displayName);
+                } catch (err){
+                    await logger.log(`Failed to fetch display name for **${rsn}**: \`${err}\``, MultiLoggerLevel.Warn);
+                }
                 // Edit the reply with an initial success message
-                const replyText = `Now tracking player **${rsn}**!\nUse **/list** to see tracked players.`;
+                const replyText = `Now tracking player **${state.getDisplayName(rsn)}**!\nUse **/list** to see tracked players.`;
                 await interaction.editReply(replyText);
                 // Validate that the player exists, edit the reply to show a warning if not
                 try {
                     await fetchHiScores(rsn);
                     // TODO: Reduce or remove this logging?
-                    await logger.log(`\`${interaction.user.tag}\` has tracked player **${rsn}**`, MultiLoggerLevel.Warn);
+                    await logger.log(`\`${interaction.user.tag}\` has tracked player **${rsn}** (display: **${state.getDisplayName(rsn)}**)`, MultiLoggerLevel.Warn);
                 } catch (err) {
                     if ((err instanceof Error) && err.message === PLAYER_404_ERROR) {
                         // If the hiscores returns a 404, just show a warning in the ephemeral reply
@@ -253,13 +260,13 @@ const slashCommands: SlashCommandsType = {
                     messageText += '\n\n' + CLUES_NO_ALL.filter(clue => data.clues[clue]).map(clue => `**${data.clues[clue]}** ${clue}`).join('\n');
                 }
                 await replyUpdateMessage(interaction, messageText, 'overall', {
-                    title: rsn,
+                    title: state.getDisplayName(rsn),
                     url: `${CONSTANTS.hiScoresUrlTemplate}${encodeURI(rsn)}`
                 });
             } catch (err) {
                 if (err instanceof Error) {
                     logger.log(`Error while fetching hiscores (check) for player ${rsn}: ${err.toString()}`, MultiLoggerLevel.Error);
-                    await interaction.reply(`Couldn't fetch hiscores for player **${rsn}** :pensive:\n\`${err.toString()}\``);
+                    await interaction.reply(`Couldn't fetch hiscores for player **${state.getDisplayName(rsn)}** :pensive:\n\`${err.toString()}\``);
                 }
             }
         },
@@ -292,8 +299,8 @@ const slashCommands: SlashCommandsType = {
                 const bossName = getBossName(boss);
                 // Create boss message text
                 const messageText = boss in data.bosses
-                    ? `**${rsn}** has killed **${bossName}** **${data.bosses[boss]}** times`
-                    : `I don't know how many **${bossName}** kills **${rsn}** has`;
+                    ? `**${state.getDisplayName(rsn)}** has killed **${bossName}** **${data.bosses[boss]}** times`
+                    : `I don't know how many **${bossName}** kills **${state.getDisplayName(rsn)}** has`;
                 await replyUpdateMessage(interaction, messageText, boss, {
                     title: bossName,
                     url: `${CONSTANTS.osrsWikiBaseUrl}${encodeURIComponent(bossName)}`,
@@ -303,7 +310,7 @@ const slashCommands: SlashCommandsType = {
                 if (err instanceof Error) {
                     logger.log(`Error while fetching hiscores (check) for player ${rsn}: ${err.toString()}`, MultiLoggerLevel.Error);
                     await interaction.reply({
-                        content: `Couldn't fetch hiscores for player **${rsn}** :pensive:\n\`${err.toString()}\``,
+                        content: `Couldn't fetch hiscores for player **${state.getDisplayName(rsn)}** :pensive:\n\`${err.toString()}\``,
                         ephemeral: true
                     });
                 }
