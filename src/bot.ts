@@ -20,10 +20,20 @@ const commandReader: CommandReader = new CommandReader();
 const commandHandler: CommandHandler = new CommandHandler(commands);
 
 export async function sendRestartMessage(downtimeMillis: number): Promise<void> {
-    const text = `ScapeBot online after **${getDurationString(downtimeMillis)}** of downtime. `
-        + `In **${client.guilds.cache.size}** guild(s) tracking **${state.getNumGloballyTrackedPlayers()}** player(s) (**${state.getNumActivePlayers()}** active). `
-        + `Current refresh durations: ${state.getRefreshDurationString()}.\n`;
-    await logger.log(text + timeoutManager.toStrings().join('\n') || '_none._', MultiLoggerLevel.Fatal);
+    let text = `ScapeBot online after **${getDurationString(downtimeMillis)}** of downtime. `
+        + `In **${client.guilds.cache.size}** guild(s) tracking **${state.getNumGloballyTrackedPlayers()}** player(s) (**${state.getNumActivePlayers()}** active).`;
+    // Add refresh duration info
+    text += `\nℹ️ Current refresh durations: ${state.getRefreshDurationString()}.`;
+    // TODO: Temp logging while we're still populating display names into PG
+    if (state.getNumPlayerDisplayNames() < state.getNumGloballyTrackedPlayers()) {
+        const displayNamesRemaining = state.getNumGloballyTrackedPlayers() - state.getNumPlayerDisplayNames();
+        text += `\nℹ️ Loaded **${state.getNumPlayerDisplayNames()}** display names from PG, need to populate **${displayNamesRemaining}** more.`;
+    }
+    // Add timeout manager info
+    if (timeoutManager.toStrings().length > 0) {
+        text += '\nℹ️ **Timeouts scheduled:**\n' + timeoutManager.toStrings().join('\n');
+    }
+    await logger.log(text, MultiLoggerLevel.Fatal);
     await logger.log(client.guilds.cache.toJSON().map((guild, i) => {
         return `**${i + 1}.** _${guild.name}_ with **${state.getAllTrackedPlayers(guild.id).length}**`
             + (state.hasTrackingChannel(guild.id) ? ` in \`#${state.getTrackingChannel(guild.id).name}\`` : '')
@@ -67,11 +77,6 @@ const loadState = async (): Promise<void> => {
     const playerDisplayNames = await pgStorageClient.fetchAllPlayerDisplayNames();
     for (const [ rsn, displayName ] of Object.entries(playerDisplayNames)) {
         state.setDisplayName(rsn, displayName);
-    }
-    const numDisplayNames = state.getNumPlayerDisplayNames();
-    // TODO: Temp logging while we're still populating display names into PG
-    if (numDisplayNames < state.getNumGloballyTrackedPlayers()) {
-        await logger.log(`Loaded **${numDisplayNames}** display names from PG, need to populate **${state.getNumGloballyTrackedPlayers() - numDisplayNames}** more`, MultiLoggerLevel.Error);
     }
 
     const trackingChannels = await pgStorageClient.fetchAllTrackingChannels();
@@ -349,8 +354,8 @@ client.on('ready', async () => {
                     // Emergency fallback in case of unhandled errors
                     await logger.log(`Unhandled error while updating **${nextPlayer}**: \`${err}\``, MultiLoggerLevel.Error);
                 }
-                // TODO: Temp logic to populate display name data
-                if (!state.hasDisplayName(nextPlayer) && chance(0.1)) {
+                // TODO: Temp logic to populate display name data (odds of repopulating are proportional to percentage of names populated)
+                if (!state.hasDisplayName(nextPlayer) && chance(state.getNumPlayerDisplayNames() / state.getNumGloballyTrackedPlayers())) {
                     try {
                         const displayName = await getRSNFormat(nextPlayer);
                         state.setDisplayName(nextPlayer, displayName);
