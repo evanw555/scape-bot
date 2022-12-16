@@ -87,7 +87,7 @@ const slashCommands: SlashCommandsType = {
                 embeds: [{
                     description: `**Players:** ${state.getAllTrackedPlayers(guildId).length}\n`
                                + `**Channel:** ${state.hasTrackingChannel(guildId) ? state.getTrackingChannel(guildId) : 'None, set with **/channel**'}\n`
-                               + `**Role:** ${state.hasPrivilegedRole(guildId) ? state.getPrivilegedRole(guildId) : 'None, set with **/role**'}\n`
+                               + '**Role:** ' + (state.hasPrivilegedRole(guildId) ? `${state.getPrivilegedRole(guildId)} and Admins` : 'Admins only, set a custom role with **/role**') + '\n'
                                + `**Refresh Duration:** ${state.getRefreshDurationString()}`,
                     color: SKILL_EMBED_COLOR,
                     title: 'Information'
@@ -126,13 +126,15 @@ const slashCommands: SlashCommandsType = {
                 await pgStorageClient.insertTrackedPlayer(guildId, rsn);
                 state.addTrackedPlayer(guildId, rsn);
                 await updatePlayer(rsn);
-                // Attempt to fetch the player's display name
-                try {
-                    const displayName = await getRSNFormat(rsn);
-                    await pgStorageClient.writePlayerDisplayName(rsn, displayName);
-                    state.setDisplayName(rsn, displayName);
-                } catch (err){
-                    await logger.log(`Failed to fetch display name for **${rsn}**: \`${err}\``, MultiLoggerLevel.Warn);
+                // Attempt to fetch the player's display name if missing
+                if (!state.hasDisplayName(rsn)) {
+                    try {
+                        const displayName = await getRSNFormat(rsn);
+                        await pgStorageClient.writePlayerDisplayName(rsn, displayName);
+                        state.setDisplayName(rsn, displayName);
+                    } catch (err){
+                        await logger.log(`Failed to fetch display name for **${rsn}**: \`${err}\``, MultiLoggerLevel.Warn);
+                    }
                 }
                 // Edit the reply with an initial success message
                 const replyText = `Now tracking player **${state.getDisplayName(rsn)}**!\nUse **/list** to see tracked players.`;
