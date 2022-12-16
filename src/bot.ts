@@ -360,14 +360,14 @@ client.on('ready', async () => {
                     await logger.log(`Unhandled error while updating **${nextPlayer}**: \`${err}\``, MultiLoggerLevel.Error);
                 }
                 // TODO: Temp logic to populate display name data (odds of repopulating are proportional to percentage of names populated)
-                if (!state.hasDisplayName(nextPlayer) && chance(state.getNumPlayerDisplayNames() / state.getNumGloballyTrackedPlayers())) {
+                if (!state.hasDisplayName(nextPlayer)) {
                     try {
                         const displayName = await getRSNFormat(nextPlayer);
                         state.setDisplayName(nextPlayer, displayName);
                         await pgStorageClient.writePlayerDisplayName(nextPlayer, displayName);
                         await logger.log(`(Loop) Fetched display name for **${nextPlayer}** as **${displayName}** (**${state.getNumPlayerDisplayNames()}**/**${state.getNumGloballyTrackedPlayers()}** complete)`, MultiLoggerLevel.Warn);
                     } catch (err) {
-                        await logger.log(`(Loop) Failed to fetch display name for **${nextPlayer}**: \`${err}\``, MultiLoggerLevel.Warn);
+                        await logger.log(`(Loop) Failed to fetch display name for **${nextPlayer}**: \`${err}\``, MultiLoggerLevel.Info);
                     }
                 }
             } else {
