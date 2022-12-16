@@ -129,6 +129,7 @@ const slashCommands: SlashCommandsType = {
                 // Attempt to fetch the player's display name
                 try {
                     const displayName = await getRSNFormat(rsn);
+                    await pgStorageClient.writePlayerDisplayName(rsn, displayName);
                     state.setDisplayName(rsn, displayName);
                 } catch (err){
                     await logger.log(`Failed to fetch display name for **${rsn}**: \`${err}\``, MultiLoggerLevel.Warn);

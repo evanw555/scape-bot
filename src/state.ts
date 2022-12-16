@@ -241,8 +241,17 @@ export default class State {
         return this._displayNames[rsn] ?? rsn;
     }
 
+    hasDisplayName(rsn: string): boolean {
+        return rsn in this._displayNames;
+    }
+
     setDisplayName(rsn: string, displayName: string): void {
         this._displayNames[rsn] = displayName;
+    }
+
+    // TODO: Will this be needed after we're done populating names?
+    getNumPlayerDisplayNames(): number {
+        return Object.keys(this._displayNames).length;
     }
 
     addMaintainerId(userId: Snowflake): void {

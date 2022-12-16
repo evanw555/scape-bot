@@ -7,7 +7,7 @@ import { IndividualSkillName, IndividualClueType, MiscPropertyName } from './typ
 
 import logger from './instances/logger';
 
-type TableName = 'weekly_xp_snapshots' | 'player_levels' | 'player_bosses' | 'player_clues' | 'tracked_players' | 'tracking_channels' | 'player_hiscore_status' | 'player_activity_timestamps' | 'bot_counters' | 'privileged_roles' | 'misc_properties';
+type TableName = 'weekly_xp_snapshots' | 'player_levels' | 'player_bosses' | 'player_clues' | 'tracked_players' | 'tracking_channels' | 'player_hiscore_status' | 'player_display_names' | 'player_activity_timestamps' | 'bot_counters' | 'privileged_roles' | 'misc_properties';
 
 export default class PGStorageClient {
     private static readonly TABLES: Record<TableName, string> = {
@@ -18,6 +18,7 @@ export default class PGStorageClient {
         'tracked_players': 'CREATE TABLE tracked_players (guild_id BIGINT, rsn VARCHAR(12), PRIMARY KEY (guild_id, rsn));',
         'tracking_channels': 'CREATE TABLE tracking_channels (guild_id BIGINT PRIMARY KEY, channel_id BIGINT);',
         'player_hiscore_status': 'CREATE TABLE player_hiscore_status (rsn VARCHAR(12) PRIMARY KEY, on_hiscores BOOLEAN);',
+        'player_display_names': 'CREATE TABLE player_display_names (rsn VARCHAR(12) PRIMARY KEY, display_name rsn VARCHAR(12));',
         'player_activity_timestamps': 'CREATE TABLE player_activity_timestamps (rsn VARCHAR(12) PRIMARY KEY, timestamp TIMESTAMPTZ);',
         'bot_counters': 'CREATE TABLE bot_counters (user_id BIGINT PRIMARY KEY, counter INTEGER);',
         'privileged_roles': 'CREATE TABLE privileged_roles (guild_id BIGINT PRIMARY KEY, role_id BIGINT);',
@@ -31,6 +32,7 @@ export default class PGStorageClient {
         'player_bosses',
         'player_clues',
         'player_hiscore_status',
+        'player_display_names',
         'player_activity_timestamps'
     ];
 
@@ -207,6 +209,19 @@ export default class PGStorageClient {
     
     async writePlayerHiScoreStatus(rsn: string, onHiScores: boolean): Promise<void> {
         await this.client.query('INSERT INTO player_hiscore_status VALUES ($1, $2) ON CONFLICT (rsn) DO UPDATE SET on_hiscores = EXCLUDED.on_hiscores;', [rsn, onHiScores]);
+    }
+
+    async fetchAllPlayerDisplayNames(): Promise<Record<string, string>> {
+        const result: Record<string, string> = {};
+        const queryResult = await this.client.query<{rsn: string, display_name: string}>('SELECT * FROM player_display_names;');
+        for (const row of queryResult.rows) {
+            result[row.rsn] = row.display_name;
+        }
+        return result;
+    }
+
+    async writePlayerDisplayName(rsn: string, displayName: string): Promise<void> {
+        await this.client.query('INSERT INTO player_display_names VALUES ($1, $2) ON CONFLICT (rsn) DO UPDATE SET display_name = EXCLUDED.display_name;', [rsn, displayName]);
     }
 
     async fetchAllPlayerActivityTimestamps(): Promise<Record<string, Date>> {

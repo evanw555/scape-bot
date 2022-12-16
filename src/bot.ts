@@ -1,7 +1,8 @@
 import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel, ActivityType, Snowflake } from 'discord.js';
+import { getRSNFormat } from 'osrs-json-hiscores';
 import { PlayerHiScores, TimeoutType } from './types';
 import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer } from './util';
-import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel, naturalJoin } from 'evanw555.js';
+import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel, naturalJoin, chance } from 'evanw555.js';
 import CommandReader from './command-reader';
 import CommandHandler from './command-handler';
 import commands from './commands';
@@ -61,6 +62,16 @@ const loadState = async (): Promise<void> => {
     const playerActivityTimestamps = await pgStorageClient.fetchAllPlayerActivityTimestamps();
     for (const [ rsn, timestamp ] of Object.entries(playerActivityTimestamps)) {
         state.markPlayerAsActive(rsn, timestamp);
+    }
+
+    const playerDisplayNames = await pgStorageClient.fetchAllPlayerDisplayNames();
+    for (const [ rsn, displayName ] of Object.entries(playerDisplayNames)) {
+        state.setDisplayName(rsn, displayName);
+    }
+    const numDisplayNames = state.getNumPlayerDisplayNames();
+    // TODO: Temp logging while we're still populating display names into PG
+    if (numDisplayNames < state.getNumGloballyTrackedPlayers()) {
+        await logger.log(`Loaded **${numDisplayNames}** display names from PG, need to populate **${state.getNumGloballyTrackedPlayers() - numDisplayNames}** more`, MultiLoggerLevel.Error);
     }
 
     const trackingChannels = await pgStorageClient.fetchAllTrackingChannels();
@@ -337,6 +348,17 @@ client.on('ready', async () => {
                 } catch (err) {
                     // Emergency fallback in case of unhandled errors
                     await logger.log(`Unhandled error while updating **${nextPlayer}**: \`${err}\``, MultiLoggerLevel.Error);
+                }
+                // TODO: Temp logic to populate display name data
+                if (!state.hasDisplayName(nextPlayer) && chance(0.1)) {
+                    try {
+                        const displayName = await getRSNFormat(nextPlayer);
+                        state.setDisplayName(nextPlayer, displayName);
+                        await pgStorageClient.writePlayerDisplayName(nextPlayer, displayName);
+                        await logger.log(`(Loop) Fetched display name for **${nextPlayer}** as **${displayName}** (**${state.getNumPlayerDisplayNames()}**/**${state.getNumGloballyTrackedPlayers()}** complete)`, MultiLoggerLevel.Error);
+                    } catch (err) {
+                        await logger.log(`(Loop) Failed to fetch display name for **${nextPlayer}**: \`${err}\``, MultiLoggerLevel.Warn);
+                    }
                 }
             } else {
                 // No players being tracked
