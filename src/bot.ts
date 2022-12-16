@@ -1,8 +1,7 @@
 import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel, ActivityType, Snowflake } from 'discord.js';
-import { getRSNFormat } from 'osrs-json-hiscores';
 import { PlayerHiScores, TimeoutType } from './types';
 import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer, sanitizeRSN } from './util';
-import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel, naturalJoin, chance } from 'evanw555.js';
+import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel, naturalJoin } from 'evanw555.js';
 import CommandReader from './command-reader';
 import CommandHandler from './command-handler';
 import commands from './commands';
@@ -358,17 +357,6 @@ client.on('ready', async () => {
                 } catch (err) {
                     // Emergency fallback in case of unhandled errors
                     await logger.log(`Unhandled error while updating **${nextPlayer}**: \`${err}\``, MultiLoggerLevel.Error);
-                }
-                // TODO: Temp logic to populate display name data (odds of repopulating are proportional to percentage of names populated)
-                if (!state.hasDisplayName(nextPlayer)) {
-                    try {
-                        const displayName = await getRSNFormat(nextPlayer);
-                        state.setDisplayName(nextPlayer, displayName);
-                        await pgStorageClient.writePlayerDisplayName(nextPlayer, displayName);
-                        await logger.log(`(Loop) Fetched display name for **${nextPlayer}** as **${displayName}** (**${state.getNumPlayerDisplayNames()}**/**${state.getNumGloballyTrackedPlayers()}** complete)`, MultiLoggerLevel.Warn);
-                    } catch (err) {
-                        await logger.log(`(Loop) Failed to fetch display name for **${nextPlayer}**: \`${err}\``, MultiLoggerLevel.Info);
-                    }
                 }
             } else {
                 // No players being tracked

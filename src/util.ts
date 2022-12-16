@@ -1,4 +1,4 @@
-import { Boss, BOSSES, INVALID_FORMAT_ERROR, FORMATTED_BOSS_NAMES } from 'osrs-json-hiscores';
+import { Boss, BOSSES, INVALID_FORMAT_ERROR, FORMATTED_BOSS_NAMES, getRSNFormat } from 'osrs-json-hiscores';
 import { ChatInputCommandInteraction, TextBasedChannel } from 'discord.js';
 import { addReactsSync, MultiLoggerLevel, randChoice } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName, PlayerHiScores } from './types';
@@ -218,9 +218,12 @@ export async function updatePlayer(rsn: string, spoofedDiff?: Record<string, num
         await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), `**${state.getDisplayName(rsn)}** has made it back onto the hiscores`, 'happy', { color: YELLOW_EMBED_COLOR });
     }
 
+    let anyActivity = false;
+
     // Check if levels have changes and send notifications
     if (state.hasLevels(rsn)) {
-        await updateLevels(rsn, data.levelsWithDefaults, spoofedDiff);
+        const activity = await updateLevels(rsn, data.levelsWithDefaults, spoofedDiff);
+        anyActivity = anyActivity || activity;
     } else {
         // If this player has no levels in the state, prime with initial data (NOT including assumed defaults)
         state.setLevels(rsn, data.levels);
@@ -230,7 +233,8 @@ export async function updatePlayer(rsn: string, spoofedDiff?: Record<string, num
 
     // Check if bosses have changes and send notifications
     if (state.hasBosses(rsn)) {
-        await updateKillCounts(rsn, data.bossesWithDefaults, spoofedDiff);
+        const activity = await updateKillCounts(rsn, data.bossesWithDefaults, spoofedDiff);
+        anyActivity = anyActivity || activity;
     } else {
         // If this player has no bosses in the state, prime with initial data (NOT including assumed defaults)
         state.setBosses(rsn, data.bosses);
@@ -240,19 +244,38 @@ export async function updatePlayer(rsn: string, spoofedDiff?: Record<string, num
 
     // Check if clues have changes and send notifications
     if (state.hasClues(rsn)) {
-        await updateClues(rsn, data.cluesWithDefaults, spoofedDiff);
+        const activity = await updateClues(rsn, data.cluesWithDefaults, spoofedDiff);
+        anyActivity = anyActivity || activity;
     } else {
         // If this player has no clues in the state, prime with initial data (NOT including assumed defaults)
         state.setClues(rsn, data.clues);
         state.setLastUpdated(rsn, new Date());
         await pgStorageClient.writePlayerClues(rsn, data.clues);
     }
+
+    // If the player saw any sort of activity
+    if (anyActivity) {
+        // Mark the player as active
+        state.markPlayerAsActive(rsn);
+        await pgStorageClient.updatePlayerActivityTimestamp(rsn);
+        // If the player is missing a display name, try and fetch that now (since they're confirmed to be on the hiscores)
+        if (!state.hasDisplayName(rsn)) {
+            try {
+                const displayName = await getRSNFormat(rsn);
+                state.setDisplayName(rsn, displayName);
+                await pgStorageClient.writePlayerDisplayName(rsn, displayName);
+                await logger.log(`(Update) Fetched display name for **${rsn}** as **${displayName}** (**${state.getNumPlayerDisplayNames()}**/**${state.getNumGloballyTrackedPlayers()}** complete)`, MultiLoggerLevel.Warn);
+            } catch (err) {
+                await logger.log(`(Update) Failed to fetch display name for **${rsn}**: \`${err}\``, MultiLoggerLevel.Warn);
+            }
+        }
+    }
 }
 
-export async function updateLevels(rsn: string, newLevels: Record<IndividualSkillName, number>, spoofedDiff?: Record<string, number>): Promise<void> {
+export async function updateLevels(rsn: string, newLevels: Record<IndividualSkillName, number>, spoofedDiff?: Record<string, number>): Promise<boolean> {
     // We shouldn't be doing this if this player doesn't have any skill info in the state
     if (!state.hasLevels(rsn)) {
-        return;
+        return false;
     }
 
     // Compute diff for each level
@@ -273,10 +296,10 @@ export async function updateLevels(rsn: string, newLevels: Record<IndividualSkil
         if (err instanceof Error && err.message) {
             logger.log(`Failed to compute level diff for player ${rsn}: ${err.message}`, MultiLoggerLevel.Error);
         }
-        return;
+        return false;
     }
     if (!diff) {
-        return;
+        return false;
     }
     // Send a message for any skill that is now 99
     const updatedSkills: IndividualSkillName[] = toSortedSkillsNoOverall(Object.keys(diff));
@@ -319,22 +342,22 @@ export async function updateLevels(rsn: string, newLevels: Record<IndividualSkil
 
     // If not spoofing the diff, update player's levels
     if (!spoofedDiff) {
-        if (updatedSkills.length > 0) {
-            state.markPlayerAsActive(rsn);
-            await pgStorageClient.updatePlayerActivityTimestamp(rsn);
-            await logger.log(`**${rsn}** update: \`${JSON.stringify(diff)}\``, MultiLoggerLevel.Info);
-        }
         // Write only updated skills to PG
         await pgStorageClient.writePlayerLevels(rsn, filterMap(newLevels, updatedSkills));
         state.setLevels(rsn, newLevels);
         state.setLastUpdated(rsn, new Date());
+        if (updatedSkills.length > 0) {
+            await logger.log(`**${rsn}** update: \`${JSON.stringify(diff)}\``, MultiLoggerLevel.Info);
+            return true;
+        }
     }
+    return false;
 }
 
-export async function updateKillCounts(rsn: string, newScores: Record<Boss, number>, spoofedDiff?: Record<string, number>): Promise<void> {
+export async function updateKillCounts(rsn: string, newScores: Record<Boss, number>, spoofedDiff?: Record<string, number>): Promise<boolean> {
     // We shouldn't be doing this if this player doesn't have any boss info in the state
     if (!state.hasBosses(rsn)) {
-        return;
+        return false;
     }
 
     // Compute diff for each boss
@@ -355,10 +378,10 @@ export async function updateKillCounts(rsn: string, newScores: Record<Boss, numb
         if (err instanceof Error && err.message) {
             logger.log(`Failed to compute boss KC diff for player ${rsn}: ${err.message}`, MultiLoggerLevel.Error);
         }
-        return;
+        return false;
     }
     if (!diff) {
-        return;
+        return false;
     }
     // Send a message showing all the incremented boss scores
     const updatedBosses: Boss[] = Object.keys(diff) as Boss[];
@@ -400,22 +423,22 @@ export async function updateKillCounts(rsn: string, newScores: Record<Boss, numb
 
     // If not spoofing the diff, update player's boss scores
     if (!spoofedDiff) {
-        if (updatedBosses.length > 0) {
-            state.markPlayerAsActive(rsn);
-            await pgStorageClient.updatePlayerActivityTimestamp(rsn);
-            await logger.log(`**${rsn}** update: \`${JSON.stringify(diff)}\``, MultiLoggerLevel.Info);
-        }
         // Write only updated bosses to PG
         await pgStorageClient.writePlayerBosses(rsn, filterMap(newScores, updatedBosses));
         state.setBosses(rsn, newScores);
         state.setLastUpdated(rsn, new Date());
+        if (updatedBosses.length > 0) {
+            await logger.log(`**${rsn}** update: \`${JSON.stringify(diff)}\``, MultiLoggerLevel.Info);
+            return true;
+        }
     }
+    return false;
 }
 
-export async function updateClues(rsn: string, newScores: Record<IndividualClueType, number>, spoofedDiff?: Record<string, number>): Promise<void> {
+export async function updateClues(rsn: string, newScores: Record<IndividualClueType, number>, spoofedDiff?: Record<string, number>): Promise<boolean> {
     // We shouldn't be doing this if this player doesn't have any clue info in the state
     if (!state.hasBosses(rsn)) {
-        return;
+        return false;
     }
 
     // Compute diff for each clue
@@ -436,10 +459,10 @@ export async function updateClues(rsn: string, newScores: Record<IndividualClueT
         if (err instanceof Error && err.message) {
             logger.log(`Failed to compute clue score diff for player ${rsn}: ${err.message}`, MultiLoggerLevel.Error);
         }
-        return;
+        return false;
     }
     if (!diff) {
-        return;
+        return false;
     }
     // Send a message showing the updated clues
     const updatedClues: IndividualClueType[] = toSortedCluesNoAll(Object.keys(diff));
@@ -473,16 +496,16 @@ export async function updateClues(rsn: string, newScores: Record<IndividualClueT
 
     // If not spoofing the diff, update player's clue scores
     if (!spoofedDiff) {
-        if (updatedClues.length > 0) {
-            state.markPlayerAsActive(rsn);
-            await pgStorageClient.updatePlayerActivityTimestamp(rsn);
-            await logger.log(`**${rsn}** update: \`${JSON.stringify(diff)}\``, MultiLoggerLevel.Info);
-        }
         // Write only updated clues to PG
         await pgStorageClient.writePlayerClues(rsn, filterMap(newScores, updatedClues));
         state.setClues(rsn, newScores);
         state.setLastUpdated(rsn, new Date());
+        if (updatedClues.length > 0) {
+            await logger.log(`**${rsn}** update: \`${JSON.stringify(diff)}\``, MultiLoggerLevel.Info);
+            return true;
+        }
     }
+    return false;
 }
 
 export function getQuantityWithUnits(quantity: number): string {
