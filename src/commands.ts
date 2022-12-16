@@ -1,5 +1,5 @@
 import { ApplicationCommandOptionType, ChatInputCommandInteraction, Guild, Message, PermissionFlagsBits, Snowflake, TextChannel } from 'discord.js';
-import { FORMATTED_BOSS_NAMES, Boss, BOSSES } from 'osrs-json-hiscores';
+import { FORMATTED_BOSS_NAMES, Boss, BOSSES, getRSNFormat } from 'osrs-json-hiscores';
 import { exec } from 'child_process';
 import { MultiLoggerLevel, naturalJoin, randChoice, randInt } from 'evanw555.js';
 import { PlayerHiScores, SlashCommandsType, HiddenCommandsType, CommandsType, SlashCommand, IndividualSkillName, IndividualClueType } from './types';
@@ -698,8 +698,8 @@ export const hiddenCommands: HiddenCommandsType = {
             }
             const rsn = rawRsn.toLowerCase();
             try {
-                const player = await fetchHiScores(rsn);
-                await msg.reply(`Display name of **${rsn}** is **${player.displayName}**`);
+                const displayName = getRSNFormat(rsn);
+                await msg.reply(`Display name of **${rsn}** is **${displayName}**`);
             } catch (err) {
                 await msg.reply(`Unable to fetch display name for **${rsn}**: \`${err}\``);
             }
