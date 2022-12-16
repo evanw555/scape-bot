@@ -1,6 +1,6 @@
 import { APIRole, Role, Snowflake, TextChannel } from 'discord.js';
 import { Boss } from 'osrs-json-hiscores';
-import { MultiLoggerLevel } from 'evanw555.js';
+import { getPreciseDurationString, MultiLoggerLevel } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName } from './types';
 import PlayerQueue from './player-queue';
 
@@ -453,8 +453,8 @@ export default class State {
      * @returns String representing the duration between each refresh for any active player and any inactive player
      */
     getRefreshDurationString(): string {
-        const activeTime: number = Math.floor(this._masterPlayerQueue.getActiveRefreshDuration() / 1000);
-        const inactiveTime: number = Math.floor(this._masterPlayerQueue.getInactiveRefreshDuration() / 1000);
-        return `**${isNaN(activeTime) ? '???' : activeTime}s** (recently active), **${isNaN(inactiveTime) ? '???' : inactiveTime}s** (inactive)`;
+        const activeTime: number = this._masterPlayerQueue.getActiveRefreshDuration();
+        const inactiveTime: number = this._masterPlayerQueue.getInactiveRefreshDuration();
+        return `_${isNaN(activeTime) ? '???' : getPreciseDurationString(activeTime)}_ (recently active), _${isNaN(inactiveTime) ? '???' : getPreciseDurationString(inactiveTime)}_ (inactive)`;
     }
 }

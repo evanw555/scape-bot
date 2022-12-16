@@ -86,8 +86,8 @@ const slashCommands: SlashCommandsType = {
             await interaction.reply({
                 embeds: [{
                     description: `**Players:** ${state.getAllTrackedPlayers(guildId).length}\n`
-                               + `**Channel:** ${state.hasTrackingChannel(guildId) ? state.getTrackingChannel(guildId) : 'None'}\n`
-                               + `**Role:** ${state.hasPrivilegedRole(guildId) ? state.getPrivilegedRole(guildId) : 'None'}\n`
+                               + `**Channel:** ${state.hasTrackingChannel(guildId) ? state.getTrackingChannel(guildId) : 'None, set with **/channel**'}\n`
+                               + `**Role:** ${state.hasPrivilegedRole(guildId) ? state.getPrivilegedRole(guildId) : 'None, set with **/role**'}\n`
                                + `**Refresh Duration:** ${state.getRefreshDurationString()}`,
                     color: SKILL_EMBED_COLOR,
                     title: 'Information'
