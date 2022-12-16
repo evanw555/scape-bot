@@ -531,3 +531,12 @@ export function generateDetailsContentString(players: string[]): string {
     }
     return contentString;
 }
+
+/**
+ * Given some RSN, return a cleaned-up version that can be deterministically derived from any valid variation of it.
+ * @param rsn Some RSN
+ * @returns Lower-cased RSN with hyphens and underscores converted to spaces
+ */
+export function sanitizeRSN(rsn: string): string {
+    return rsn.replace(/[ _-]/g, '_').toLowerCase();
+}

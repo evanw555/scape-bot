@@ -3,7 +3,7 @@ import { FORMATTED_BOSS_NAMES, Boss, BOSSES, getRSNFormat } from 'osrs-json-hisc
 import { exec } from 'child_process';
 import { MultiLoggerLevel, naturalJoin, randChoice, randInt } from 'evanw555.js';
 import { PlayerHiScores, SlashCommandsType, HiddenCommandsType, CommandsType, SlashCommand, IndividualSkillName, IndividualClueType } from './types';
-import { replyUpdateMessage, sendUpdateMessage, updatePlayer, getBossName, isValidBoss, generateDetailsContentString } from './util';
+import { replyUpdateMessage, sendUpdateMessage, updatePlayer, getBossName, isValidBoss, generateDetailsContentString, sanitizeRSN } from './util';
 import { fetchHiScores } from './hiscores';
 import CommandHandler from './command-handler';
 import { CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, BOSS_CHOICES, INVALID_TEXT_CHANNEL, SKILL_EMBED_COLOR, PLAYER_404_ERROR } from './constants';
@@ -106,7 +106,7 @@ const slashCommands: SlashCommandsType = {
         }],
         execute: async (interaction) => {
             const guildId = getInteractionGuildId(interaction);
-            const rsn = interaction.options.getString('username', true).toLowerCase();
+            const rsn = sanitizeRSN(interaction.options.getString('username', true));
             if (!rsn || !rsn.trim()) {
                 await interaction.reply({
                     content: 'Invalid username',
@@ -161,7 +161,7 @@ const slashCommands: SlashCommandsType = {
         }],
         execute: async (interaction) => {
             const guildId = getInteractionGuildId(interaction);
-            const rsn = interaction.options.getString('username', true).toLowerCase();
+            const rsn = sanitizeRSN(interaction.options.getString('username', true));
             if (!rsn || !rsn.trim()) {
                 await interaction.reply({ content: 'Invalid username', ephemeral: true });
                 return;
@@ -235,7 +235,7 @@ const slashCommands: SlashCommandsType = {
             required: true
         }],
         execute: async (interaction) => {
-            const rsn = interaction.options.getString('username', true).toLowerCase();
+            const rsn = sanitizeRSN(interaction.options.getString('username', true));
             try {
                 // Retrieve the player's hiscores data
                 const data = await fetchHiScores(rsn);
@@ -283,7 +283,7 @@ const slashCommands: SlashCommandsType = {
             }
         ],
         execute: async (interaction) => {
-            const rsn = interaction.options.getString('username', true).toLowerCase();
+            const rsn = sanitizeRSN(interaction.options.getString('username', true));
             // This must be a valid boss, since we define the valid choices
             const boss = interaction.options.getString('boss', true) as Boss;
             try {
@@ -667,7 +667,7 @@ export const hiddenCommands: HiddenCommandsType = {
                 await msg.reply('Invalid username');
                 return;
             }
-            const rsn = rawRsn.toLowerCase();
+            const rsn = sanitizeRSN(rawRsn);
             const guildIds: Snowflake[] = state.getGuildsTrackingPlayer(rsn);
             if (guildIds.length === 0) {
                 await msg.reply(`**${rsn}** is not tracked by any guilds`);
@@ -697,7 +697,7 @@ export const hiddenCommands: HiddenCommandsType = {
                 await msg.reply('Invalid username');
                 return;
             }
-            const rsn = rawRsn.toLowerCase();
+            const rsn = sanitizeRSN(rawRsn);
             try {
                 const displayName = await getRSNFormat(rsn);
                 await msg.reply(`Display name of **${rsn}** is **${displayName}**`);
