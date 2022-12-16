@@ -365,7 +365,7 @@ client.on('ready', async () => {
                         const displayName = await getRSNFormat(nextPlayer);
                         state.setDisplayName(nextPlayer, displayName);
                         await pgStorageClient.writePlayerDisplayName(nextPlayer, displayName);
-                        await logger.log(`(Loop) Fetched display name for **${nextPlayer}** as **${displayName}** (**${state.getNumPlayerDisplayNames()}**/**${state.getNumGloballyTrackedPlayers()}** complete)`, MultiLoggerLevel.Error);
+                        await logger.log(`(Loop) Fetched display name for **${nextPlayer}** as **${displayName}** (**${state.getNumPlayerDisplayNames()}**/**${state.getNumGloballyTrackedPlayers()}** complete)`, MultiLoggerLevel.Warn);
                     } catch (err) {
                         await logger.log(`(Loop) Failed to fetch display name for **${nextPlayer}**: \`${err}\``, MultiLoggerLevel.Warn);
                     }
