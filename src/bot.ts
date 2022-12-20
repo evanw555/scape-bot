@@ -205,7 +205,7 @@ const weeklyTotalXpUpdate = async () => {
                 // Only send out a message if there are any XP earners
                 if (winners.length !== 0) {
                     // TODO: Temp logic for logging
-                    winnerLogs.push(`_${getGuildName(guildId)}_: ` + naturalJoin(winners.map(rsn => `**${rsn}** (${getQuantityWithUnits(totalXpDiffs[rsn])})`), { conjunction: '&' }));
+                    winnerLogs.push(`_${getGuildName(guildId)}_: ` + naturalJoin(winners.map(rsn => `**${state.getDisplayName(rsn)}** (${getQuantityWithUnits(totalXpDiffs[rsn])})`), { conjunction: '&' }));
 
                     // Send the message to the tracking channel
                     const medalNames = ['gold', 'silver', 'bronze'];
@@ -213,7 +213,7 @@ const weeklyTotalXpUpdate = async () => {
                         content: '**Biggest XP earners over the last week:**',
                         embeds: winners.map((rsn, i) => {
                             return {
-                                description: `**${rsn}** with **${getQuantityWithUnits(totalXpDiffs[rsn])} XP**`,
+                                description: `**${state.getDisplayName(rsn)}** with **${getQuantityWithUnits(totalXpDiffs[rsn])} XP**`,
                                 thumbnail: getThumbnail(medalNames[i])
                             };
                         })
