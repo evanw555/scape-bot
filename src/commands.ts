@@ -387,6 +387,23 @@ const slashCommands: SlashCommandsType = {
         text: 'Shows details of when each tracked player was last updated',
         admin: true
     },
+    feedback: {
+        options: [
+            {
+                type: ApplicationCommandOptionType.String,
+                name: 'message',
+                description: 'Message you\'d like to send to ScapeBot developers',
+                required: true
+            }
+        ],
+        execute: async (interaction) => {
+            const feedbackMessage = interaction.options.getString('message', true);
+            // TODO: Can we somehow open an anonymous line of communication using the bot as a proxy?
+            await logger.log(`**New feedback:** ${feedbackMessage}`.slice(0, 1990), MultiLoggerLevel.Fatal);
+        },
+        text: 'Anonymously provide feedback to the developers of ScapeBot (e.g. report bugs, suggest features)',
+        privilegedRole: true
+    },
     role: {
         options: [{
             type: ApplicationCommandOptionType.Role,
