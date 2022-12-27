@@ -1,6 +1,6 @@
-import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel, ActivityType, Snowflake } from 'discord.js';
+import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel, ActivityType, Snowflake, PermissionFlagsBits } from 'discord.js';
 import { PlayerHiScores, TimeoutType } from './types';
-import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer, sanitizeRSN } from './util';
+import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer, sanitizeRSN, sendDMToGuildOwner } from './util';
 import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel, naturalJoin } from 'evanw555.js';
 import CommandReader from './command-reader';
 import CommandHandler from './command-handler';
@@ -391,18 +391,31 @@ client.on('ready', async () => {
 
 client.on('guildCreate', async (guild) => {
     const systemChannel = guild.systemChannel;
-    if (systemChannel) {
-        // Apparently, the bot can still lack message sending permissions to the system channel even if it's populated here
-        try {
-            await systemChannel.send(`Thanks for adding ${client.user} to your server! Admins: to get started, please use **/channel**`
-                + ' in the text channel that should receive player updates and **/help** for a list of useful commands.');
-        } catch (err) {
-            await logger.log(`Failed to send welcome message to system channel of guild _${guild.name}_: \`${err}\``, MultiLoggerLevel.Error);
-            // TODO: Can we default to a DM to the guild's owner?
+    try {
+        const botMember = guild.members.me;
+        if (!botMember) {
+            throw new Error(`Bot does not have valid membership in guild '${guild.id}'`);
         }
-    } else {
-        // Can this even happen?
-        await logger.log(`There is no system channel defined for guild ${guild.id}`, MultiLoggerLevel.Warn);
+        const welcomeText = `Thanks for adding ${client.user} to your server! Admins: to get started, please use **/channel**`
+            + ' in the text channel that should receive player updates and **/help** for a list of useful commands.';
+        if (systemChannel) {
+            // If there is a system channel but it lacks most basic permissions, send a DM to the owner
+            const botPermissions = systemChannel.permissionsFor(botMember);
+            if (
+                !botPermissions.has(PermissionFlagsBits.ViewChannel)
+                || !botPermissions.has(PermissionFlagsBits.SendMessages)
+            ) {
+                await sendDMToGuildOwner(guild, welcomeText);
+            // Otherwise, send the welcome message to the system channel
+            } else {
+                await systemChannel.send(welcomeText);
+            }
+        // Apparently a guild can somehow not have a system channel, in this case send a DM to the owner
+        } else {
+            await sendDMToGuildOwner(guild, welcomeText);
+        }
+    } catch (err) {
+        await logger.log(`Failed to send welcome message to system channel of guild _${guild.name}_: \`${err}\``, MultiLoggerLevel.Error);
     }
     // TODO: Reduce this back down to debug once we see how this plays out
     await logger.log(`Bot has been added to guild _${guild.name}_, now in **${client.guilds.cache.size}** guilds`, MultiLoggerLevel.Error);
