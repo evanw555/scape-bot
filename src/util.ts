@@ -82,16 +82,24 @@ export function buildUpdateMessage(text: string, name: string, options?: UpdateM
 export async function sendUpdateMessage(channels: TextBasedChannel[], text: string, name: string, options?: SendUpdateMessageOptions): Promise<void> {
     const updateMessage = buildUpdateMessage(text, name, options);
     for (const channel of channels) {
-        const message = await channel.send(updateMessage);
-        // If any reacts are specified, add them
-        if (options?.reacts) {
-            addReactsSync(message, options.reacts);
+        try {
+            const message = await channel.send(updateMessage);
+            // If any reacts are specified, add them
+            if (options?.reacts) {
+                addReactsSync(message, options.reacts);
+            }
+        } catch (err) {
+            await logger.log(`Unable to send update message to channel \`${channel.id}\`: \`${err}\``, MultiLoggerLevel.Error);
         }
     }
 }
 
 export async function replyUpdateMessage(interaction: ChatInputCommandInteraction, text: string, name: string, options?: UpdateMessageOptions): Promise<void> {
-    await interaction.reply(buildUpdateMessage(text, name, options));
+    try {
+        await interaction.reply(buildUpdateMessage(text, name, options));
+    } catch (err) {
+        await logger.log(`Unable to reply to interaction \`${interaction.id}\` with update message: \`${err}\``, MultiLoggerLevel.Error);
+    }
 }
 
 export function camelize(str: string) {
