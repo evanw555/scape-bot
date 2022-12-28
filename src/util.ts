@@ -1,5 +1,5 @@
 import { Boss, BOSSES, INVALID_FORMAT_ERROR, FORMATTED_BOSS_NAMES, getRSNFormat } from 'osrs-json-hiscores';
-import { ChatInputCommandInteraction, TextBasedChannel } from 'discord.js';
+import { ChatInputCommandInteraction, Guild, TextBasedChannel } from 'discord.js';
 import { addReactsSync, MultiLoggerLevel, randChoice } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName, PlayerHiScores } from './types';
 import { fetchHiScores } from './hiscores';
@@ -570,4 +570,10 @@ export function generateDetailsContentString(players: string[]): string {
  */
 export function sanitizeRSN(rsn: string): string {
     return rsn.replace(/[ _-]/g, '_').toLowerCase();
+}
+
+export async function sendDMToGuildOwner(guild: Guild, text: string) {
+    const owner = await guild.fetchOwner();
+    // Implicitly creates a DM channel with the owner
+    await owner.send(text);
 }
