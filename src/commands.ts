@@ -180,6 +180,7 @@ const slashCommands: SlashCommandsType = {
                 await pgStorageClient.deleteTrackedPlayer(guildId, rsn);
                 state.removeTrackedPlayer(guildId, rsn);
                 await interaction.reply(`No longer tracking player **${rsn}**.\nYou can still use **/check** to see this player's hiscores.`);
+                await logger.log(`\`${interaction.user.tag}\` removed player **${rsn}**`, MultiLoggerLevel.Warn);
                 // If this player is now globally untracked, purge untracked player data
                 if (!state.isPlayerTrackedInAnyGuilds(rsn)) {
                     const purgeResults = await pgStorageClient.purgeUntrackedPlayerData();
