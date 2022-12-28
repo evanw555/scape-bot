@@ -99,9 +99,14 @@ export async function sendUpdateMessage(channels: TextBasedChannel[], text: stri
                     errorMessage += ` (tracking channel is \`#${trackingChannel.name}\`)`;
                     // TEMP: SEND DM TO DEADBEAT GUILD OWNER
                     if (err instanceof DiscordAPIError && err.code === 50013 && trackingChannel.id === channel.id) {
-                        const owner = await guild.fetchOwner();
-                        await owner.send('Hello - I am missing the required permissions to send update messages to the '
-                            + `tracking channel ${channel} in your guild ${guild}.`);
+                        try {
+                            const owner = await guild.fetchOwner();
+                            await owner.send('Hello - I am missing the required permissions to send update messages to the '
+                                + `tracking channel ${channel} in your guild ${guild}.`);
+                            errorMessage += ` (sent warning DM to \`${owner.user.tag}\`)`;
+                        } catch (err2) {
+                            errorMessage += ` (failed to send warning DM to owner: \`${err2}\`)`;
+                        }
                     }
                 } else {
                     errorMessage += ' (no tracking channel)';
