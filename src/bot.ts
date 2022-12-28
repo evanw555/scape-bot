@@ -391,34 +391,38 @@ client.on('ready', async () => {
 
 client.on('guildCreate', async (guild) => {
     const systemChannel = guild.systemChannel;
+    const welcomeText = `Thanks for adding ${client.user} to your server! Admins: to get started, please use **/channel**`
+        + ' in the text channel that should receive player updates and **/help** for a list of useful commands.';
+    let welcomeLog = 'N/A';
     try {
         const botMember = guild.members.me;
         if (!botMember) {
             throw new Error(`Bot does not have valid membership in guild '${guild.id}'`);
         }
-        const welcomeText = `Thanks for adding ${client.user} to your server! Admins: to get started, please use **/channel**`
-            + ' in the text channel that should receive player updates and **/help** for a list of useful commands.';
-        if (systemChannel) {
-            // If there is a system channel but it lacks most basic permissions, send a DM to the owner
-            const botPermissions = systemChannel.permissionsFor(botMember);
-            if (
-                !botPermissions.has(PermissionFlagsBits.ViewChannel)
-                || !botPermissions.has(PermissionFlagsBits.SendMessages)
-            ) {
-                await sendDMToGuildOwner(guild, welcomeText);
-            // Otherwise, send the welcome message to the system channel
-            } else {
-                await systemChannel.send(welcomeText);
-            }
-        // Apparently a guild can somehow not have a system channel, in this case send a DM to the owner
-        } else {
-            await sendDMToGuildOwner(guild, welcomeText);
+        // Apparently a guild can somehow not have a system channel, in this case fall back to DM
+        if (!systemChannel) {
+            throw new Error('No system channel');
         }
+        // If there is a system channel, check for basic permissions
+        const botPermissions = systemChannel.permissionsFor(botMember);
+        const hasPermissions = botPermissions.has(PermissionFlagsBits.ViewChannel) && botPermissions.has(PermissionFlagsBits.SendMessages);
+        if (!hasPermissions) {
+            throw new Error('Missing basic permissions in system channel');
+        }
+        // If it has permissions, send to the system channel
+        await systemChannel.send(welcomeText);
+        welcomeLog = `welcome message sent to \`#${systemChannel.name}\``;
     } catch (err) {
-        await logger.log(`Failed to send welcome message to system channel of guild _${guild.name}_: \`${err}\``, MultiLoggerLevel.Error);
+        // Failed to send to the system channel, so fall back to guild owner DM
+        try {
+            await sendDMToGuildOwner(guild, welcomeText);
+            welcomeLog = `sent welcome message DM to owner due to error: \`${err}\``;
+        } catch (err2) {
+            welcomeLog = `unable to send any welcome message at all: \`${err}\`, then \`${err2}\``;
+        }
     }
     // TODO: Reduce this back down to debug once we see how this plays out
-    await logger.log(`Bot has been added to guild _${guild.name}_, now in **${client.guilds.cache.size}** guilds`, MultiLoggerLevel.Error);
+    await logger.log(`Bot has been added to guild _${guild.name}_, now in **${client.guilds.cache.size}** guilds (${welcomeLog})`, MultiLoggerLevel.Error);
 });
 
 client.on('guildDelete', async (guild) => {
