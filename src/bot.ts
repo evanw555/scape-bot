@@ -1,6 +1,6 @@
 import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel, ActivityType, Snowflake, PermissionFlagsBits } from 'discord.js';
 import { PlayerHiScores, TimeoutType } from './types';
-import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer, sanitizeRSN, sendDMToGuildOwner } from './util';
+import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer, sanitizeRSN, sendDMToGuildOwner, botHasPermissionsInChannel, getNextEvening } from './util';
 import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel, naturalJoin } from 'evanw555.js';
 import CommandReader from './command-reader';
 import CommandHandler from './command-handler';
@@ -57,6 +57,10 @@ const getGuildName = (guildId: Snowflake): string => {
 };
 
 const timeoutCallbacks = {
+    [TimeoutType.DailyAudit]: async (): Promise<void> => {
+        await timeoutManager.registerTimeout(TimeoutType.DailyAudit, getNextEvening(), { pastStrategy: PastTimeoutStrategy.Invoke });
+        await auditGuilds();
+    },
     [TimeoutType.WeeklyXpUpdate]: async (): Promise<void> => {
         await timeoutManager.registerTimeout(TimeoutType.WeeklyXpUpdate, getNextFridayEvening(), { pastStrategy: PastTimeoutStrategy.Invoke });
         await weeklyTotalXpUpdate();
@@ -151,6 +155,32 @@ const client = new Client({
         }
     })
 });
+
+const auditGuilds = async () => {
+    const logStatements: string[] = [];
+
+    // TODO: We're just logging for now, but we should actually warn the guild owners once we're sure this works
+    for (const guild of client.guilds.cache.toJSON()) {
+        const numTrackedPlayers = state.getAllTrackedPlayers(guild.id).length;
+        // Only audit guilds that are tracking at least one player
+        if (numTrackedPlayers > 0) {
+            if (state.hasTrackingChannel(guild.id)) {
+                const trackingChannel = state.getTrackingChannel(guild.id);
+                // Validate the bot's permissions in this channel
+                if (!botHasPermissionsInChannel(trackingChannel)) {
+                    logStatements.push(`_${guild.name}_ is tracking **${numTrackedPlayers}** players but has insufficient tracking channel permissions!`);
+                }
+            } else {
+                logStatements.push(`_${guild.name}_ is tracking **${numTrackedPlayers}** players but has no tracking channel set!`);
+            }
+        }
+    }
+
+    // Log the findings
+    if (logStatements.length > 0) {
+        await logger.log('**Audited guilds:**\n' + logStatements.map((x, i) => `**${i + 1}.** ${x}`).join('\n'), MultiLoggerLevel.Error);
+    }
+};
 
 const weeklyTotalXpUpdate = async () => {
     // Abort is disabled
@@ -326,6 +356,10 @@ client.on('ready', async () => {
         // Start the weekly loop if the right timeout isn't already scheduled (get next Friday at 5:10pm)
         if (!timeoutManager.hasTimeout(TimeoutType.WeeklyXpUpdate)) {
             await timeoutManager.registerTimeout(TimeoutType.WeeklyXpUpdate, getNextFridayEvening(), { pastStrategy: PastTimeoutStrategy.Invoke });
+        }
+        // Start the daily loop if the right timeout isn't already scheduled (get next evening at 5:20pm)
+        if (!timeoutManager.hasTimeout(TimeoutType.DailyAudit)) {
+            await timeoutManager.registerTimeout(TimeoutType.DailyAudit, getNextEvening(), { pastStrategy: PastTimeoutStrategy.Invoke });
         }
 
         // Register global slash commands on startup

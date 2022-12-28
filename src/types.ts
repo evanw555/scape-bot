@@ -5,6 +5,7 @@ import { ClientConfig } from 'pg';
 import { TIMEOUTS_PROPERTY } from './constants';
 
 export enum TimeoutType {
+    DailyAudit = 'DAILY_AUDIT',
     WeeklyXpUpdate = 'WEEKLY_XP_UPDATE'
 }
 

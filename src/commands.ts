@@ -3,7 +3,7 @@ import { FORMATTED_BOSS_NAMES, Boss, BOSSES, getRSNFormat } from 'osrs-json-hisc
 import { exec } from 'child_process';
 import { MultiLoggerLevel, naturalJoin, randChoice, randInt } from 'evanw555.js';
 import { PlayerHiScores, SlashCommandsType, HiddenCommandsType, CommandsType, SlashCommand, IndividualSkillName, IndividualClueType } from './types';
-import { replyUpdateMessage, sendUpdateMessage, updatePlayer, getBossName, isValidBoss, generateDetailsContentString, sanitizeRSN } from './util';
+import { replyUpdateMessage, sendUpdateMessage, updatePlayer, getBossName, isValidBoss, generateDetailsContentString, sanitizeRSN, botHasPermissionsInChannel } from './util';
 import { fetchHiScores } from './hiscores';
 import CommandHandler from './command-handler';
 import { CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, BOSS_CHOICES, INVALID_TEXT_CHANNEL, SKILL_EMBED_COLOR, PLAYER_404_ERROR } from './constants';
@@ -328,19 +328,8 @@ const slashCommands: SlashCommandsType = {
             const guild = getInteractionGuild(interaction);
             try {
                 if (interaction.channel instanceof TextChannel) {
-                    const botMember = guild.members.me;
-                    if (!botMember) {
-                        throw new Error(`Bot does not have valid membership in guild '${guild.id}'`);
-                    }
-                    const botPermissions = interaction.channel.permissionsFor(botMember);
-                    // A more robust solution would probably be to get default bot permissions (sans overwrites) and
-                    // compare them to the resolved permissions in the specific channel. If the permission bits are
-                    // at all different, then reject the command (since this will result in only partial functionality).
-                    // For now, checking that it can see the channel and send messages in it will cover 99% of cases.
-                    if (
-                        !botPermissions.has(PermissionFlagsBits.ViewChannel)
-                        || !botPermissions.has(PermissionFlagsBits.SendMessages)
-                    ) {
+                    // Validate that the bot has the minimum required permissions in this channel
+                    if (!botHasPermissionsInChannel(interaction.channel)) {
                         await interaction.reply({
                             content: 'ScapeBot does not have permission to view and/or send messages in this channel. Please update channel permissions or try a different channel.',
                             ephemeral: true

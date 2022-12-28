@@ -1,5 +1,5 @@
 import { Boss, BOSSES, INVALID_FORMAT_ERROR, FORMATTED_BOSS_NAMES, getRSNFormat } from 'osrs-json-hiscores';
-import { ChatInputCommandInteraction, Guild, TextBasedChannel, TextChannel } from 'discord.js';
+import { ChatInputCommandInteraction, Guild, PermissionFlagsBits, TextBasedChannel, TextChannel } from 'discord.js';
 import { addReactsSync, MultiLoggerLevel, randChoice } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName, PlayerHiScores } from './types';
 import { fetchHiScores } from './hiscores';
@@ -545,10 +545,22 @@ export function getNextFridayEvening(): Date {
     const nextFriday: Date = new Date();
     nextFriday.setHours(17, 10, 0, 0);
     nextFriday.setHours(nextFriday.getHours() + 24 * ((12 - nextFriday.getDay()) % 7));
+    // If this time is in the past, fast-forward to following week
     if (nextFriday.getTime() <= new Date().getTime()) {
         nextFriday.setHours(nextFriday.getHours() + (24 * 7));
     }
     return nextFriday;
+}
+
+export function getNextEvening(): Date {
+    // Get today at 5:20pm
+    const nextEvening: Date = new Date();
+    nextEvening.setHours(17, 20, 0, 0);
+    // If this time is in the past, fast-forward to tomorrow
+    if (nextEvening.getTime() <= new Date().getTime()) {
+        nextEvening.setDate(nextEvening.getDate() + 1);
+    }
+    return nextEvening;
 }
 
 /**
@@ -590,4 +602,33 @@ export async function sendDMToGuildOwner(guild: Guild, text: string) {
     const owner = await guild.fetchOwner();
     // Implicitly creates a DM channel with the owner
     await owner.send(text);
+}
+
+/**
+ * Checks if the bot has basic required permissions in the given channel.
+ * Currently, just check for view channel and send messages permissions.
+ *
+ * @param channel text channel to check bot permissions for
+ * @returns true if the bot has permissions in the given channel
+ * @throws an error if the bot is somehow not a member of this guild
+ */
+export function botHasPermissionsInChannel(channel: TextChannel): boolean {
+    const guild = channel.guild;
+    const botMember = guild.members.me;
+
+    // If the bot member somehow doesn't exist, throw an explicit exception
+    if (!botMember) {
+        throw new Error(`Bot does not have valid membership in guild \`${guild.id}\``);
+    }
+
+    const botPermissions = channel.permissionsFor(botMember);
+
+    // TODO: How we can improve this...
+    // A more robust solution would probably be to get default bot permissions (sans overwrites) and
+    // compare them to the resolved permissions in the specific channel. If the permission bits are
+    // at all different, then reject the command (since this will result in only partial functionality).
+    // For now, checking that it can see the channel and send messages in it will cover 99% of cases.
+
+    // Return true if the bot has view channel and send message permissions
+    return botPermissions.has(PermissionFlagsBits.ViewChannel) && botPermissions.has(PermissionFlagsBits.SendMessages);
 }
