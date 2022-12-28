@@ -1,5 +1,5 @@
 import { Boss, BOSSES, INVALID_FORMAT_ERROR, FORMATTED_BOSS_NAMES, getRSNFormat } from 'osrs-json-hiscores';
-import { ChatInputCommandInteraction, Guild, TextBasedChannel, TextChannel } from 'discord.js';
+import { ChatInputCommandInteraction, DiscordAPIError, Guild, TextBasedChannel, TextChannel } from 'discord.js';
 import { addReactsSync, MultiLoggerLevel, randChoice } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName, PlayerHiScores } from './types';
 import { fetchHiScores } from './hiscores';
@@ -97,6 +97,12 @@ export async function sendUpdateMessage(channels: TextBasedChannel[], text: stri
                 if (state.hasTrackingChannel(guild.id)) {
                     const trackingChannel = state.getTrackingChannel(guild.id);
                     errorMessage += ` (tracking channel is \`#${trackingChannel.name}\`)`;
+                    // TEMP: SEND DM TO DEADBEAT GUILD OWNER
+                    if (err instanceof DiscordAPIError && err.code === 50013 && trackingChannel.id === channel.id) {
+                        const owner = await guild.fetchOwner();
+                        await owner.send('Hello - I am missing the required permissions to send update messages to the '
+                            + `tracking channel ${channel} in your guild ${guild}.`);
+                    }
                 } else {
                     errorMessage += ' (no tracking channel)';
                 }
