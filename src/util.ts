@@ -1,5 +1,5 @@
 import { Boss, BOSSES, INVALID_FORMAT_ERROR, FORMATTED_BOSS_NAMES, getRSNFormat } from 'osrs-json-hiscores';
-import { ChatInputCommandInteraction, Guild, TextBasedChannel } from 'discord.js';
+import { ChatInputCommandInteraction, Guild, TextBasedChannel, TextChannel } from 'discord.js';
 import { addReactsSync, MultiLoggerLevel, randChoice } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName, PlayerHiScores } from './types';
 import { fetchHiScores } from './hiscores';
@@ -89,7 +89,21 @@ export async function sendUpdateMessage(channels: TextBasedChannel[], text: stri
                 addReactsSync(message, options.reacts);
             }
         } catch (err) {
-            await logger.log(`Unable to send update message to channel \`${channel.id}\`: \`${err}\``, MultiLoggerLevel.Error);
+            let errorMessage = 'Unable to send update message to channel';
+            if (channel instanceof TextChannel) {
+                const textChannel: TextChannel = channel as TextChannel;
+                const guild = textChannel.guild;
+                errorMessage += ` \`#${textChannel.name}\` in guild _${guild.name}_`;
+                if (state.hasTrackingChannel(guild.id)) {
+                    const trackingChannel = state.getTrackingChannel(guild.id);
+                    errorMessage += ` (tracking channel is \`#${trackingChannel.name}\`)`;
+                } else {
+                    errorMessage += ' (no tracking channel)';
+                }
+            } else {
+                errorMessage += ` with ID \`${channel.id}\``;
+            }
+            await logger.log(`${errorMessage}: \`${err}\``, MultiLoggerLevel.Error);
         }
     }
 }
