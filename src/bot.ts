@@ -164,14 +164,22 @@ const auditGuilds = async () => {
         const numTrackedPlayers = state.getAllTrackedPlayers(guild.id).length;
         // Only audit guilds that are tracking at least one player
         if (numTrackedPlayers > 0) {
-            if (state.hasTrackingChannel(guild.id)) {
-                const trackingChannel = state.getTrackingChannel(guild.id);
-                // Validate the bot's permissions in this channel
-                if (!botHasPermissionsInChannel(trackingChannel)) {
-                    logStatements.push(`_${guild.name}_ is tracking **${numTrackedPlayers}** players but has insufficient tracking channel permissions!`);
+            try {
+                if (state.hasTrackingChannel(guild.id)) {
+                    const trackingChannel = state.getTrackingChannel(guild.id);
+                    // Validate the bot's permissions in this channel
+                    if (!botHasPermissionsInChannel(trackingChannel)) {
+                        await sendDMToGuildOwner(guild, 'Hello - I am missing the required permissions to send OSRS update messages to the '
+                            + `tracking channel ${trackingChannel} in your guild _${guild}_`);
+                        logStatements.push(`_${guild.name}_ is tracking **${numTrackedPlayers}** players but has insufficient tracking channel permissions (DM sent)`);
+                    }
+                } else {
+                    await sendDMToGuildOwner(guild, `Hello - I'm tracking OSRS players in your guild _${guild}_, yet you haven't selected a channel for me to send update messages. `
+                        + 'Please select a channel in your guild using the **/channel** command!');
+                    logStatements.push(`_${guild.name}_ is tracking **${numTrackedPlayers}** players but has no tracking channel set (DM sent)`);
                 }
-            } else {
-                logStatements.push(`_${guild.name}_ is tracking **${numTrackedPlayers}** players but has no tracking channel set!`);
+            } catch (err) {
+                logStatements.push(`Failure in _${guild.name}_: \`${err}\``);
             }
         }
     }
