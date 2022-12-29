@@ -229,8 +229,9 @@ const slashCommands: SlashCommandsType = {
         execute: async (interaction) => {
             const guildId = getInteractionGuildId(interaction);
             if (state.isTrackingAnyPlayers(guildId)) {
+                const displayNames = state.getAllTrackedPlayers(guildId).map(rsn => state.getDisplayName(rsn));
                 await interaction.reply({
-                    content: `Currently tracking players ${naturalJoin(state.getAllTrackedPlayers(guildId), { bold: true })}.\nUse **/track** to track more players!`,
+                    content: `Currently tracking players ${naturalJoin(displayNames, { bold: true })}.\nUse **/track** to track more players!`,
                     ephemeral: true
                 });
             } else {
