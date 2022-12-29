@@ -345,6 +345,8 @@ const slashCommands: SlashCommandsType = {
                     await pgStorageClient.updateTrackingChannel(guild.id, interaction.channelId);
                     state.setTrackingChannel(guild.id, interaction.channel);
                     await interaction.reply('Player updates will now be sent to this channel!\nUse **/track** to start tracking players.');
+                    // TODO: Reduce/remove this once we've seen it play out
+                    await logger.log(`\`${interaction.user.tag}\` set the tracking channel for _${guild.name}_ to \`#${interaction.channel.name}\``, MultiLoggerLevel.Warn);
                 } else {
                     await interaction.reply({
                         content: 'This channel cannot be used to track player updates! Please use **/channel** in a valid guild text channel',
