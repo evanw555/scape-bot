@@ -598,6 +598,21 @@ export function sanitizeRSN(rsn: string): string {
     return rsn.replace(/[ _-]/g, '_').toLowerCase();
 }
 
+/**
+ * TODO: This is copied from osrs-json-hiscores, should we open a PR to add this method there?
+ * @param rsn username to validate
+ * @throws error if the RSN fails validation
+ */
+export function validateRSN(rsn: string): void {
+    if (typeof rsn !== 'string') {
+        throw new Error('RSN must be a string');
+    } else if (!/^[a-zA-Z0-9 _-]+$/.test(rsn)) {
+        throw new Error('RSN contains invalid character');
+    } else if (rsn.length > 12 || rsn.length < 1) {
+        throw new Error('RSN must be between 1 and 12 characters');
+    }
+}
+
 export async function sendDMToGuildOwner(guild: Guild, text: string) {
     const owner = await guild.fetchOwner();
     // Implicitly creates a DM channel with the owner
