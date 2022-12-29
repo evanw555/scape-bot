@@ -103,7 +103,7 @@ export async function sendUpdateMessage(channels: TextBasedChannel[], text: stri
             } else {
                 errorMessage += ` with ID \`${channel.id}\``;
             }
-            await logger.log(`${errorMessage}: \`${err}\``, MultiLoggerLevel.Error);
+            await logger.log(`${errorMessage}: \`${err}\``, MultiLoggerLevel.Warn);
         }
     }
 }
@@ -112,7 +112,7 @@ export async function replyUpdateMessage(interaction: ChatInputCommandInteractio
     try {
         await interaction.reply(buildUpdateMessage(text, name, options));
     } catch (err) {
-        await logger.log(`Unable to reply to interaction \`${interaction.id}\` with update message: \`${err}\``, MultiLoggerLevel.Error);
+        await logger.log(`Unable to reply to interaction \`${interaction.id}\` with update message: \`${err}\``, MultiLoggerLevel.Warn);
     }
 }
 
