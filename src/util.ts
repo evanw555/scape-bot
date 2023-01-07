@@ -233,11 +233,15 @@ export async function updatePlayer(rsn: string, spoofedDiff?: Record<string, num
         state.removePlayerFromHiScores(rsn);
         await pgStorageClient.writePlayerHiScoreStatus(rsn, false);
         await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), `**${state.getDisplayName(rsn)}** has fallen off the hiscores`, 'unhappy', { color: RED_EMBED_COLOR });
+        // TODO: Temp logging to see how often this is being triggered
+        await logger.log(`**${state.getDisplayName(rsn)}** has fallen off the hiscores`, MultiLoggerLevel.Warn);
     } else if (data.onHiScores && !state.isPlayerOnHiScores(rsn)) {
         // If player was previously off the hiscores, add them back on!
         state.addPlayerToHiScores(rsn);
         await pgStorageClient.writePlayerHiScoreStatus(rsn, true);
         await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), `**${state.getDisplayName(rsn)}** has made it back onto the hiscores`, 'happy', { color: YELLOW_EMBED_COLOR });
+        // TODO: Temp logging to see how often this is being triggered
+        await logger.log(`**${state.getDisplayName(rsn)}** has made it back onto the hiscores`, MultiLoggerLevel.Warn);
     }
 
     let anyActivity = false;
