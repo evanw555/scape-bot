@@ -266,6 +266,22 @@ const weeklyTotalXpUpdate = async () => {
         }
     }
 
+    // Compute the grand winner and notify guilds tracking that player
+    // TODO: Remove try-catch once we've seen this play out
+    try {
+        if (sortedPlayers.length > 0) {
+            const grandWinnerRsn: string = sortedPlayers[0];
+            const grandChannels = state.getTrackingChannelsForPlayer(grandWinnerRsn);
+            const grandText = `Congrats! **${state.getDisplayName(grandWinnerRsn)}** earned the most XP of all the **${state.getNumGloballyTrackedPlayers()}** players tracked by ScapeBot!`;
+            for (const grandChannel of grandChannels) {
+                await grandChannel.send(grandText);
+            }
+            await logger.log(`Sent out grand winner message to guild(s) ${naturalJoin(grandChannels.map(c => `_${c.guild.name}_`))}: ${grandText}`, MultiLoggerLevel.Warn);
+        }
+    } catch (err) {
+        await logger.log(`Failed to compute and send weekly grand winner info: \`${err}\``, MultiLoggerLevel.Error);
+    }
+
     // Commit the changes
     try {
         await pgStorageClient.writeWeeklyXpSnapshots(newTotalXpValues);
