@@ -268,9 +268,12 @@ const slashCommands: SlashCommandsType = {
                     url: `${CONSTANTS.hiScoresUrlTemplate}${encodeURI(rsn)}`
                 });
             } catch (err) {
-                if (err instanceof Error) {
-                    logger.log(`Error while fetching hiscores (check) for player ${rsn}: ${err.toString()}`, MultiLoggerLevel.Error);
-                    await interaction.reply(`Couldn't fetch hiscores for player **${state.getDisplayName(rsn)}** :pensive:\n\`${err.toString()}\``);
+                if ((err instanceof Error) && err.message === PLAYER_404_ERROR) {
+                    logger.log(`\`${interaction.user.tag}\` checked player **${rsn}** but got a 404`, MultiLoggerLevel.Warn);
+                    await interaction.reply(`Couldn't find player **${state.getDisplayName(rsn)}** on the hiscores`);
+                } else {
+                    logger.log(`Error while fetching hiscores (check) for player **${rsn}**: \`${err}\``, MultiLoggerLevel.Error);
+                    await interaction.reply(`Couldn't fetch hiscores for player **${state.getDisplayName(rsn)}** :pensive:\n\`${err}\``);
                 }
             }
         },
