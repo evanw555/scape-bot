@@ -169,12 +169,23 @@ export default class State {
         }
     }
 
+    // TODO: Delete this method in favor of setPlayerHiScoreStatus
     addPlayerToHiScores(rsn: string): void {
-        this._playersOffHiScores.delete(rsn);
+        this.setPlayerHiScoreStatus(rsn, true);
     }
 
+    // TODO: Delete this method in favor of setPlayerHiScoreStatus
     removePlayerFromHiScores(rsn: string): void {
-        this._playersOffHiScores.add(rsn);
+        this.setPlayerHiScoreStatus(rsn, false);
+    }
+
+    setPlayerHiScoreStatus(rsn: string, onHiScores: boolean): void {
+        // This logic is confusing because it's predicated on the assumption that most players will be ON the hiscores
+        if (onHiScores) {
+            this._playersOffHiScores.delete(rsn);
+        } else {
+            this._playersOffHiScores.add(rsn);
+        }
     }
 
     isPlayerOnHiScores(rsn: string): boolean {

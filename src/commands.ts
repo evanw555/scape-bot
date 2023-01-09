@@ -125,21 +125,16 @@ const slashCommands: SlashCommandsType = {
                 });
                 return;
             }
+            const globallyNewPlayer = !state.isPlayerTrackedInAnyGuilds(rsn);
             // Defer the reply because PG and validation may cause this command to time out
             await interaction.deferReply();
-            // Track the player
+            // Track the player in this guild
             await pgStorageClient.insertTrackedPlayer(guildId, rsn);
             state.addTrackedPlayer(guildId, rsn);
-            await updatePlayer(rsn);
-            // Attempt to fetch the player's display name if missing
-            if (!state.hasDisplayName(rsn)) {
-                try {
-                    const displayName = await getRSNFormat(rsn);
-                    await pgStorageClient.writePlayerDisplayName(rsn, displayName);
-                    state.setDisplayName(rsn, displayName);
-                } catch (err){
-                    await logger.log(`Failed to fetch display name for **${rsn}**: \`${err}\``, MultiLoggerLevel.Warn);
-                }
+            // If this player is globally new (previously untracked in any guilds at all), prime the state/PG with some initial data
+            if (globallyNewPlayer) {
+                // TODO: This should instead be its own separate method perhaps?
+                await updatePlayer(rsn, { primer: true });
             }
             // Edit the reply with an initial success message
             const replyText = `Now tracking player **${state.getDisplayName(rsn)}**!\nUse **/list** to see tracked players.`;
@@ -485,7 +480,7 @@ export const hiddenCommands: HiddenCommandsType = {
                 }
                 return;
             }
-            updatePlayer(player, spoofedDiff);
+            updatePlayer(player, { spoofedDiff });
         },
         text: 'Spoof an update notification using a raw JSON object {player, diff: {skills|bosses}}',
         failIfDisabled: true
@@ -502,7 +497,7 @@ export const hiddenCommands: HiddenCommandsType = {
                     const randomKey: string = randChoice(...possibleKeys);
                     spoofedDiff[randomKey] = randInt(1, 4);
                 }
-                updatePlayer(player, spoofedDiff);
+                updatePlayer(player, { spoofedDiff });
             } else {
                 msg.channel.send('Usage: spoof PLAYER');
             }

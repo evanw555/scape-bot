@@ -196,7 +196,7 @@ export function toSortedCluesNoAll(clues: string[]): IndividualClueType[] {
     return CLUES_NO_ALL.filter((clue: IndividualClueType) => clueSubSet.has(clue));
 }
 
-export async function updatePlayer(rsn: string, spoofedDiff?: Record<string, number>): Promise<void> {
+export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record<string, number>, primer?: boolean }): Promise<void> {
     // Retrieve the player's hiscores data
     let data: PlayerHiScores;
     try {
@@ -227,28 +227,37 @@ export async function updatePlayer(rsn: string, spoofedDiff?: Record<string, num
         return;
     }
 
-    // Check whether the player's overall hiscore state needs to be updated...
-    if (!data.onHiScores && state.isPlayerOnHiScores(rsn)) {
-        // If player was previously on the hiscores, take them off
-        state.removePlayerFromHiScores(rsn);
-        await pgStorageClient.writePlayerHiScoreStatus(rsn, false);
-        await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), `**${state.getDisplayName(rsn)}** has fallen off the hiscores`, 'unhappy', { color: RED_EMBED_COLOR });
-        // TODO: Temp logging to see how often this is being triggered
-        await logger.log(`**${state.getDisplayName(rsn)}** has fallen off the hiscores`, MultiLoggerLevel.Warn);
-    } else if (data.onHiScores && !state.isPlayerOnHiScores(rsn)) {
-        // If player was previously off the hiscores, add them back on!
-        state.addPlayerToHiScores(rsn);
-        await pgStorageClient.writePlayerHiScoreStatus(rsn, true);
-        await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), `**${state.getDisplayName(rsn)}** has made it back onto the hiscores`, 'happy', { color: YELLOW_EMBED_COLOR });
-        // TODO: Temp logging to see how often this is being triggered
-        await logger.log(`**${state.getDisplayName(rsn)}** has made it back onto the hiscores`, MultiLoggerLevel.Warn);
+    // HiScore status updating logic...
+    if (options?.primer) {
+        // If this is the "primer" update, write the player's hiscore status but DON'T notify
+        state.setPlayerHiScoreStatus(rsn, data.onHiScores);
+        await pgStorageClient.writePlayerHiScoreStatus(rsn, data.onHiScores);
+        // TODO: Temp logging to see if this is actually being triggered correctly
+        await logger.log(`**${state.getDisplayName(rsn)}** primed with **${data.onHiScores}** hiscore status`, MultiLoggerLevel.Warn);
+    } else {
+        // On normal updates, check whether the player's overall hiscore state needs to be updated...
+        if (!data.onHiScores && state.isPlayerOnHiScores(rsn)) {
+            // If player was previously on the hiscores, take them off
+            state.removePlayerFromHiScores(rsn);
+            await pgStorageClient.writePlayerHiScoreStatus(rsn, false);
+            await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), `**${state.getDisplayName(rsn)}** has fallen off the hiscores`, 'unhappy', { color: RED_EMBED_COLOR });
+            // TODO: Temp logging to see how often this is being triggered
+            await logger.log(`**${state.getDisplayName(rsn)}** has fallen off the hiscores`, MultiLoggerLevel.Warn);
+        } else if (data.onHiScores && !state.isPlayerOnHiScores(rsn)) {
+            // If player was previously off the hiscores, add them back on!
+            state.addPlayerToHiScores(rsn);
+            await pgStorageClient.writePlayerHiScoreStatus(rsn, true);
+            await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), `**${state.getDisplayName(rsn)}** has made it back onto the hiscores`, 'happy', { color: YELLOW_EMBED_COLOR });
+            // TODO: Temp logging to see how often this is being triggered
+            await logger.log(`**${state.getDisplayName(rsn)}** has made it back onto the hiscores`, MultiLoggerLevel.Warn);
+        }
     }
 
     let anyActivity = false;
 
     // Check if levels have changes and send notifications
     if (state.hasLevels(rsn)) {
-        const activity = await updateLevels(rsn, data.levelsWithDefaults, spoofedDiff);
+        const activity = await updateLevels(rsn, data.levelsWithDefaults, options?.spoofedDiff);
         anyActivity = anyActivity || activity;
     } else {
         // If this player has no levels in the state, prime with initial data (NOT including assumed defaults)
@@ -259,7 +268,7 @@ export async function updatePlayer(rsn: string, spoofedDiff?: Record<string, num
 
     // Check if bosses have changes and send notifications
     if (state.hasBosses(rsn)) {
-        const activity = await updateKillCounts(rsn, data.bossesWithDefaults, spoofedDiff);
+        const activity = await updateKillCounts(rsn, data.bossesWithDefaults, options?.spoofedDiff);
         anyActivity = anyActivity || activity;
     } else {
         // If this player has no bosses in the state, prime with initial data (NOT including assumed defaults)
@@ -270,7 +279,7 @@ export async function updatePlayer(rsn: string, spoofedDiff?: Record<string, num
 
     // Check if clues have changes and send notifications
     if (state.hasClues(rsn)) {
-        const activity = await updateClues(rsn, data.cluesWithDefaults, spoofedDiff);
+        const activity = await updateClues(rsn, data.cluesWithDefaults, options?.spoofedDiff);
         anyActivity = anyActivity || activity;
     } else {
         // If this player has no clues in the state, prime with initial data (NOT including assumed defaults)
@@ -279,12 +288,12 @@ export async function updatePlayer(rsn: string, spoofedDiff?: Record<string, num
         await pgStorageClient.writePlayerClues(rsn, data.clues);
     }
 
-    // If the player saw any sort of activity
-    if (anyActivity) {
+    // If the player saw any sort of activity (or if we're priming a new player's data)
+    if (anyActivity || options?.primer) {
         // Mark the player as active
         state.markPlayerAsActive(rsn);
         await pgStorageClient.updatePlayerActivityTimestamp(rsn);
-        // If the player is missing a display name, try and fetch that now (since they're confirmed to be on the hiscores)
+        // If the player is missing a display name, try and fetch that now (since they're likely to be on the hiscores)
         if (!state.hasDisplayName(rsn)) {
             try {
                 const displayName = await getRSNFormat(rsn);
