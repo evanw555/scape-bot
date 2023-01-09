@@ -125,7 +125,7 @@ export default class PlayerQueue {
     }
 
     private getDebugString(): string {
-        return `${this.getNumActivePlayers()}A:${this.getNumInactivePlayers()}I`;
+        return `${this.getNumActivePlayers()}/${this.size()} ${Math.floor(100 * this.getNumActivePlayers() / this.size())}%`;
     }
 
     size(): number {
