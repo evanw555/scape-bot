@@ -213,6 +213,15 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
                     { color: GRAY_EMBED_COLOR });
             }
         } else if ((err instanceof Error) && err.message === PLAYER_404_ERROR) {
+            // If the player can't be found yet still somehow shows up as "on" the hiscores, remove them silently.
+            // This is needed because if there's a 404 when a player's data is "primed", their negative status won't be written
+            // and thus they'll show up as "falling off" the hiscores when they can finally be found (but TBH we still don't know fully what a 404 means).
+            if (state.isPlayerOnHiScores(rsn)) {
+                state.setPlayerHiScoreStatus(rsn, false);
+                await pgStorageClient.writePlayerHiScoreStatus(rsn, false);
+                // TODO: Temp logging to see how this is playing out
+                await logger.log(`Silently removed **${state.getDisplayName(rsn)}** from the hiscores due to update 404`, MultiLoggerLevel.Warn);
+            }
             // TODO: Should we re-enable the logic to remove 404 players? We haven't confirmed what this means yet.
             // If the player doesn't exist (this should be prevented by the validation in /track), remove globally
             // const guildsToRemoveFrom = state.getGuildsTrackingPlayer(rsn);

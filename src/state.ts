@@ -131,6 +131,7 @@ export default class State {
             delete this._bosses[rsn];
             delete this._clues[rsn];
             delete this._lastUpdate[rsn];
+            this._playersOffHiScores.delete(rsn);
             logger.log(`Removed player ${rsn} from the master queue`, MultiLoggerLevel.Debug);
         }
     }
