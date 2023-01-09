@@ -28,6 +28,8 @@ export async function sendRestartMessage(downtimeMillis: number): Promise<void> 
         const displayNamesRemaining = state.getNumGloballyTrackedPlayers() - state.getNumPlayerDisplayNames();
         text += `\nℹ️ Loaded **${state.getNumPlayerDisplayNames()}** display names from PG, need to populate **${displayNamesRemaining}** more.`;
     }
+    // TODO: Temp logic to log how many players are off the hiscores
+    text += `\nℹ️ **${state.getNumPlayersOffHiScores()}** players are off the hiscores (**${Math.floor(100 * state.getNumPlayersOffHiScores() / state.getNumGloballyTrackedPlayers())}%**)`;
     // TODO: Temp logic to log how many RSNs are unsanitized
     const numUnsanitizedRSNs = state.getAllGloballyTrackedPlayers().filter(rsn => rsn !== sanitizeRSN(rsn)).length;
     if (numUnsanitizedRSNs > 0) {

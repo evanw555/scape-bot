@@ -192,6 +192,10 @@ export default class State {
         return !this._playersOffHiScores.has(rsn);
     }
 
+    getNumPlayersOffHiScores(): number {
+        return this._playersOffHiScores.size;
+    }
+
     getTrackingChannel(guildId: Snowflake): TextChannel {
         if (!this._trackingChannelsByGuild[guildId]) {
             throw new Error('Tracking channel does not exist');
