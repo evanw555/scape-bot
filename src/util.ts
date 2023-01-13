@@ -236,9 +236,22 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
         return;
     }
 
-    // HiScore status updating logic...
+    // Try to fetch a missing display name only if "priming" or if the player is on the hiscores (since that's when the name becomes accessible)
+    if ((options?.primer || data.onHiScores) && !state.hasDisplayName(rsn)) {
+        try {
+            const displayName = await getRSNFormat(rsn);
+            state.setDisplayName(rsn, displayName);
+            await pgStorageClient.writePlayerDisplayName(rsn, displayName);
+            await logger.log(`Fetched display name for **${rsn}** as **${displayName}** (**${state.getNumPlayerDisplayNames()}**/**${state.getNumGloballyTrackedPlayers()}** complete)`, MultiLoggerLevel.Warn);
+        } catch (err) {
+            // TODO: Reduce this down to Info if this appears to be working as expected (no repeated failures)
+            await logger.log(`Failed to fetch display name for **${rsn}**: \`${err}\``, MultiLoggerLevel.Warn);
+        }
+    }
+
+    // HiScore status (and display name) updating logic...
     if (options?.primer) {
-        // If this is the "primer" update, write the player's hiscore status but DON'T notify
+        // This is the "primer" update, so write the player's hiscore status but DON'T notify
         state.setPlayerHiScoreStatus(rsn, data.onHiScores);
         await pgStorageClient.writePlayerHiScoreStatus(rsn, data.onHiScores);
         // TODO: Temp logging to see if this is actually being triggered correctly
@@ -253,7 +266,7 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
             // TODO: Temp logging to see how often this is being triggered
             await logger.log(`**${state.getDisplayName(rsn)}** has fallen off the hiscores`, MultiLoggerLevel.Warn);
         } else if (data.onHiScores && !state.isPlayerOnHiScores(rsn)) {
-            // If player was previously off the hiscores, add them back on!
+            // Player was previously off the hiscores, so add them back on!
             state.addPlayerToHiScores(rsn);
             await pgStorageClient.writePlayerHiScoreStatus(rsn, true);
             await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), `**${state.getDisplayName(rsn)}** has made it back onto the hiscores`, 'happy', { color: YELLOW_EMBED_COLOR });
@@ -302,17 +315,6 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
         // Mark the player as active
         state.markPlayerAsActive(rsn);
         await pgStorageClient.updatePlayerActivityTimestamp(rsn);
-        // If the player is missing a display name, try and fetch that now (since they're likely to be on the hiscores)
-        if (!state.hasDisplayName(rsn)) {
-            try {
-                const displayName = await getRSNFormat(rsn);
-                state.setDisplayName(rsn, displayName);
-                await pgStorageClient.writePlayerDisplayName(rsn, displayName);
-                await logger.log(`(Update) Fetched display name for **${rsn}** as **${displayName}** (**${state.getNumPlayerDisplayNames()}**/**${state.getNumGloballyTrackedPlayers()}** complete)`, MultiLoggerLevel.Warn);
-            } catch (err) {
-                await logger.log(`(Update) Failed to fetch display name for **${rsn}**: \`${err}\``, MultiLoggerLevel.Info);
-            }
-        }
     }
 }
 
