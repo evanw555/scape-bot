@@ -246,7 +246,8 @@ const slashCommands: SlashCommandsType = {
             required: true
         }],
         execute: async (interaction) => {
-            const rsn = sanitizeRSN(interaction.options.getString('username', true));
+            const rawRsn = interaction.options.getString('username', true);
+            const rsn = sanitizeRSN(rawRsn);
             try {
                 // Retrieve the player's hiscores data
                 const data = await fetchHiScores(rsn);
@@ -268,12 +269,14 @@ const slashCommands: SlashCommandsType = {
                     url: `${CONSTANTS.hiScoresUrlTemplate}${encodeURI(rsn)}`
                 });
             } catch (err) {
+                // For error messages, we want the user to see the raw RSN they entered.
+                // Showing the sanitized RSN may lead them to believe that the error is related to sanitization (I think?)
                 if ((err instanceof Error) && err.message === PLAYER_404_ERROR) {
                     logger.log(`\`${interaction.user.tag}\` checked player **${rsn}** but got a 404`, MultiLoggerLevel.Warn);
-                    await interaction.reply(`Couldn't find player **${state.getDisplayName(rsn)}** on the hiscores`);
+                    await interaction.reply(`Couldn't find player **${rawRsn.trim()}** on the hiscores`);
                 } else {
                     logger.log(`Error while fetching hiscores (check) for player **${rsn}**: \`${err}\``, MultiLoggerLevel.Error);
-                    await interaction.reply(`Couldn't fetch hiscores for player **${state.getDisplayName(rsn)}** :pensive:\n\`${err}\``);
+                    await interaction.reply(`Couldn't fetch hiscores for player **${rawRsn.trim()}** :pensive:\n\`${err}\``);
                 }
             }
         },
