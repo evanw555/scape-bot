@@ -605,7 +605,10 @@ export const hiddenCommands: HiddenCommandsType = {
                     try {
                         data = await fetchHiScores(rsn);
                     } catch (err) {
-                        await msg.channel.send(`(Rollback) Failed to fetch hiscores for player **${rsn}**: \`${err}\``);
+                        // Ignore 404 errors
+                        if (!(err instanceof Error) || err.message !== PLAYER_404_ERROR) {
+                            await msg.channel.send(`(Rollback) Failed to fetch hiscores for player **${rsn}**: \`${err}\``);
+                        }
                         continue;
                     }
                     const logs: string[] = [];
