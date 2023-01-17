@@ -85,7 +85,7 @@ const slashCommands: SlashCommandsType = {
             const guildId = getInteractionGuildId(interaction);
             await interaction.reply({
                 embeds: [{
-                    description: `**Players:** ${state.getAllTrackedPlayers(guildId).length}\n`
+                    description: `**Players:** ${state.getNumTrackedPlayers(guildId)}\n`
                                + `**Channel:** ${state.hasTrackingChannel(guildId) ? state.getTrackingChannel(guildId) : 'None, set with **/channel**'}\n`
                                + '**Role:** ' + (state.hasPrivilegedRole(guildId) ? `${state.getPrivilegedRole(guildId)} and Admins` : 'Admins only, set a custom role with **/role**') + '\n'
                                + `**Refresh Duration:** ${state.getRefreshDurationString()}`,

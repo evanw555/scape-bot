@@ -144,6 +144,10 @@ export default class State {
         }
     }
 
+    getNumTrackedPlayers(guildId: Snowflake): number {
+        return this.getAllTrackedPlayers(guildId).length;
+    }
+
     getAllGloballyTrackedPlayers(): string[] {
         return this._masterPlayerQueue.toSortedArray();
     }

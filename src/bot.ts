@@ -40,8 +40,10 @@ export async function sendRestartMessage(downtimeMillis: number): Promise<void> 
         text += '\nℹ️ **Timeouts scheduled:**\n' + timeoutManager.toStrings().join('\n');
     }
     await logger.log(text, MultiLoggerLevel.Fatal);
-    await logger.log(client.guilds.cache.toJSON().map((guild, i) => {
-        return `**${i + 1}.** _${guild.name}_ with **${state.getAllTrackedPlayers(guild.id).length}**`
+    // Log all guilds with basic info (sorted by num players tracked)
+    const sortedGuilds = client.guilds.cache.toJSON().sort((x, y) => state.getNumTrackedPlayers(y.id) - state.getNumTrackedPlayers(x.id));
+    await logger.log(sortedGuilds.map((guild, i) => {
+        return `**${i + 1}.** _${guild.name}_ with **${state.getNumTrackedPlayers(guild.id)}**`
             + (state.hasTrackingChannel(guild.id) ? ` in \`#${state.getTrackingChannel(guild.id).name}\`` : '')
             + (state.hasPrivilegedRole(guild.id) ? ` with role \`${state.getPrivilegedRole(guild.id).name}\`` : '');
     }).join('\n'), MultiLoggerLevel.Warn);
@@ -163,7 +165,7 @@ const auditGuilds = async () => {
 
     // TODO: We're just logging for now, but we should actually warn the guild owners once we're sure this works
     for (const guild of client.guilds.cache.toJSON()) {
-        const numTrackedPlayers = state.getAllTrackedPlayers(guild.id).length;
+        const numTrackedPlayers = state.getNumTrackedPlayers(guild.id);
         // Only audit guilds that are tracking at least one player
         if (numTrackedPlayers > 0) {
             try {
