@@ -143,7 +143,7 @@ const slashCommands: SlashCommandsType = {
             try {
                 await fetchHiScores(rsn);
                 // TODO: Reduce or remove this logging?
-                await logger.log(`\`${interaction.user.tag}\` has tracked player **${rsn}** (display: **${state.getDisplayName(rsn)}**)`, MultiLoggerLevel.Warn);
+                await logger.log(`\`${interaction.user.tag}\` has tracked player **${state.getDisplayName(rsn)}** (**${state.getNumTrackedPlayers(guildId)}** in guild)`, MultiLoggerLevel.Warn);
             } catch (err) {
                 if ((err instanceof Error) && err.message === PLAYER_404_ERROR) {
                     // If the hiscores returns a 404, just show a warning in the ephemeral reply
@@ -179,7 +179,7 @@ const slashCommands: SlashCommandsType = {
                 await pgStorageClient.deleteTrackedPlayer(guildId, rsn);
                 state.removeTrackedPlayer(guildId, rsn);
                 await interaction.reply(`No longer tracking player **${rsn}**.\nYou can still use **/check** to see this player's hiscores.`);
-                await logger.log(`\`${interaction.user.tag}\` removed player **${rsn}**`, MultiLoggerLevel.Warn);
+                await logger.log(`\`${interaction.user.tag}\` removed player **${rsn}** (**${state.getNumTrackedPlayers(guildId)}** in guild)`, MultiLoggerLevel.Warn);
                 // If this player is now globally untracked, purge untracked player data
                 if (!state.isPlayerTrackedInAnyGuilds(rsn)) {
                     const purgeResults = await pgStorageClient.purgeUntrackedPlayerData();

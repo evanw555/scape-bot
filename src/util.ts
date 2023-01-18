@@ -254,8 +254,7 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
         // This is the "primer" update, so write the player's hiscore status but DON'T notify
         state.setPlayerHiScoreStatus(rsn, data.onHiScores);
         await pgStorageClient.writePlayerHiScoreStatus(rsn, data.onHiScores);
-        // TODO: Temp logging to see if this is actually being triggered correctly
-        await logger.log(`**${state.getDisplayName(rsn)}** primed with **${data.onHiScores}** hiscore status`, MultiLoggerLevel.Warn);
+        await logger.log(`**${state.getDisplayName(rsn)}** primed with **${data.onHiScores}** hiscore status`, MultiLoggerLevel.Info);
     } else {
         // On normal updates, check whether the player's overall hiscore state needs to be updated...
         if (!data.onHiScores && state.isPlayerOnHiScores(rsn)) {
