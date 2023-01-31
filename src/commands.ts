@@ -1,5 +1,5 @@
 import { ApplicationCommandOptionType, ChatInputCommandInteraction, Guild, Message, PermissionFlagsBits, Snowflake, TextChannel } from 'discord.js';
-import { FORMATTED_BOSS_NAMES, Boss, BOSSES, getRSNFormat } from 'osrs-json-hiscores';
+import { FORMATTED_BOSS_NAMES, Boss, BOSSES, getRSNFormat, INVALID_FORMAT_ERROR } from 'osrs-json-hiscores';
 import { exec } from 'child_process';
 import { MultiLoggerLevel, naturalJoin, randChoice, randInt } from 'evanw555.js';
 import { PlayerHiScores, SlashCommandsType, HiddenCommandsType, CommandsType, SlashCommand, IndividualSkillName, IndividualClueType } from './types';
@@ -732,6 +732,23 @@ export const hiddenCommands: HiddenCommandsType = {
                 await msg.reply(`Display name of **${rsn}** is **${displayName}**`);
             } catch (err) {
                 await msg.reply(`Unable to fetch display name for **${rsn}**: \`${err}\``);
+            }
+        },
+        text: 'Fetches a player\'s display name'
+    },
+    testapi: {
+        fn: async (msg: Message, rawArgs: string) => {
+            const rsn = rawArgs.trim() || 'zezima';
+            const reply = await msg.reply(`Testing the hiscores API by querying with RSN **${rsn}**...`);
+            try {
+                fetchHiScores(rsn);
+                await reply.edit(`API seems to be fine, fetched and parsed response for player **${rsn}**`);
+            } catch (err) {
+                let replyText = `API query failed with error: \`${err}\``;
+                if ((err instanceof Error) && err.message === INVALID_FORMAT_ERROR) {
+                    replyText += ' (the API has changed or just generally cannot be parsed)';
+                }
+                await reply.edit(replyText);
             }
         },
         text: 'Fetches a player\'s display name'
