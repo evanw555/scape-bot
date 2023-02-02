@@ -242,7 +242,7 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
             const displayName = await getRSNFormat(rsn);
             state.setDisplayName(rsn, displayName);
             await pgStorageClient.writePlayerDisplayName(rsn, displayName);
-            await logger.log(`Fetched display name for **${rsn}** as **${displayName}** (**${state.getNumPlayerDisplayNames()}**/**${state.getNumGloballyTrackedPlayers()}** complete)`, MultiLoggerLevel.Warn);
+            await logger.log(`Fetched display name for **${rsn}** as **${displayName}** (**${state.getNumPlayerDisplayNames()}**/**${state.getNumGloballyTrackedPlayers()}** complete)`, MultiLoggerLevel.Info);
         } catch (err) {
             // TODO: Reduce this down to Info if this appears to be working as expected (no repeated failures)
             await logger.log(`Failed to fetch display name for **${rsn}**: \`${err}\``, MultiLoggerLevel.Warn);
