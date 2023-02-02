@@ -90,8 +90,8 @@ export default class PlayerQueue {
     }
 
     private isActive(rsn: string): boolean {
-        // If user had an update in the last week
-        return new Date().getTime() - this.getLastActive(rsn) < 1000 * 60 * 60 * 24 * 7;
+        // If user had an update in the last 5 days
+        return new Date().getTime() - this.getLastActive(rsn) < 1000 * 60 * 60 * 24 * 5;
     }
 
     private getLastActive(rsn: string): number {
