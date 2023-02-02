@@ -50,7 +50,7 @@ export default class PlayerQueue {
             // If this inactive player is now active, move them to the active queue
             if (inactivePlayer && this.isActive(inactivePlayer)) {
                 this.moveToActiveQueue(inactivePlayer);
-                logger.log(`Moved **${inactivePlayer}** to the _active_ queue (**${this.getDebugString()}**)`, MultiLoggerLevel.Warn);
+                logger.log(`Moved **${inactivePlayer}** to the _active_ queue (**${this.getDebugString()}**)`, MultiLoggerLevel.Info);
             }
             logger.log(`[IQ] ${this.counter}/${counterInterval} -> ${inactivePlayer}`, MultiLoggerLevel.Debug);
             return inactivePlayer;
@@ -59,7 +59,7 @@ export default class PlayerQueue {
             // If this active player is now inactive, move them to the inactive queue
             if (activePlayer && !this.isActive(activePlayer)) {
                 this.moveToInactiveQueue(activePlayer);
-                logger.log(`Moved **${activePlayer}** to the _inactive_ queue (**${this.getDebugString()}**)`, MultiLoggerLevel.Warn);
+                logger.log(`Moved **${activePlayer}** to the _inactive_ queue (**${this.getDebugString()}**)`, MultiLoggerLevel.Info);
             }
             logger.log(`[AQ] ${this.counter}/${counterInterval} -> ${activePlayer}`, MultiLoggerLevel.Debug);
             return activePlayer;
@@ -84,7 +84,7 @@ export default class PlayerQueue {
             this.moveToActiveQueue(rsn);
             // Log if this isn't on reboot
             if (!timestamp) {
-                logger.log(`Moved **${rsn}** to the _active_ queue (**${this.getDebugString()}**)`, MultiLoggerLevel.Warn);
+                logger.log(`Moved **${rsn}** to the _active_ queue (**${this.getDebugString()}**)`, MultiLoggerLevel.Info);
             }
         }
     }
