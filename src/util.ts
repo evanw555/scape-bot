@@ -86,7 +86,7 @@ export async function sendUpdateMessage(channels: TextBasedChannel[], text: stri
             const message = await channel.send(updateMessage);
             // If any reacts are specified, add them
             if (options?.reacts) {
-                addReactsSync(message, options.reacts);
+                await addReactsSync(message, options.reacts);
             }
         } catch (err) {
             let errorMessage = 'Unable to send update message to channel';
@@ -231,7 +231,7 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
             // }
             // await logger.log(`Received \`404\` when fetching hiscores for **${rsn}**, removed player from **${guildsToRemoveFrom.length}** guild(s).`, MultiLoggerLevel.Error);
         } else {
-            logger.log(`Error while fetching player hiscores for ${rsn}: \`${err}\``, MultiLoggerLevel.Warn);
+            await logger.log(`Error while fetching player hiscores for ${rsn}: \`${err}\``, MultiLoggerLevel.Warn);
         }
         return;
     }
@@ -339,7 +339,7 @@ export async function updateLevels(rsn: string, newLevels: Record<IndividualSkil
         }
     } catch (err) {
         if (err instanceof Error && err.message) {
-            logger.log(`Failed to compute level diff for player ${rsn}: ${err.message}`, MultiLoggerLevel.Error);
+            await logger.log(`Failed to compute level diff for player ${rsn}: ${err.message}`, MultiLoggerLevel.Error);
         }
         return false;
     }
@@ -421,7 +421,7 @@ export async function updateKillCounts(rsn: string, newScores: Record<Boss, numb
         }
     } catch (err) {
         if (err instanceof Error && err.message) {
-            logger.log(`Failed to compute boss KC diff for player ${rsn}: ${err.message}`, MultiLoggerLevel.Error);
+            await logger.log(`Failed to compute boss KC diff for player ${rsn}: ${err.message}`, MultiLoggerLevel.Error);
         }
         return false;
     }
@@ -444,7 +444,7 @@ export async function updateKillCounts(rsn: string, newScores: Record<Boss, numb
             : `**${state.getDisplayName(rsn)}** ${verb} **${bossName}** `
                     + (scoreIncrease === 1 ? 'again' : `**${scoreIncrease}** more times`)
                     + ` for a total of **${newScores[boss]}**`;
-        sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, boss, { color: BOSS_EMBED_COLOR });
+        await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, boss, { color: BOSS_EMBED_COLOR });
         break;
     }
     default: {
@@ -455,7 +455,7 @@ export async function updateKillCounts(rsn: string, newScores: Record<Boss, numb
                 ? `**${bossName}** for the first time!`
                 : `**${bossName}** ${scoreIncrease === 1 ? 'again' : `**${scoreIncrease}** more times`} for a total of **${newScores[boss]}**`;
         }).join('\n');
-        sendUpdateMessage(
+        await sendUpdateMessage(
             state.getTrackingChannelsForPlayer(rsn),
             `**${state.getDisplayName(rsn)}** ${verb}...\n${text}`,
             // Show the first boss in the list as the icon
@@ -502,7 +502,7 @@ export async function updateClues(rsn: string, newScores: Record<IndividualClueT
         }
     } catch (err) {
         if (err instanceof Error && err.message) {
-            logger.log(`Failed to compute clue score diff for player ${rsn}: ${err.message}`, MultiLoggerLevel.Error);
+            await logger.log(`Failed to compute clue score diff for player ${rsn}: ${err.message}`, MultiLoggerLevel.Error);
         }
         return false;
     }

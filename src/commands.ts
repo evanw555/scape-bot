@@ -272,10 +272,10 @@ const slashCommands: SlashCommandsType = {
                 // For error messages, we want the user to see the raw RSN they entered.
                 // Showing the sanitized RSN may lead them to believe that the error is related to sanitization (I think?)
                 if ((err instanceof Error) && err.message === PLAYER_404_ERROR) {
-                    logger.log(`\`${interaction.user.tag}\` checked player **${rsn}** but got a 404`, MultiLoggerLevel.Warn);
+                    await logger.log(`\`${interaction.user.tag}\` checked player **${rsn}** but got a 404`, MultiLoggerLevel.Warn);
                     await interaction.reply(`Couldn't find player **${rawRsn.trim()}** on the hiscores`);
                 } else {
-                    logger.log(`Error while fetching hiscores (check) for player **${rsn}**: \`${err}\``, MultiLoggerLevel.Error);
+                    await logger.log(`Error while fetching hiscores (check) for player **${rsn}**: \`${err}\``, MultiLoggerLevel.Error);
                     await interaction.reply(`Couldn't fetch hiscores for player **${rawRsn.trim()}** :pensive:\n\`${err}\``);
                 }
             }
@@ -318,7 +318,7 @@ const slashCommands: SlashCommandsType = {
                 });
             } catch (err) {
                 if (err instanceof Error) {
-                    logger.log(`Error while fetching hiscores (check) for player ${rsn}: ${err.toString()}`, MultiLoggerLevel.Error);
+                    await logger.log(`Error while fetching hiscores (check) for player ${rsn}: ${err.toString()}`, MultiLoggerLevel.Error);
                     await interaction.reply({
                         content: `Couldn't fetch hiscores for player **${state.getDisplayName(rsn)}** :pensive:\n\`${err.toString()}\``,
                         ephemeral: true
@@ -356,7 +356,7 @@ const slashCommands: SlashCommandsType = {
                 }
             } catch (err) {
                 if (err instanceof Error) {
-                    logger.log(`Error while setting tracking channel (track) for guild ${guild.id}: ${err.toString()}`, MultiLoggerLevel.Error);
+                    await logger.log(`Error while setting tracking channel (track) for guild ${guild.id}: ${err.toString()}`, MultiLoggerLevel.Error);
                     await interaction.reply(`Couldn't set tracking channel to ${interaction.channel}`);
                 }
             }
@@ -433,15 +433,15 @@ export const hiddenCommands: HiddenCommandsType = {
     thumbnail: {
         fn: (msg, rawArgs, name) => {
             if (validSkills.has(name)) {
-                sendUpdateMessage([msg.channel], 'Here is the thumbnail', name, {
+                void sendUpdateMessage([msg.channel], 'Here is the thumbnail', name, {
                     title: name
                 });
             } else if (isValidBoss(name)) {
-                sendUpdateMessage([msg.channel], 'Here is the thumbnail', name, {
+                void sendUpdateMessage([msg.channel], 'Here is the thumbnail', name, {
                     title: name
                 });
             } else {
-                msg.channel.send(`**${name || '[none]'}** does not have a thumbnail`);
+                void msg.channel.send(`**${name || '[none]'}** does not have a thumbnail`);
             }
         },
         text: 'Displays a skill or boss\' thumbnail'
@@ -449,27 +449,27 @@ export const hiddenCommands: HiddenCommandsType = {
     thumbnail99: {
         fn: (msg, rawArgs, skill) => {
             if (validSkills.has(skill)) {
-                sendUpdateMessage([msg.channel], 'Here is the level 99 thumbnail', skill, {
+                void sendUpdateMessage([msg.channel], 'Here is the level 99 thumbnail', skill, {
                     title: skill,
                     is99: true
                 });
             } else {
-                msg.channel.send(`**${skill || '[none]'}** is not a valid skill`);
+                void msg.channel.send(`**${skill || '[none]'}** is not a valid skill`);
             }
         },
         text: 'Displays a skill\'s level 99 thumbnail'
     },
     help: {
         fn: (msg) => {
-            msg.channel.send(getHelpText(true));
+            void msg.channel.send(getHelpText(true));
         },
         text: 'Shows help for hidden commands'
     },
     log: {
         fn: (msg) => {
             // Truncate both logs to the Discord max of 2000 characters
-            msg.channel.send(`Info Log:\n\`\`\`${infoLog.toLogArray().join('\n').replace(/`/g, '').slice(0, 1950) || 'log empty'}\`\`\``);
-            msg.channel.send(`Debug Log:\`\`\`${debugLog.toLogArray().join('\n').replace(/`/g, '').slice(0, 1950) || 'log empty'}\`\`\``);
+            void msg.channel.send(`Info Log:\n\`\`\`${infoLog.toLogArray().join('\n').replace(/`/g, '').slice(0, 1950) || 'log empty'}\`\`\``);
+            void msg.channel.send(`Debug Log:\`\`\`${debugLog.toLogArray().join('\n').replace(/`/g, '').slice(0, 1950) || 'log empty'}\`\`\``);
         },
         text: 'Prints the bot\'s log'
     },
@@ -482,11 +482,11 @@ export const hiddenCommands: HiddenCommandsType = {
                 player = inputData.player || 'zezima';
             } catch (err) {
                 if (err instanceof Error) {
-                    msg.channel.send(`\`${err.toString()}\``);
+                    void msg.channel.send(`\`${err.toString()}\``);
                 }
                 return;
             }
-            updatePlayer(player, { spoofedDiff });
+            void updatePlayer(player, { spoofedDiff });
         },
         text: 'Spoof an update notification using a raw JSON object {player, diff: {skills|bosses}}',
         failIfDisabled: true
@@ -503,9 +503,9 @@ export const hiddenCommands: HiddenCommandsType = {
                     const randomKey: string = randChoice(...possibleKeys);
                     spoofedDiff[randomKey] = randInt(1, 4);
                 }
-                updatePlayer(player, { spoofedDiff });
+                void updatePlayer(player, { spoofedDiff });
             } else {
-                msg.channel.send('Usage: spoof PLAYER');
+                void msg.channel.send('Usage: spoof PLAYER');
             }
         },
         text: 'Spoof an update notification for some player with random skill/boss updates',
@@ -515,13 +515,13 @@ export const hiddenCommands: HiddenCommandsType = {
         fn: (msg) => {
             exec('uptime --pretty', (error, stdout, stderr) => {
                 if (error) {
-                    msg.channel.send(`\`\`\`\n${error.message}\n\`\`\``);
+                    void msg.channel.send(`\`\`\`\n${error.message}\n\`\`\``);
                     return;
                 } else if (stderr) {
-                    msg.channel.send(`\`\`\`\n${stderr}\n\`\`\``);
+                    void msg.channel.send(`\`\`\`\n${stderr}\n\`\`\``);
                     return;
                 } else {
-                    msg.channel.send(`\`${stdout}\``);
+                    void msg.channel.send(`\`${stdout}\``);
                 }
             });
         },
@@ -537,7 +537,7 @@ export const hiddenCommands: HiddenCommandsType = {
                 'As you wish'
             ];
             const phrase: string = randChoice(...phrases);
-            msg.channel.send(`${phrase}... 💀`).then(() => {
+            void msg.channel.send(`${phrase}... 💀`).then(() => {
                 process.exit(1);
             });
         },
@@ -578,7 +578,7 @@ export const hiddenCommands: HiddenCommandsType = {
     // },
     enable: {
         fn: async (msg: Message) => {
-            msg.reply('Enabling the bot... If the API format is still not supported, the bot will disable itself.');
+            await msg.reply('Enabling the bot... If the API format is still not supported, the bot will disable itself.');
             await pgStorageClient.writeMiscProperty('disabled', 'false');
             state.setDisabled(false);
         },
@@ -741,7 +741,7 @@ export const hiddenCommands: HiddenCommandsType = {
             const rsn = rawArgs.trim() || 'zezima';
             const reply = await msg.reply(`Testing the hiscores API by querying with RSN **${rsn}**...`);
             try {
-                fetchHiScores(rsn);
+                await fetchHiScores(rsn);
                 await reply.edit(`API seems to be fine, fetched and parsed response for player **${rsn}**`);
             } catch (err) {
                 let replyText = `API query failed with error: \`${err}\``;

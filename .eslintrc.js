@@ -19,6 +19,14 @@ module.exports = {
         '@typescript-eslint/quotes': ['error', 'single'],
         'indent': 'off',
         '@typescript-eslint/indent': ['error', 4, { 'MemberExpression': 1, 'SwitchCase': 0 }],
-        'no-multiple-empty-lines': ['error', { 'max': 1, 'maxEOF': 0 }]
-    }
+        'no-multiple-empty-lines': ['error', { 'max': 1, 'maxEOF': 0 }],
+        '@typescript-eslint/no-floating-promises': ['error'],
+        '@typescript-eslint/no-for-in-array': ['error']
+    },
+    overrides: [{
+        files: ['*.ts'],
+        parserOptions: {
+            project: ['./tsconfig.json']
+        }
+    }]
 };

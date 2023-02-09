@@ -55,7 +55,7 @@ class CommandHandler {
         const role = interaction.guild.roles.cache.get(privilegedRole.id);
         // If the saved role does not exist, then it has been removed
         if (!role) {
-            logger.log(`Privileged role in state is no longer valid in the guild '${interaction.guild.id}'`, MultiLoggerLevel.Warn);
+            void logger.log(`Privileged role in state is no longer valid in the guild '${interaction.guild.id}'`, MultiLoggerLevel.Warn);
             throw new Error(UNAUTHORIZED_ROLE);
         }
         if (!role.members.has(interaction.user.id)) {
@@ -103,7 +103,7 @@ class CommandHandler {
                 ephemeral: true
             });
         } else {
-            logger.log(`Uncaught error while trying to execute command '${interaction.commandName}': ${err.toString()}`, MultiLoggerLevel.Error);
+            await logger.log(`Uncaught error while trying to execute command '${interaction.commandName}': ${err.toString()}`, MultiLoggerLevel.Error);
         }  
     }
 
@@ -223,7 +223,7 @@ class CommandHandler {
             }
             if (typeof command.execute === 'function') {
                 await command.execute(interaction);
-                logger.log(debugString, MultiLoggerLevel.Info);
+                await logger.log(debugString, MultiLoggerLevel.Info);
             } else {
                 await interaction.reply(`Warning: slash command does not exist yet for command: ${interaction.commandName}`);
             }
@@ -231,7 +231,7 @@ class CommandHandler {
             if (err instanceof Error) {
                 await CommandHandler.handleError(interaction, err);
             } else {
-                logger.log(`Unexpected error when ${debugString}: \`${err}\``, MultiLoggerLevel.Error);
+                await logger.log(`Unexpected error when ${debugString}: \`${err}\``, MultiLoggerLevel.Error);
             }
         }
     }
@@ -261,9 +261,9 @@ class CommandHandler {
             const filtered = commandOption.choices.filter(choice => choice.value.toLowerCase()
                 .startsWith(focusedOption.value.toLowerCase()));
             await interaction.respond(filtered);
-            logger.log(debugString, MultiLoggerLevel.Debug);
+            await logger.log(debugString, MultiLoggerLevel.Debug);
         } catch (err) {
-            logger.log(`Unexpected error when ${debugString}: \`${err}\``, MultiLoggerLevel.Error);
+            await logger.log(`Unexpected error when ${debugString}: \`${err}\``, MultiLoggerLevel.Error);
         }
     }
 }

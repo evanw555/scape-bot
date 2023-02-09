@@ -55,9 +55,9 @@ export default class DiscordApiClient {
             return this.token;
         } catch (err) {
             if (err instanceof AxiosError) {
-                logger.log(`Failed with status ${err.status}: ${err.message}`, MultiLoggerLevel.Debug);
+                await logger.log(`Failed with status ${err.status}: ${err.message}`, MultiLoggerLevel.Debug);
             }
-            logger.log(`There was an error refreshing the bearerToken: ${err}`, MultiLoggerLevel.Error);
+            await logger.log(`There was an error refreshing the bearerToken: ${err}`, MultiLoggerLevel.Error);
             throw err;
         }
     }
@@ -82,7 +82,7 @@ export default class DiscordApiClient {
             await fn(...args);
         } catch (err) {
             if (err instanceof DiscordAPIError && err.status == 401) {
-                logger.log(`Refreshing bearer token with ${this.grantType}:${this.scope}`, MultiLoggerLevel.Warn);
+                await logger.log(`Refreshing bearer token with ${this.grantType}:${this.scope}`, MultiLoggerLevel.Warn);
                 await this.refreshToken();
                 // If this second attempt fails, error bubbles up
                 await fn(...args);

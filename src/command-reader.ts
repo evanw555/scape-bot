@@ -14,7 +14,7 @@ class CommandReader {
             parsedCommand = CommandReader.parseCommand(msg.content);
         } catch (err) {
             if (err instanceof Error) {
-                logger.log(`Failed to parse command '${msg.content}': ${err.toString()}`, MultiLoggerLevel.Error);
+                void logger.log(`Failed to parse command '${msg.content}': ${err.toString()}`, MultiLoggerLevel.Error);
             }
             return;
         }
@@ -24,25 +24,25 @@ class CommandReader {
             const commandName = command as HiddenCommandName;
             const commandInfo: HiddenCommand = hiddenCommands[commandName];
             if (commandInfo.failIfDisabled && state.isDisabled()) {
-                msg.channel.send('I can\'t do that while I\'m disabled');
+                void msg.channel.send('I can\'t do that while I\'m disabled');
             } else {
                 try {
                     if (typeof commandInfo.fn === 'function') {
                         commandInfo.fn(msg, rawArgs, ...args);
-                        logger.log(`Executed command '${command}' with args ${JSON.stringify(args)}`, MultiLoggerLevel.Warn);
+                        void logger.log(`Executed command '${command}' with args ${JSON.stringify(args)}`, MultiLoggerLevel.Warn);
                     } else {
-                        msg.channel.send(`Warning: deprecated command format does not exist for this command: ${command}`);
+                        void msg.channel.send(`Warning: deprecated command format does not exist for this command: ${command}`);
                     }
                 } catch (err) {
                     if (err instanceof Error) {
-                        logger.log(`Uncaught error while trying to execute command '${msg.content}': ${err.toString()}`, MultiLoggerLevel.Error);
+                        void logger.log(`Uncaught error while trying to execute command '${msg.content}': ${err.toString()}`, MultiLoggerLevel.Error);
                     }
                 }
             }
         } else if (command) {
-            msg.channel.send(`**${command}** is not a valid command, use **help** to see a list of commands`);
+            void msg.channel.send(`**${command}** is not a valid command, use **help** to see a list of commands`);
         } else {
-            msg.channel.send(`What's up <@${msg.author.id}>`);
+            void msg.channel.send(`What's up <@${msg.author.id}>`);
         }
     }
 

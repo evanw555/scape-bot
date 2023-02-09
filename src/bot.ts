@@ -105,7 +105,7 @@ const loadState = async (): Promise<void> => {
                 // TODO: Handle cleanup if DiscordApiError[50001]: Missing Access; once 'guildDelete'
                 // event handler is set up, this should only happen if the bot is kicked while the
                 // bot client is down.
-                logger.log(`Failed to set tracking channel for guild ${guildId} due to: ${err.toString()}`, MultiLoggerLevel.Error);
+                await logger.log(`Failed to set tracking channel for guild ${guildId} due to: ${err.toString()}`, MultiLoggerLevel.Error);
             }
         }
     }
@@ -116,7 +116,7 @@ const loadState = async (): Promise<void> => {
             // Initial guild fetch happens in 'ready' event handler before loadState is invoked
             const guild = client.guilds.cache.find(g => g.id === guildId);
             if (!guild) {
-                logger.log(`Bot is not connected to guildId '${guildId} for privileged role '${roleId}'`);
+                await logger.log(`Bot is not connected to guildId '${guildId} for privileged role '${roleId}'`);
                 break;
             }
             const privilegedRole = guild.roles.cache.find(r => r.id === roleId);
@@ -128,7 +128,7 @@ const loadState = async (): Promise<void> => {
                 // TODO: Handle cleanup if DiscordApiError[50001]: Missing Access; once 'guildDelete'
                 // event handler is set up, this should only happen if the bot is kicked while the
                 // bot client is down.
-                logger.log(`Failed to set privileged role for guild ${guildId} due to: ${err.toString()}`, MultiLoggerLevel.Error);
+                await logger.log(`Failed to set privileged role for guild ${guildId} due to: ${err.toString()}`, MultiLoggerLevel.Error);
             }
         }
     }
@@ -310,8 +310,8 @@ client.on('ready', async () => {
     }, MultiLoggerLevel.Info);
 
     try {
-        logger.log(`Logged in as: ${client.user?.tag}`);
-        logger.log(`Config=${JSON.stringify(CONFIG)}`);
+        await logger.log(`Logged in as: ${client.user?.tag}`);
+        await logger.log(`Config=${JSON.stringify(CONFIG)}`);
 
         // Read the maintainer user IDs
         if (AUTH.maintainerUserIds) {
@@ -400,7 +400,7 @@ client.on('ready', async () => {
         }
 
         // Notify the admin that the bot has restarted
-        sendRestartMessage(downtimeMillis);
+        await sendRestartMessage(downtimeMillis);
     } catch (err) {
         await logger.log(`Failed to boot:\n\`\`\`\n${(err as Error).stack}\n\`\`\`\nThe process will exit in 30 seconds...`, MultiLoggerLevel.Fatal);
         await sleep(30000);
@@ -512,9 +512,9 @@ client.on('messageCreate', async (msg) => {
             state.incrementBotCounter(msg.author.id);
             await pgStorageClient.writeBotCounter(msg.author.id, state.getBotCounter(msg.author.id));
             // Wait up to 1.5 seconds before sending the message to make it feel more organic
-            setTimeout(() => {
+            setTimeout(async () => {
                 const replyText = `**<@${msg.author.id}>** has gained a level in **botting** and is now level **${state.getBotCounter(msg.author.id)}**`;
-                sendUpdateMessage([msg.channel], replyText, 'overall');
+                await sendUpdateMessage([msg.channel], replyText, 'overall');
             }, randInt(0, 1500));
             return;
         } else if (state.isMaintainer(msg.author.id)) {
@@ -531,4 +531,4 @@ client.on('interactionCreate', (interaction) =>
     commandHandler.handleAutocomplete(interaction));
 
 // Login!!!
-client.login(AUTH.token);
+void client.login(AUTH.token);

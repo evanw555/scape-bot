@@ -116,7 +116,7 @@ export default class State {
         // If this guild no longer is tracking any players, delete its player set
         if (!this.isTrackingAnyPlayers(guildId)) {
             delete this._playersByGuild[guildId];
-            logger.log(`Deleted player set for guild ${guildId}`, MultiLoggerLevel.Debug);
+            void logger.log(`Deleted player set for guild ${guildId}`, MultiLoggerLevel.Debug);
         }
         // Attempt to delete the guild from the player's guild set
         this._guildsByPlayer[rsn]?.delete(guildId);
@@ -132,7 +132,7 @@ export default class State {
             delete this._clues[rsn];
             delete this._lastUpdate[rsn];
             this._playersOffHiScores.delete(rsn);
-            logger.log(`Removed player ${rsn} from the master queue`, MultiLoggerLevel.Debug);
+            void logger.log(`Removed player ${rsn} from the master queue`, MultiLoggerLevel.Debug);
         }
     }
 
