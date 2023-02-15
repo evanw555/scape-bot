@@ -89,7 +89,7 @@ export async function sendUpdateMessage(channels: TextBasedChannel[], text: stri
                 await addReactsSync(message, options.reacts);
             }
         } catch (err) {
-            let errorMessage = 'Unable to send update message to channel';
+            let errorMessage = `Unable to send update message \`${text.slice(0, 100)}\` to channel`;
             if (channel instanceof TextChannel) {
                 const textChannel: TextChannel = channel as TextChannel;
                 const guild = textChannel.guild;
