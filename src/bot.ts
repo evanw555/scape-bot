@@ -13,6 +13,7 @@ import { AUTH, CONFIG, TIMEOUTS_PROPERTY } from './constants';
 import state from './instances/state';
 import logger from './instances/logger';
 import pgStorageClient from './instances/pg-storage-client';
+import timeSlotInstance from './instances/timeslot';
 
 // TODO: Deprecate CommandReader in favor of CommandHandler
 const commandReader: CommandReader = new CommandReader();
@@ -64,6 +65,9 @@ const timeoutCallbacks = {
     [TimeoutType.DailyAudit]: async (): Promise<void> => {
         await timeoutManager.registerTimeout(TimeoutType.DailyAudit, getNextEvening(), { pastStrategy: PastTimeoutStrategy.Invoke });
         await auditGuilds();
+        // TODO: Temp logic to do time slot analysis
+        await logger.log(timeSlotInstance.getOverallDebugString(), MultiLoggerLevel.Error);
+        timeSlotInstance.reset();
     },
     [TimeoutType.WeeklyXpUpdate]: async (): Promise<void> => {
         await timeoutManager.registerTimeout(TimeoutType.WeeklyXpUpdate, getNextFridayEvening(), { pastStrategy: PastTimeoutStrategy.Invoke });

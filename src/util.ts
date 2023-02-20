@@ -8,6 +8,7 @@ import { CONSTANTS, CONFIG, BOSS_EMBED_COLOR, CLUES_NO_ALL, CLUE_EMBED_COLOR, CO
 import state from './instances/state';
 import logger from './instances/logger';
 import pgStorageClient from './instances/pg-storage-client';
+import timeSlotInstance from './instances/timeslot';
 
 const validSkills: Set<string> = new Set(CONSTANTS.skills);
 const validClues: Set<string> = new Set(CLUES_NO_ALL);
@@ -314,6 +315,11 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
         // Mark the player as active
         state.markPlayerAsActive(rsn);
         await pgStorageClient.updatePlayerActivityTimestamp(rsn);
+    }
+
+    // TODO: Temp logic for time slot activity analysis
+    if (anyActivity) {
+        timeSlotInstance.incrementPlayer(rsn);
     }
 }
 
