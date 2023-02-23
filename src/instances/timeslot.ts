@@ -36,6 +36,21 @@ const timeSlotInstance = {
             playerUpdatesBySlot[i] = {};
         }
     },
+    getNumUniqueRSNs: (): number => {
+        return Object.keys(timeSlotInstance.getSlotsByPlayer()).length;
+    },
+    getSlotsByPlayer: (): Record<string, number[]> => {
+        const result: Record<string, number[]> = {};
+        for (let i = 0; i < NUM_SLOTS; i++) {
+            for (const rsn of Object.keys(playerUpdatesBySlot[i])) {
+                if (!result[rsn]) {
+                    result[rsn] = [];
+                }
+                result[rsn].push(i);
+            }
+        }
+        return result;
+    },
     getNumUpdatesForSlot: (slot: number): number => {
         let total = 0;
         for (const num of Object.values(playerUpdatesBySlot[slot] ?? {})) {
@@ -44,9 +59,18 @@ const timeSlotInstance = {
         return total;
     },
     getOverallDebugString: () => {
-        let result = `Num updates by time slot over the past **${dayCounter}** day(s):`;
+        let result = `Num updates by time slot over the past **${dayCounter}** day(s) for **${timeSlotInstance.getNumUniqueRSNs()}** players:`;
         for (let i = 0; i < NUM_SLOTS; i++) {
-            result += `\n${timeSlotStrings[i]}: **${timeSlotInstance.getNumUpdatesForSlot(i)}** updates`;
+            result += `\n_${timeSlotStrings[i]}:_ **${timeSlotInstance.getNumUpdatesForSlot(i)}** updates`;
+        }
+        return result;
+    },
+    getConsistencyAnalysisString: () => {
+        const slotsByPlayer = timeSlotInstance.getSlotsByPlayer();
+        let result = 'How many different time slots did players get updates in?';
+        // How many players played within one particular slot?
+        for (let i = 1; i <= NUM_SLOTS; i++) {
+            result += `\n_${i} slot${i === 1 ? '' : 's'}:_ **${Object.keys(slotsByPlayer).filter(rsn => slotsByPlayer[rsn].length === i).length}** player(s)`;
         }
         return result;
     }
