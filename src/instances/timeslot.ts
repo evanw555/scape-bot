@@ -12,6 +12,7 @@ const timeSlotStrings: Record<number, string> = {
     7: '9-midnight'
 };
 
+let dayCounter = 0;
 const playerUpdatesBySlot: Record<number, Record<string, number>> = {};
 
 const getTimeSlot = (): number => {
@@ -26,7 +27,11 @@ const timeSlotInstance = {
         }
         playerUpdatesBySlot[timeSlot][rsn]++;
     },
+    incrementDay: () => {
+        dayCounter++;
+    },
     reset: () => {
+        dayCounter = 0;
         for (let i = 0; i < NUM_SLOTS; i++) {
             playerUpdatesBySlot[i] = {};
         }
@@ -39,7 +44,7 @@ const timeSlotInstance = {
         return total;
     },
     getOverallDebugString: () => {
-        let result = 'Num updates by time slot:';
+        let result = `Num updates by time slot over the past **${dayCounter}** day(s):`;
         for (let i = 0; i < NUM_SLOTS; i++) {
             result += `\n${timeSlotStrings[i]}: **${timeSlotInstance.getNumUpdatesForSlot(i)}** updates`;
         }
