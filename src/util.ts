@@ -1,9 +1,9 @@
 import { Boss, BOSSES, INVALID_FORMAT_ERROR, FORMATTED_BOSS_NAMES, getRSNFormat } from 'osrs-json-hiscores';
-import { ChatInputCommandInteraction, Guild, PermissionFlagsBits, TextBasedChannel, TextChannel } from 'discord.js';
+import { ChatInputCommandInteraction, Guild, PermissionFlagsBits, PermissionsBitField, TextBasedChannel, TextChannel } from 'discord.js';
 import { addReactsSync, MultiLoggerLevel, randChoice } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName, PlayerHiScores } from './types';
 import { fetchHiScores } from './hiscores';
-import { CONSTANTS, CONFIG, BOSS_EMBED_COLOR, CLUES_NO_ALL, CLUE_EMBED_COLOR, COMPLETE_VERB_BOSSES, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, DOPE_COMPLETE_VERBS, DOPE_KILL_VERBS, GRAY_EMBED_COLOR, PLAYER_404_ERROR, RED_EMBED_COLOR, SKILLS_NO_OVERALL, SKILL_EMBED_COLOR, YELLOW_EMBED_COLOR } from './constants';
+import { CONSTANTS, CONFIG, BOSS_EMBED_COLOR, CLUES_NO_ALL, CLUE_EMBED_COLOR, COMPLETE_VERB_BOSSES, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, DOPE_COMPLETE_VERBS, DOPE_KILL_VERBS, GRAY_EMBED_COLOR, PLAYER_404_ERROR, RED_EMBED_COLOR, SKILLS_NO_OVERALL, SKILL_EMBED_COLOR, YELLOW_EMBED_COLOR, REQUIRED_PERMISSIONS, REQUIRED_PERMISSION_NAMES } from './constants';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -648,15 +648,7 @@ export async function sendDMToGuildOwner(guild: Guild, text: string) {
     await owner.send(text);
 }
 
-/**
- * Checks if the bot has basic required permissions in the given channel.
- * Currently, just check for view channel and send messages permissions.
- *
- * @param channel text channel to check bot permissions for
- * @returns true if the bot has permissions in the given channel
- * @throws an error if the bot is somehow not a member of this guild
- */
-export function botHasPermissionsInChannel(channel: TextChannel): boolean {
+export function getBotPermissionsInChannel(channel: TextChannel): PermissionsBitField {
     const guild = channel.guild;
     const botMember = guild.members.me;
 
@@ -665,7 +657,19 @@ export function botHasPermissionsInChannel(channel: TextChannel): boolean {
         throw new Error(`Bot does not have valid membership in guild \`${guild.id}\``);
     }
 
-    const botPermissions = channel.permissionsFor(botMember);
+    return channel.permissionsFor(botMember);
+}
+
+/**
+ * Checks if the bot has basic required permissions in the given channel.
+ * Currently, just check for view channel and send messages permissions.
+ *
+ * @param channel text channel to check bot permissions for
+ * @returns true if the bot has permissions in the given channel
+ * @throws an error if the bot is somehow not a member of this guild
+ */
+export function botHasRequiredPermissionsInChannel(channel: TextChannel): boolean {
+    const botPermissions = getBotPermissionsInChannel(channel);
 
     // TODO: How we can improve this...
     // A more robust solution would probably be to get default bot permissions (sans overwrites) and
@@ -673,6 +677,19 @@ export function botHasPermissionsInChannel(channel: TextChannel): boolean {
     // at all different, then reject the command (since this will result in only partial functionality).
     // For now, checking that it can see the channel and send messages in it will cover 99% of cases.
 
-    // Return true if the bot has view channel and send message permissions
-    return botPermissions.has(PermissionFlagsBits.ViewChannel) && botPermissions.has(PermissionFlagsBits.SendMessages);
+    // Return true if the bot has all the required permissions
+    return REQUIRED_PERMISSIONS.every(flag => botPermissions.has(flag));
+}
+
+/**
+ * Returns a list of permission names corresponding to required permissions that the bot is missing in the given channel.
+ *
+ * @param channel text channel to check bot permissions for
+ * @returns list of permission names (empty if the bot has all required permissions)
+ */
+export function getMissingRequiredChannelPermissionNames(channel: TextChannel): string[] {
+    const botPermissions = getBotPermissionsInChannel(channel);
+
+    // Return the name of each missing permission
+    return REQUIRED_PERMISSION_NAMES.filter(n => !botPermissions.has(PermissionFlagsBits[n]));
 }

@@ -1,3 +1,4 @@
+import { PermissionFlags, PermissionFlagsBits } from 'discord.js';
 import { loadJson } from 'evanw555.js';
 import { Boss, CLUES, SKILLS, BOSSES, FORMATTED_SKILL_NAMES, FORMATTED_BOSS_NAMES } from 'osrs-json-hiscores';
 import { IndividualClueType, IndividualSkillName, ScapeBotAuth, ScapeBotConfig, ScapeBotConstants, CommandOptionChoice } from './types';
@@ -25,6 +26,14 @@ export const TIMEOUTS_PROPERTY = 'timeouts';
 export const CONSTANTS: ScapeBotConstants = loadJson('static/constants.json');
 export const AUTH: ScapeBotAuth = loadJson('config/auth.json');
 export const CONFIG: ScapeBotConfig = loadJson('config/config.json');
+
+// The bot requires all of these permissions in the guild's tracking channel for it to function
+export const REQUIRED_PERMISSION_NAMES: (keyof typeof PermissionFlagsBits)[] = [
+    'ViewChannel',
+    'SendMessages',
+    'EmbedLinks'
+];
+export const REQUIRED_PERMISSIONS: bigint[] = REQUIRED_PERMISSION_NAMES.map(n => PermissionFlagsBits[n]);
 
 export const DOPE_KILL_VERBS: string[] = [
     'has killed',

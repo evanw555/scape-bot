@@ -3,7 +3,7 @@ import { FORMATTED_BOSS_NAMES, Boss, BOSSES, getRSNFormat, INVALID_FORMAT_ERROR 
 import { exec } from 'child_process';
 import { MultiLoggerLevel, naturalJoin, randChoice, randInt } from 'evanw555.js';
 import { PlayerHiScores, SlashCommandsType, HiddenCommandsType, CommandsType, SlashCommand, IndividualSkillName, IndividualClueType } from './types';
-import { replyUpdateMessage, sendUpdateMessage, updatePlayer, getBossName, isValidBoss, generateDetailsContentString, sanitizeRSN, botHasPermissionsInChannel, validateRSN } from './util';
+import { replyUpdateMessage, sendUpdateMessage, updatePlayer, getBossName, isValidBoss, generateDetailsContentString, sanitizeRSN, botHasRequiredPermissionsInChannel, validateRSN, getMissingRequiredChannelPermissionNames } from './util';
 import { fetchHiScores } from './hiscores';
 import CommandHandler from './command-handler';
 import { CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, BOSS_CHOICES, INVALID_TEXT_CHANNEL, SKILL_EMBED_COLOR, PLAYER_404_ERROR } from './constants';
@@ -335,9 +335,11 @@ const slashCommands: SlashCommandsType = {
             try {
                 if (interaction.channel instanceof TextChannel) {
                     // Validate that the bot has the minimum required permissions in this channel
-                    if (!botHasPermissionsInChannel(interaction.channel)) {
+                    if (!botHasRequiredPermissionsInChannel(interaction.channel)) {
+                        const missingPermissionNames = getMissingRequiredChannelPermissionNames(interaction.channel);
+                        const joinedPermissions = naturalJoin(missingPermissionNames, { bold: true });
                         await interaction.reply({
-                            content: 'ScapeBot does not have permission to view and/or send messages in this channel. Please update channel permissions or try a different channel.',
+                            content: `ScapeBot does not have sufficient permissions in this channel (missing ${joinedPermissions}). Please update channel permissions or try a different channel.`,
                             ephemeral: true
                         });
                         return;

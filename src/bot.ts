@@ -1,6 +1,6 @@
 import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel, ActivityType, Snowflake, PermissionFlagsBits } from 'discord.js';
 import { PlayerHiScores, TimeoutType } from './types';
-import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer, sanitizeRSN, sendDMToGuildOwner, botHasPermissionsInChannel, getNextEvening } from './util';
+import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer, sanitizeRSN, sendDMToGuildOwner, botHasRequiredPermissionsInChannel, getNextEvening, getMissingRequiredChannelPermissionNames } from './util';
 import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel, naturalJoin } from 'evanw555.js';
 import CommandReader from './command-reader';
 import CommandHandler from './command-handler';
@@ -176,10 +176,12 @@ const auditGuilds = async () => {
                 if (state.hasTrackingChannel(guild.id)) {
                     const trackingChannel = state.getTrackingChannel(guild.id);
                     // Validate the bot's permissions in this channel
-                    if (!botHasPermissionsInChannel(trackingChannel)) {
+                    if (!botHasRequiredPermissionsInChannel(trackingChannel)) {
+                        const missingPermissionNames = getMissingRequiredChannelPermissionNames(trackingChannel);
+                        const joinedPermissions = naturalJoin(missingPermissionNames, { bold: true });
                         await sendDMToGuildOwner(guild, 'Hello - I am missing the required permissions to send OSRS update messages to the '
-                            + `tracking channel ${trackingChannel} in your guild _${guild}_`);
-                        logStatements.push(`_${guild.name}_ is tracking **${numTrackedPlayers}** players but has insufficient tracking channel permissions (DM sent)`);
+                            + `tracking channel ${trackingChannel} in your guild _${guild}_. Please grant me the following: ${joinedPermissions}`);
+                        logStatements.push(`_${guild.name}_ is tracking **${numTrackedPlayers}** players but is missing tracking channel permission(s) ${joinedPermissions} (DM sent)`);
                     }
                 } else {
                     await sendDMToGuildOwner(guild, `Hello - I'm tracking OSRS players in your guild _${guild}_, yet you haven't selected a channel for me to send update messages. `
