@@ -86,7 +86,7 @@ export default class PlayerQueue {
                 // Add to next queue
                 const nextQueue = this.queues[i + 1];
                 nextQueue.queue.add(rsn);
-                void logger.log(`Moved **${rsn}** from _${queue.config.label}_ to _${nextQueue.config.label}_ queue (**${this.getDebugString()}**)`, MultiLoggerLevel.Info);
+                void logger.log(`Moved **${rsn}** from _${queue.config.label}_ down to the _${nextQueue.config.label}_ queue (**${this.getDebugString()}**)`, MultiLoggerLevel.Warn);
             }
             void logger.log(`[Q${i}] ${queue.counter}/${this.getQueueCounterMax(i)} -> ${rsn}`, MultiLoggerLevel.Debug);
             return rsn;
@@ -113,7 +113,7 @@ export default class PlayerQueue {
                 removeFromRest = true;
                 // Log if this isn't on reboot
                 if (!timestamp) {
-                    void logger.log(`Moved **${rsn}** to the _${queue.config.label}_ queue (**${this.getDebugString()}**)`, MultiLoggerLevel.Info);
+                    void logger.log(`Moved **${rsn}** up to the _${queue.config.label}_ queue (**${this.getDebugString()}**)`, MultiLoggerLevel.Warn);
                 }
             }
         }
@@ -123,7 +123,7 @@ export default class PlayerQueue {
         return this.lastActive[rsn] ?? 0;
     }
 
-    private getTimeSinceLastActive(rsn: string): number {
+    getTimeSinceLastActive(rsn: string): number {
         return new Date().getTime() - this.getLastActive(rsn);
     }
 

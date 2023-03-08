@@ -3,7 +3,7 @@ import { ChatInputCommandInteraction, Guild, PermissionFlagsBits, PermissionsBit
 import { addReactsSync, MultiLoggerLevel, randChoice } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName, PlayerHiScores } from './types';
 import { fetchHiScores } from './hiscores';
-import { CONSTANTS, CONFIG, BOSS_EMBED_COLOR, CLUES_NO_ALL, CLUE_EMBED_COLOR, COMPLETE_VERB_BOSSES, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, DOPE_COMPLETE_VERBS, DOPE_KILL_VERBS, GRAY_EMBED_COLOR, PLAYER_404_ERROR, RED_EMBED_COLOR, SKILLS_NO_OVERALL, SKILL_EMBED_COLOR, YELLOW_EMBED_COLOR, REQUIRED_PERMISSIONS, REQUIRED_PERMISSION_NAMES } from './constants';
+import { CONSTANTS, CONFIG, BOSS_EMBED_COLOR, CLUES_NO_ALL, CLUE_EMBED_COLOR, COMPLETE_VERB_BOSSES, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, DOPE_COMPLETE_VERBS, DOPE_KILL_VERBS, GRAY_EMBED_COLOR, PLAYER_404_ERROR, RED_EMBED_COLOR, SKILLS_NO_OVERALL, SKILL_EMBED_COLOR, YELLOW_EMBED_COLOR, REQUIRED_PERMISSIONS, REQUIRED_PERMISSION_NAMES, FOUR_WEEKS_IN_MILLIS } from './constants';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -218,10 +218,20 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
             // This is needed because if there's a 404 when a player's data is "primed", their negative status won't be written
             // and thus they'll show up as "falling off" the hiscores when they can finally be found (but TBH we still don't know fully what a 404 means).
             if (state.isPlayerOnHiScores(rsn)) {
-                state.setPlayerHiScoreStatus(rsn, false);
                 await pgStorageClient.writePlayerHiScoreStatus(rsn, false);
+                state.setPlayerHiScoreStatus(rsn, false);
                 // TODO: Temp logging to see how this is playing out
                 await logger.log(`Silently removed **${state.getDisplayName(rsn)}** from the hiscores due to update 404`, MultiLoggerLevel.Warn);
+            }
+            // If the player was active in the last 4 weeks then suddenly sees a 404 (banned?), adjust their timestamp to bump them down to the archive queue
+            if (options?.primer || state.getTimeSincePlayerLastActive(rsn) < FOUR_WEEKS_IN_MILLIS) {
+                // TODO: Can we make this less hacky? We just want to archive them while also keeping a timestamp for them (so we can purge them later...)
+                const archiveTimestamp = new Date(new Date().getTime() - FOUR_WEEKS_IN_MILLIS);
+                await pgStorageClient.updatePlayerActivityTimestamp(rsn, archiveTimestamp);
+                state.markPlayerAsActive(rsn, archiveTimestamp);
+                // TODO: Temp logging to see how this is playing out
+                await logger.log(`Archive player **${state.getDisplayName(rsn)}** due to update 404`, MultiLoggerLevel.Warn);
+
             }
             // TODO: Should we re-enable the logic to remove 404 players? We haven't confirmed what this means yet.
             // If the player doesn't exist (this should be prevented by the validation in /track), remove globally

@@ -20,6 +20,9 @@ export const RED_EMBED_COLOR = 12919812;
 export const YELLOW_EMBED_COLOR = 16569404;
 export const GRAY_EMBED_COLOR = 7303023;
 
+export const FIVE_DAYS_IN_MILLIS = 1000 * 60 * 60 * 24 * 5;
+export const FOUR_WEEKS_IN_MILLIS = 1000 * 60 * 60 * 24 * 7 * 4;
+
 // This is how timeout data for the TimeoutManager is stored as a misc property in PG
 export const TIMEOUTS_PROPERTY = 'timeouts';
 

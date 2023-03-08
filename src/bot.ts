@@ -67,8 +67,8 @@ const timeoutCallbacks = {
         await auditGuilds();
         // TODO: Temp logic to do time slot analysis
         timeSlotInstance.incrementDay();
-        await logger.log(timeSlotInstance.getOverallDebugString(), MultiLoggerLevel.Error);
-        await logger.log(timeSlotInstance.getConsistencyAnalysisString(), MultiLoggerLevel.Error);
+        await logger.log(timeSlotInstance.getOverallDebugString(), MultiLoggerLevel.Warn);
+        await logger.log(timeSlotInstance.getConsistencyAnalysisString(), MultiLoggerLevel.Warn);
     },
     [TimeoutType.WeeklyXpUpdate]: async (): Promise<void> => {
         await timeoutManager.registerTimeout(TimeoutType.WeeklyXpUpdate, getNextFridayEvening(), { pastStrategy: PastTimeoutStrategy.Invoke });

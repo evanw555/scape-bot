@@ -233,8 +233,8 @@ export default class PGStorageClient {
         return result;
     }
 
-    async updatePlayerActivityTimestamp(rsn: string): Promise<void> {
-        await this.client.query('INSERT INTO player_activity_timestamps VALUES ($1, $2) ON CONFLICT (rsn) DO UPDATE SET timestamp = EXCLUDED.timestamp;', [rsn, new Date()]);
+    async updatePlayerActivityTimestamp(rsn: string, date: Date = new Date()): Promise<void> {
+        await this.client.query('INSERT INTO player_activity_timestamps VALUES ($1, $2) ON CONFLICT (rsn) DO UPDATE SET timestamp = EXCLUDED.timestamp;', [rsn, date]);
     }
     
     async fetchBotCounters(): Promise<Record<Snowflake, number>> {
