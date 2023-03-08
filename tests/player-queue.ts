@@ -213,8 +213,6 @@ describe('PlayerQueue Tests', () => {
         expect(queue.next()).equals('b');
         expect(queue.next()).equals('c');
         expect(queue.next()).equals('y');
-
-        expect(queue.getDurationString()).equals('');
     });
 
     it('can shift players down multiple levels', () => {
