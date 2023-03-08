@@ -2,7 +2,7 @@ import { APIRole, Role, Snowflake, TextChannel } from 'discord.js';
 import { Boss } from 'osrs-json-hiscores';
 import { MultiLoggerLevel } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName } from './types';
-import { FIVE_DAYS_IN_MILLIS, FOUR_WEEKS_IN_MILLIS } from './constants';
+import { ACTIVE_THRESHOLD_MILLIS, INACTIVE_THRESHOLD_MILLIES } from './constants';
 import PlayerQueue from './player-queue';
 
 import logger from './instances/logger';
@@ -43,12 +43,10 @@ export default class State {
         this._masterPlayerQueue = new PlayerQueue({
             queues: [{
                 label: 'active',
-                // < 5 days
-                threshold: FIVE_DAYS_IN_MILLIS
+                threshold: ACTIVE_THRESHOLD_MILLIS
             }, {
                 label: 'inactive',
-                // < 4 weeks
-                threshold: FOUR_WEEKS_IN_MILLIS
+                threshold: INACTIVE_THRESHOLD_MILLIES
             }, {
                 label: 'archive',
                 threshold: Number.POSITIVE_INFINITY
