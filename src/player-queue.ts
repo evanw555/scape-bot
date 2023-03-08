@@ -86,7 +86,7 @@ export default class PlayerQueue {
                 // Add to next queue
                 const nextQueue = this.queues[i + 1];
                 nextQueue.queue.add(rsn);
-                void logger.log(`Moved **${rsn}** from _${queue.config.label}_ down to the _${nextQueue.config.label}_ queue (**${this.getDebugString()}**)`, MultiLoggerLevel.Warn);
+                void logger.log(`Down-queue **${rsn}** from _${queue.config.label}_ to _${nextQueue.config.label}_ (${this.getDebugString()})`, MultiLoggerLevel.Warn);
             }
             void logger.log(`[Q${i}] ${queue.counter}/${this.getQueueCounterMax(i)} -> ${rsn}`, MultiLoggerLevel.Debug);
             return rsn;
@@ -104,18 +104,29 @@ export default class PlayerQueue {
         }
         // Otherwise, shift the player up the proper number of queues
         let removeFromRest = false;
+        let fromLabel = '';
+        let toLabel = '';
         for (let i = 0; i < this.queues.length; i++) {
             const queue = this.queues[i];
             if (removeFromRest) {
-                queue.queue.remove(rsn);
-            } else if (this.getTimeSinceLastActive(rsn) < queue.config.threshold && !queue.queue.contains(rsn)) {
+                if (queue.queue.contains(rsn)) {
+                    queue.queue.remove(rsn);
+                    fromLabel = queue.config.label;
+                }
+            } else if (this.getTimeSinceLastActive(rsn) < queue.config.threshold) {
+                // If this player is already in the appropriate queue, take no action and abort...
+                if (queue.queue.contains(rsn)) {
+                    return;
+                }
+                // Otherwise, add them to this queue and remove them from the remaining queues
                 queue.queue.add(rsn);
                 removeFromRest = true;
-                // Log if this isn't on reboot
-                if (!timestamp) {
-                    void logger.log(`Moved **${rsn}** up to the _${queue.config.label}_ queue (**${this.getDebugString()}**)`, MultiLoggerLevel.Warn);
-                }
+                toLabel = queue.config.label;
             }
+        }
+        // Log if this isn't on reboot
+        if (!timestamp) {
+            void logger.log(`Up-queue **${rsn}** from _${fromLabel}_ to _${toLabel}_ (${this.getDebugString()})`, MultiLoggerLevel.Warn);
         }
     }
 
