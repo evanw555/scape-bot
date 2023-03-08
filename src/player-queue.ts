@@ -1,134 +1,180 @@
-import { CircularQueue, MultiLoggerLevel } from 'evanw555.js';
+import { CircularQueue, getPreciseDurationString, MultiLoggerLevel, naturalJoin } from 'evanw555.js';
 
 import { CONFIG } from './constants';
 
 import logger from './instances/logger';
 
+interface QueueConfig {
+    label: string,
+    threshold: number
+}
+
+interface QueueData {
+    queue: CircularQueue<string>,
+    counter: number,
+    config: QueueConfig
+}
+
 export default class PlayerQueue {
-    private readonly activeQueue: CircularQueue<string>;
-    private readonly inactiveQueue: CircularQueue<string>;
+    private readonly queues: QueueData[];
     private readonly lastActive: Record<string, number>;
+    private readonly counterMax: number;
 
-    private counter: number;
-
-    constructor() {
-        this.activeQueue = new CircularQueue();
-        this.inactiveQueue = new CircularQueue();
+    constructor(config: { queues: QueueConfig[], counterMax: number }) {
+        this.queues = [];
+        for (const queueConfig of config.queues) {
+            this.queues.push({
+                queue: new CircularQueue(),
+                counter: 0,
+                config: {
+                    label: queueConfig.label,
+                    threshold: queueConfig.threshold
+                }
+            });
+        }
         this.lastActive = {};
-        this.counter = 0;
+        this.counterMax = config.counterMax;
     }
 
     add(rsn: string): boolean {
-        // If this player exists in neither queue, add to the inactive queue
-        if (!this.activeQueue.contains(rsn) && !this.inactiveQueue.contains(rsn)) {
-            return this.inactiveQueue.add(rsn);
+        // If this player exists in no queue, add to the last queue
+        if (this.queues.every(queue => !queue.queue.contains(rsn))) {
+            return this.queues[this.queues.length - 1].queue.add(rsn);
         }
         return false;
     }
 
     remove(rsn: string): boolean {
-        const a = this.activeQueue.remove(rsn);
-        const i = this.inactiveQueue.remove(rsn);
-        return a || i;
+        let result = false;
+        for (const queue of this.queues) {
+            if (queue.queue.remove(rsn)) {
+                result = true;
+            }
+        }
+        return result;
     }
 
     /**
-     * @returns The counter interval N (queue returns 1 inactive player per N-1 active players)
+     * For a particular queue, this tells us how many times we can pick from it before deferring to a lower queue.
      */
-    private getCounterInterval(): number {
-        // Don't loop over the active queue more than once before drawing from the inactive queue.
-        // N is guaranteed to be at most 10, possibly less on a fresh reboot (active queue empty -> N = 1 -> always draw from the inactive queue)
-        return Math.min(10, 1 + this.activeQueue.size());
+    private getQueueCounterMax(index: number): number {
+        return Math.min(this.counterMax, this.queues[index].queue.size());
     }
 
     next(): string | undefined {
-        const counterInterval = this.getCounterInterval();
-        this.counter = (this.counter + 1) % counterInterval;
-        // Every N calls we process from the inactive queue, for the remaining N - 1 we process from the active queue
-        if (this.counter === 0) {
-            const inactivePlayer = this.inactiveQueue.next();
-            // If this inactive player is now active, move them to the active queue
-            if (inactivePlayer && this.isActive(inactivePlayer)) {
-                this.moveToActiveQueue(inactivePlayer);
-                void logger.log(`Moved **${inactivePlayer}** to the _active_ queue (**${this.getDebugString()}**)`, MultiLoggerLevel.Info);
+        for (let i = 0; i < this.queues.length; i++) {
+            const queue = this.queues[i];
+            const isLastQueue = (i === this.queues.length - 1);
+            // If not on the last queue and the counter has reached the max, pass it off to the next queue
+            if (queue.queue.isEmpty() || queue.counter >= this.getQueueCounterMax(i)) {
+                queue.counter = 0;
+                if (!isLastQueue) {
+                    continue;
+                }
             }
-            void logger.log(`[IQ] ${this.counter}/${counterInterval} -> ${inactivePlayer}`, MultiLoggerLevel.Debug);
-            return inactivePlayer;
-        } else {
-            const activePlayer = this.activeQueue.next();
-            // If this active player is now inactive, move them to the inactive queue
-            if (activePlayer && !this.isActive(activePlayer)) {
-                this.moveToInactiveQueue(activePlayer);
-                void logger.log(`Moved **${activePlayer}** to the _inactive_ queue (**${this.getDebugString()}**)`, MultiLoggerLevel.Info);
+            // Get the RSN to be returned
+            const rsn = queue.queue.next();
+            if (!rsn) {
+                continue;
             }
-            void logger.log(`[AQ] ${this.counter}/${counterInterval} -> ${activePlayer}`, MultiLoggerLevel.Debug);
-            return activePlayer;
+            // Increment the counter for this queue
+            queue.counter++;
+            // If not on the last queue and this player isn't active enough to be on this queue, shift them down a queue
+            if (!isLastQueue && this.getTimeSinceLastActive(rsn) >= queue.config.threshold) {
+                // Remove from this queue
+                queue.queue.remove(rsn);
+                // Add to next queue
+                const nextQueue = this.queues[i + 1];
+                nextQueue.queue.add(rsn);
+                void logger.log(`Moved **${rsn}** from _${queue.config.label}_ to _${nextQueue.config.label}_ queue (**${this.getDebugString()}**)`, MultiLoggerLevel.Info);
+            }
+            void logger.log(`[Q${i}] ${queue.counter}/${this.getQueueCounterMax(i)} -> ${rsn}`, MultiLoggerLevel.Debug);
+            return rsn;
         }
-    }
-
-    private moveToActiveQueue(rsn: string): void {
-        this.activeQueue.add(rsn);
-        this.inactiveQueue.remove(rsn);
-    }
-
-    private moveToInactiveQueue(rsn: string): void {
-        this.inactiveQueue.add(rsn);
-        this.activeQueue.remove(rsn);
     }
 
     markAsActive(rsn: string, timestamp?: Date): void {
+        const newTimestamp = (timestamp ?? new Date()).getTime();
+        const prevTimestamp = this.lastActive[rsn];
         // Set their "last active" timestamp to right now (or the specified date)
-        this.lastActive[rsn] = (timestamp ?? new Date()).getTime();
-        // If they're now active and weren't already on the active queue, move them there now
-        if (this.isActive(rsn) && this.inactiveQueue.contains(rsn) && !this.activeQueue.contains(rsn)) {
-            this.moveToActiveQueue(rsn);
-            // Log if this isn't on reboot
-            if (!timestamp) {
-                void logger.log(`Moved **${rsn}** to the _active_ queue (**${this.getDebugString()}**)`, MultiLoggerLevel.Info);
+        this.lastActive[rsn] = newTimestamp;
+        // If the new timestamp is older than their previous timestamp, don't alter the queues now
+        if (newTimestamp < prevTimestamp) {
+            return;
+        }
+        // Otherwise, shift the player up the proper number of queues
+        let removeFromRest = false;
+        for (let i = 0; i < this.queues.length; i++) {
+            const queue = this.queues[i];
+            if (removeFromRest) {
+                queue.queue.remove(rsn);
+            } else if (this.getTimeSinceLastActive(rsn) < queue.config.threshold && !queue.queue.contains(rsn)) {
+                queue.queue.add(rsn);
+                removeFromRest = true;
+                // Log if this isn't on reboot
+                if (!timestamp) {
+                    void logger.log(`Moved **${rsn}** to the _${queue.config.label}_ queue (**${this.getDebugString()}**)`, MultiLoggerLevel.Info);
+                }
             }
         }
-    }
-
-    private isActive(rsn: string): boolean {
-        // If user had an update in the last 5 days
-        return new Date().getTime() - this.getLastActive(rsn) < 1000 * 60 * 60 * 24 * 5;
     }
 
     private getLastActive(rsn: string): number {
         return this.lastActive[rsn] ?? 0;
     }
 
-    getNumActivePlayers(): number {
-        return this.activeQueue.size();
+    private getTimeSinceLastActive(rsn: string): number {
+        return new Date().getTime() - this.getLastActive(rsn);
     }
 
-    getNumInactivePlayers(): number {
-        return this.inactiveQueue.size();
+    getNumPlayersByQueue(): number[] {
+        return this.queues.map(queue => queue.queue.size());
     }
 
-    /**
-     * @returns Milliseconds between a refresh for one active player
-     */
-    getActiveRefreshDuration(): number {
-        return this.getNumActivePlayers() * Math.floor(CONFIG.refreshInterval * this.getCounterInterval() / (this.getCounterInterval() - 1));
+    getQueueDuration(index: number): number {
+        // For the current queue, we will need to go through the entire thing to reach a particular player
+        let result = this.queues[index].queue.size();
+        // For each higher queue, we will only need to loop up to the counter max to come back
+        for (let i = 0; i < index; i++) {
+            result *= this.getQueueCounterMax(i);
+        }
+        // Add 1 to account for the fact that there might be a lower queue we'll have to visit once per loop
+        return (result + 1) * CONFIG.refreshInterval;
     }
 
-    /**
-     * @returns Milliseconds between a refresh for one inactive player
-     */
-    getInactiveRefreshDuration(): number {
-        return CONFIG.refreshInterval * this.getCounterInterval() * this.getNumInactivePlayers();
+    getDurationString(): string {
+        return this.queues.map((queue, index) => {
+            return `_${getPreciseDurationString(this.getQueueDuration(index))}_ (${queue.config.label})`;
+        }).join(', ');
     }
 
     toSortedArray(): string[] {
-        return this.activeQueue.toSortedArray().concat(this.inactiveQueue.toSortedArray()).sort();
+        const result: string[] = [];
+        for (const queue of this.queues) {
+            result.push(...queue.queue.toSortedArray());
+        }
+        return result.sort();
     }
 
-    private getDebugString(): string {
-        return `${this.getNumActivePlayers()}/${this.size()} ${Math.floor(100 * this.getNumActivePlayers() / this.size())}%`;
+    toDelimitedString(): string {
+        return this.queues.map(queue => queue.queue.toSortedArray().join(',')).join(';');
+    }
+
+    getDebugString(): string {
+        return naturalJoin(this.queues.map(queue => {
+            return `**${queue.queue.size()}** ${queue.config.label}`
+        }));
+    }
+
+    getIndexesString(): string {
+        return JSON.stringify(this.queues.map(queue => queue.counter));
     }
 
     size(): number {
-        return this.activeQueue.size() + this.inactiveQueue.size();
+        let result = 0;
+        for (const queue of this.queues) {
+            result += queue.queue.size();
+        }
+        return result;
     }
 }

@@ -2,17 +2,32 @@ import { expect } from 'chai';
 import PlayerQueue from '../src/player-queue';
 
 describe('PlayerQueue Tests', () => {
+    const config = {
+        queues: [{
+            label: 'active',
+            threshold: 9999
+        }, {
+            label: 'inactive',
+            threshold: 99999
+        }, {
+            label: 'archive',
+            threshold: Number.POSITIVE_INFINITY
+        }],
+        counterMax: 5
+    };
+    const inactiveDate: Date = new Date(new Date().getTime() - 50000);
+
     it('can return players circularly after adding and removing', () => {
-        const queue = new PlayerQueue();
+        const queue = new PlayerQueue(config);
 
         expect(queue.next()).is.undefined;
 
         queue.add('a');
 
         // Should only see "a"
-        expect(queue.next()).equals('a');
-        expect(queue.next()).equals('a');
-        expect(queue.next()).equals('a');
+        for (let i = 0; i < 20; i++) {
+            expect(queue.next()).equals('a');
+        }
         expect(queue.toSortedArray().join('')).equals('a');
 
         queue.add('b');
@@ -55,8 +70,8 @@ describe('PlayerQueue Tests', () => {
         expect(queue.toSortedArray().join('')).equals('abc');
     });
 
-    it('can alternate between the active and inactive queue', () => {
-        const queue = new PlayerQueue();
+    it('can alternate between 2 queues', () => {
+        const queue = new PlayerQueue(config);
 
         expect(queue.next()).is.undefined;
 
@@ -74,7 +89,7 @@ describe('PlayerQueue Tests', () => {
 
         queue.markAsActive('a');
 
-        // Counter was left at 0 (IQ), so next counter value should be 1 (AQ)
+        // Active counter is still at 0, so begin with active queue
         expect(queue.next()).equals('a');
         expect(queue.next()).equals('b');
         expect(queue.next()).equals('a');
@@ -87,11 +102,11 @@ describe('PlayerQueue Tests', () => {
 
         queue.markAsActive('b');
 
-        // Counter was left at 1 (AQ), so next value is 2 (AQ) (active queue was still pointing at "a" when "b" was added)
+        // Active queue was still pointing at "a" when "b" was added, so "a" is next
         expect(queue.next()).equals('a');
-        // Counter is back to 0 (IQ)
+        // Active queue counter has reached its max, so now pull from the RQ queue
         expect(queue.next()).equals('c');
-        // Repeat as "b", "a", then pick from inactive queue
+        // Repeat as "b", "a", then pick from RQ queue
         expect(queue.next()).equals('b');
         expect(queue.next()).equals('a');
         expect(queue.next()).equals('d');
@@ -105,13 +120,13 @@ describe('PlayerQueue Tests', () => {
         queue.add('f');
         queue.markAsActive('f');
 
-        // Counter was left at 0 (IQ), so next value is 1 (AQ) (active queue last looked at "a")
+        // Active queue last looked at "a", so next is "b"
         expect(queue.next()).equals('b');
-        // Counter is now at 2 (AQ), but "f" is after "b" in the active queue
+        // "f" is after "b" in the active queue
         expect(queue.next()).equals('f');
-        // Counter is now at 3 (AQ)
+        // AQ counter will now reach its max of 3
         expect(queue.next()).equals('a');
-        // Counter is back to 0 (IQ)
+        // Go back to the inactive queue
         expect(queue.next()).equals('d');
         expect(queue.next()).equals('b');
         expect(queue.next()).equals('f');
@@ -122,5 +137,164 @@ describe('PlayerQueue Tests', () => {
         expect(queue.next()).equals('a');
         expect(queue.next()).equals('c');
         expect(queue.next()).equals('b');
+
+        // Bring the AQ up to size 6
+        queue.markAsActive('c');
+        queue.markAsActive('d');
+        queue.markAsActive('e');
+
+        // Prove that although the AQ size is 6, the counter is still capped at 5
+        expect(queue.next()).equals('f');
+        expect(queue.next()).equals('c');
+        expect(queue.next()).equals('d');
+        expect(queue.next()).equals('e');
+        expect(queue.next()).equals(undefined);
+        expect(queue.next()).equals('a');
+        expect(queue.next()).equals('b');
+        expect(queue.next()).equals('f');
+        expect(queue.next()).equals('c');
+        expect(queue.next()).equals('d');
+        expect(queue.next()).equals(undefined);
+        expect(queue.next()).equals('e');
+    });
+
+    it('can alternate between 3 queues', () => {
+        const queue = new PlayerQueue(config);
+
+        expect(queue.next()).is.undefined;
+
+        // Load up AQ
+        queue.add('a');
+        queue.add('b');
+        queue.add('c');
+        queue.markAsActive('a');
+        queue.markAsActive('b');
+        queue.markAsActive('c');
+        // Load up IQ
+        queue.add('x');
+        queue.add('y');
+        queue.add('z');
+        queue.markAsActive('x', inactiveDate);
+        queue.markAsActive('y', inactiveDate);
+        queue.markAsActive('z', inactiveDate);
+        // Load up RQ
+        queue.add('1');
+        queue.add('2');
+        queue.add('3');
+
+        expect(queue.toSortedArray().join('')).equals('123abcxyz');
+
+        // One loop through the entire IQ
+        expect(queue.next()).equals('a');
+        expect(queue.next()).equals('b');
+        expect(queue.next()).equals('c');
+        expect(queue.next()).equals('x');
+        expect(queue.next()).equals('a');
+        expect(queue.next()).equals('b');
+        expect(queue.next()).equals('c');
+        expect(queue.next()).equals('y');
+        expect(queue.next()).equals('a');
+        expect(queue.next()).equals('b');
+        expect(queue.next()).equals('c');
+        expect(queue.next()).equals('z');
+
+        // Now, we should reach the RQ
+        expect(queue.next()).equals('a');
+        expect(queue.next()).equals('b');
+        expect(queue.next()).equals('c');
+        expect(queue.next()).equals('1');
+
+        // Now, back to the IQ...
+        expect(queue.next()).equals('a');
+        expect(queue.next()).equals('b');
+        expect(queue.next()).equals('c');
+        expect(queue.next()).equals('x');
+        expect(queue.next()).equals('a');
+        expect(queue.next()).equals('b');
+        expect(queue.next()).equals('c');
+        expect(queue.next()).equals('y');
+
+        expect(queue.getDurationString()).equals('');
+    });
+
+    it('can shift players down multiple levels', () => {
+        const queue = new PlayerQueue(config);
+
+        expect(queue.next()).is.undefined;
+
+        queue.add('a');
+        queue.add('b');
+        queue.add('c');
+        queue.add('x');
+        queue.add('y');
+        queue.add('z');
+        queue.add('1');
+        queue.add('2');
+        queue.add('3');
+
+        // Everything is in the RQ
+        expect(queue.toDelimitedString()).equals(';;1,2,3,a,b,c,x,y,z');
+
+        queue.markAsActive('a');
+        queue.markAsActive('b');
+        queue.markAsActive('c');
+        queue.markAsActive('x', inactiveDate);
+        queue.markAsActive('y', inactiveDate);
+        queue.markAsActive('z', inactiveDate);
+
+        // Spread among AQ, IQ, and RQ
+        expect(queue.toDelimitedString()).equals('a,b,c;x,y,z;1,2,3');
+
+        // Now, mark an active player as archived
+        queue.markAsActive('a', new Date(0));
+
+        // The queues shouldn't be affected just yet...
+        expect(queue.toDelimitedString()).equals('a,b,c;x,y,z;1,2,3');
+
+        // Getting "a" from the AQ should shift it down one queue
+        expect(queue.next()).equals('a');
+        expect(queue.toDelimitedString()).equals('b,c;a,x,y,z;1,2,3');
+
+        // We have to poll quite a few times to get to the end of the IQ and visit "a" again
+        expect(queue.next()).equals('b');
+        expect(queue.next()).equals('x');
+        expect(queue.next()).equals('c');
+        expect(queue.next()).equals('b');
+        expect(queue.next()).equals('y');
+        expect(queue.next()).equals('c');
+        expect(queue.next()).equals('b');
+        expect(queue.next()).equals('z');
+        expect(queue.next()).equals('c');
+        expect(queue.next()).equals('b');
+
+        // It should now be shifted down once again to the RQ
+        expect(queue.next()).equals('a');
+        expect(queue.toDelimitedString()).equals('b,c;x,y,z;1,2,3,a');
+
+        // Try shifting down from the AQ to just the IQ
+        queue.markAsActive('b', inactiveDate);
+        expect(queue.toDelimitedString()).equals('b,c;x,y,z;1,2,3,a');
+        expect(queue.next()).equals('c');
+        expect(queue.next()).equals('b');
+        expect(queue.toDelimitedString()).equals('c;b,x,y,z;1,2,3,a');
+        expect(queue.next()).equals('1');
+        expect(queue.next()).equals('c');
+        expect(queue.next()).equals('x');
+        expect(queue.next()).equals('c');
+        expect(queue.next()).equals('y');
+        expect(queue.next()).equals('c');
+        expect(queue.next()).equals('z');
+        expect(queue.next()).equals('c');
+
+        // Despite the fact that we've visited "b", it doesn't move because it's in the appropriate queue
+        expect(queue.next()).equals('b');
+        expect(queue.toDelimitedString()).equals('c;b,x,y,z;1,2,3,a');
+
+        // Mark some stuff as active to find that the queues are all immediately affected
+        queue.markAsActive('a');
+        queue.markAsActive('b');
+        queue.markAsActive('z');
+        queue.markAsActive('3');
+        expect(queue.toDelimitedString()).equals('3,a,b,c,z;x,y;1,2');
     });
 });

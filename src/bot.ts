@@ -21,7 +21,7 @@ const commandHandler: CommandHandler = new CommandHandler(commands);
 
 export async function sendRestartMessage(downtimeMillis: number): Promise<void> {
     let text = `ScapeBot online after **${getDurationString(downtimeMillis)}** of downtime. `
-        + `In **${client.guilds.cache.size}** guild(s) tracking **${state.getNumGloballyTrackedPlayers()}** player(s) (**${state.getNumActivePlayers()}** active).`;
+        + `In **${client.guilds.cache.size}** guild(s) tracking **${state.getNumGloballyTrackedPlayers()}** player(s) (${state.getPlayerQueueDebugString()}).`;
     // Add refresh duration info
     text += `\nℹ️ Current refresh durations: ${state.getRefreshDurationString()}.`;
     // TODO: Temp logging while we're still populating display names into PG

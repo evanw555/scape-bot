@@ -1,6 +1,6 @@
 import { APIRole, Role, Snowflake, TextChannel } from 'discord.js';
 import { Boss } from 'osrs-json-hiscores';
-import { getPreciseDurationString, MultiLoggerLevel } from 'evanw555.js';
+import { MultiLoggerLevel } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName } from './types';
 import PlayerQueue from './player-queue';
 
@@ -39,7 +39,21 @@ export default class State {
         this._displayNames = {};
         this._maintainerIds = new Set();
 
-        this._masterPlayerQueue = new PlayerQueue();
+        this._masterPlayerQueue = new PlayerQueue({
+            queues: [{
+                label: 'active',
+                // < 5 days
+                threshold: 1000 * 60 * 60 * 24 * 5
+            }, {
+                label: 'inactive',
+                // < 4 weeks
+                threshold: 1000 * 60 * 60 * 24 * 7 * 4
+            }, {
+                label: 'archive',
+                threshold: Number.POSITIVE_INFINITY
+            }],
+            counterMax: 10
+        });
         this._guildsByPlayer = {};
         this._playersByGuild = {};
         this._trackingChannelsByGuild = {};
@@ -76,8 +90,8 @@ export default class State {
         this._masterPlayerQueue.markAsActive(rsn, timestamp);
     }
 
-    getNumActivePlayers(): number {
-        return this._masterPlayerQueue.getNumActivePlayers();
+    getPlayerQueueDebugString(): string {
+        return this._masterPlayerQueue.getDebugString();
     }
 
     nextTrackedPlayer(): string | undefined {
@@ -470,11 +484,9 @@ export default class State {
     }
 
     /**
-     * @returns String representing the duration between each refresh for any active player and any inactive player
+     * @returns String representing the duration between each refresh for any active player, inactive, and archived player
      */
     getRefreshDurationString(): string {
-        const activeTime: number = this._masterPlayerQueue.getActiveRefreshDuration();
-        const inactiveTime: number = this._masterPlayerQueue.getInactiveRefreshDuration();
-        return `_${isNaN(activeTime) ? '???' : getPreciseDurationString(activeTime)}_ (recently active), _${isNaN(inactiveTime) ? '???' : getPreciseDurationString(inactiveTime)}_ (inactive)`;
+        return this._masterPlayerQueue.getDurationString();
     }
 }
