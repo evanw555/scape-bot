@@ -91,6 +91,10 @@ const slashCommands: SlashCommandsType = {
                                + `**Refresh Duration:** ${state.getRefreshDurationString()}`,
                     color: SKILL_EMBED_COLOR,
                     title: 'Information'
+                }, {
+                    description: state.getLabeledRefreshDurationStrings().map(x => `**${x.label}:** ${x.duration}`).join('\n'),
+                    color: SKILL_EMBED_COLOR,
+                    title: 'Refresh Durations'
                 }],
                 ephemeral: true
             });

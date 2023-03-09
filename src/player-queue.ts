@@ -177,6 +177,15 @@ export default class PlayerQueue {
         }));
     }
 
+    getLabeledDurationStrings(): { label: string, duration: string }[] {
+        return this.queues.map((queue, index) => {
+            return {
+                label: queue.config.label,
+                duration: getPreciseDurationString(this.getQueueDuration(index))
+            };
+        });
+    }
+
     getIndexesString(): string {
         return JSON.stringify(this.queues.map(queue => queue.counter));
     }

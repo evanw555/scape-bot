@@ -42,13 +42,13 @@ export default class State {
 
         this._masterPlayerQueue = new PlayerQueue({
             queues: [{
-                label: 'active',
+                label: 'Active (<3d)',
                 threshold: ACTIVE_THRESHOLD_MILLIS
             }, {
-                label: 'inactive',
+                label: 'Inactive (<4w)',
                 threshold: INACTIVE_THRESHOLD_MILLIES
             }, {
-                label: 'archive',
+                label: 'Archive (4w+)',
                 threshold: Number.POSITIVE_INFINITY
             }],
             counterMax: 10
@@ -491,5 +491,9 @@ export default class State {
      */
     getRefreshDurationString(): string {
         return this._masterPlayerQueue.getDurationString();
+    }
+
+    getLabeledRefreshDurationStrings(): { label: string, duration: string }[] {
+        return this._masterPlayerQueue.getLabeledDurationStrings();
     }
 }
