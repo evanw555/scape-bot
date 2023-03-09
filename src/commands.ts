@@ -87,8 +87,7 @@ const slashCommands: SlashCommandsType = {
                 embeds: [{
                     description: `**Players:** ${state.getNumTrackedPlayers(guildId)}\n`
                                + `**Channel:** ${state.hasTrackingChannel(guildId) ? state.getTrackingChannel(guildId) : 'None, set with **/channel**'}\n`
-                               + '**Role:** ' + (state.hasPrivilegedRole(guildId) ? `${state.getPrivilegedRole(guildId)} and Admins` : 'Admins only, set a custom role with **/role**') + '\n'
-                               + `**Refresh Duration:** ${state.getRefreshDurationString()}`,
+                               + '**Role:** ' + (state.hasPrivilegedRole(guildId) ? `${state.getPrivilegedRole(guildId)} and Admins` : 'Admins only, set a custom role with **/role**'),
                     color: SKILL_EMBED_COLOR,
                     title: 'Information'
                 }, {
