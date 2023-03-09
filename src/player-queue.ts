@@ -86,7 +86,7 @@ export default class PlayerQueue {
                 // Add to next queue
                 const nextQueue = this.queues[i + 1];
                 nextQueue.queue.add(rsn);
-                void logger.log(`Down-queue **${rsn}** from _${queue.config.label}_ to _${nextQueue.config.label}_ (${this.getDebugString()})`, MultiLoggerLevel.Warn);
+                void logger.log(`Down-queue **${rsn}** from _${queue.config.label}_ to _${nextQueue.config.label}_ (${this.getDebugString()})`, MultiLoggerLevel.Info);
             }
             void logger.log(`[Q${i}] ${queue.counter}/${this.getQueueCounterMax(i)} -> ${rsn}`, MultiLoggerLevel.Debug);
             return rsn;
@@ -126,7 +126,7 @@ export default class PlayerQueue {
         }
         // Log if this isn't on reboot
         if (!timestamp) {
-            void logger.log(`Up-queue **${rsn}** from _${fromLabel}_ to _${toLabel}_ (${this.getDebugString()})`, MultiLoggerLevel.Warn);
+            void logger.log(`Up-queue **${rsn}** from _${fromLabel}_ to _${toLabel}_ (${this.getDebugString()})`, MultiLoggerLevel.Info);
         }
     }
 
