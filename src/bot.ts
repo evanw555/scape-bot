@@ -166,12 +166,23 @@ const client = new Client({
 });
 
 const auditGuilds = async () => {
+    // First, load up the audit notification counters for each guild
+    let auditCounters: Record<Snowflake, number> = {};
+    try {
+        auditCounters = JSON.parse(await pgStorageClient.fetchMiscProperty('auditCounters') as string);
+    } catch (err) {
+        await logger.log(`Failed to load audit notification counters: \`${err}\``, MultiLoggerLevel.Error);
+    }
+
     const logStatements: string[] = [];
 
     // TODO: We're just logging for now, but we should actually warn the guild owners once we're sure this works
     for (const guild of client.guilds.cache.toJSON()) {
-        const numTrackedPlayers = state.getNumTrackedPlayers(guild.id);
+        // Increment the audit counter for this guild
+        auditCounters[guild.id] = (auditCounters[guild.id] ?? 0) + 1;
+        const sendToSystemChannel = auditCounters[guild.id] % 7 === 0;
         // Only audit guilds that are tracking at least one player
+        const numTrackedPlayers = state.getNumTrackedPlayers(guild.id);
         if (numTrackedPlayers > 0) {
             try {
                 if (state.hasTrackingChannel(guild.id)) {
@@ -180,14 +191,26 @@ const auditGuilds = async () => {
                     if (!botHasRequiredPermissionsInChannel(trackingChannel)) {
                         const missingPermissionNames = getMissingRequiredChannelPermissionNames(trackingChannel);
                         const joinedPermissions = naturalJoin(missingPermissionNames, { bold: true });
-                        await sendDMToGuildOwner(guild, 'Hello - I am missing the required permissions to send OSRS update messages to the '
-                            + `tracking channel ${trackingChannel} in your guild _${guild}_. Please grant me the following: ${joinedPermissions}`);
-                        logStatements.push(`_${guild.name}_ is tracking **${numTrackedPlayers}** players but is missing tracking channel permission(s) ${joinedPermissions} (DM sent)`);
+                        if (sendToSystemChannel && guild.systemChannel) {
+                            await guild.systemChannel.send('Hello - I am missing the required permissions to send OSRS update messages to the '
+                                + `tracking channel ${trackingChannel}. Please grant me the following: ${joinedPermissions}`);
+                            logStatements.push(`_${guild.name}_ is tracking **${numTrackedPlayers}** players but is missing tracking channel permission(s) ${joinedPermissions} (sent to system channel)`);
+                        } else {
+                            await sendDMToGuildOwner(guild, 'Hello - I am missing the required permissions to send OSRS update messages to the '
+                                + `tracking channel ${trackingChannel} in your guild _${guild}_. Please grant me the following: ${joinedPermissions}`);
+                            logStatements.push(`_${guild.name}_ is tracking **${numTrackedPlayers}** players but is missing tracking channel permission(s) ${joinedPermissions} (DM sent)`);
+                        }
                     }
                 } else {
-                    await sendDMToGuildOwner(guild, `Hello - I'm tracking OSRS players in your guild _${guild}_, yet you haven't selected a channel for me to send update messages. `
-                        + 'Please select a channel in your guild using the **/channel** command!');
-                    logStatements.push(`_${guild.name}_ is tracking **${numTrackedPlayers}** players but has no tracking channel set (DM sent)`);
+                    if (sendToSystemChannel && guild.systemChannel) {
+                        await guild.systemChannel.send(`Hello - I'm tracking OSRS players, yet you haven't selected a channel for me to send update messages. `
+                            + 'Please select a channel in your guild using the **/channel** command!');
+                        logStatements.push(`_${guild.name}_ is tracking **${numTrackedPlayers}** players but has no tracking channel set (sent to system channel)`);
+                    } else {
+                        await sendDMToGuildOwner(guild, `Hello - I'm tracking OSRS players in your guild _${guild}_, yet you haven't selected a channel for me to send update messages. `
+                            + 'Please select a channel in your guild using the **/channel** command!');
+                        logStatements.push(`_${guild.name}_ is tracking **${numTrackedPlayers}** players but has no tracking channel set (DM sent)`);
+                    }
                 }
             } catch (err) {
                 logStatements.push(`Failure in _${guild.name}_: \`${err}\``);
@@ -198,6 +221,13 @@ const auditGuilds = async () => {
     // Log the findings
     if (logStatements.length > 0) {
         await logger.log('**Audited guilds:**\n' + logStatements.map((x, i) => `**${i + 1}.** ${x}`).join('\n'), MultiLoggerLevel.Error);
+    }
+
+    // Write the updated counters back to PG
+    if (Object.keys(auditCounters).length > 0) {
+        await pgStorageClient.writeMiscProperty('auditCounters', JSON.stringify(auditCounters));
+        // TODO: Temp logging to see how this works
+        await logger.log(`Dumped audit counters as \`${JSON.stringify(auditCounters).slice(0, 1000)}\``);
     }
 };
 

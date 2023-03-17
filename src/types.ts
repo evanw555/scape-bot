@@ -55,7 +55,7 @@ export interface SerializedGuildState {
     players: string[]
 }
 
-export type MiscPropertyName = 'timestamp' | 'disabled' | typeof TIMEOUTS_PROPERTY;
+export type MiscPropertyName = 'timestamp' | 'disabled' | 'auditCounters' | typeof TIMEOUTS_PROPERTY;
 
 export type BuiltSlashCommand = SlashCommandBuilder | Omit<SlashCommandBuilder, 'addSubcommand' | 'addSubcommandGroup'>;
 
