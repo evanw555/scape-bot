@@ -167,10 +167,11 @@ const client = new Client({
 
 const auditGuilds = async () => {
     // First, load up the audit notification counters for each guild
-    let auditCounters: Record<Snowflake, number> = {};
+    let auditCounters: Record<Snowflake, number>;
     try {
         auditCounters = JSON.parse(await pgStorageClient.fetchMiscProperty('auditCounters') as string);
     } catch (err) {
+        auditCounters = {};
         await logger.log(`Failed to load audit notification counters: \`${err}\``, MultiLoggerLevel.Error);
     }
 
