@@ -47,7 +47,7 @@ export async function sendRestartMessage(downtimeMillis: number): Promise<void> 
         return `**${i + 1}.** _${guild.name}_ with **${state.getNumTrackedPlayers(guild.id)}**`
             + (state.hasTrackingChannel(guild.id) ? ` in \`#${state.getTrackingChannel(guild.id).name}\`` : '')
             + (state.hasPrivilegedRole(guild.id) ? ` with role \`${state.getPrivilegedRole(guild.id).name}\`` : '');
-    }).join('\n'), MultiLoggerLevel.Warn);
+    }).join('\n'), MultiLoggerLevel.Info);
     // TODO: Use this if you need to troubleshoot...
     // await logger.log(state.toDebugString());
 }
@@ -77,7 +77,7 @@ const timeoutCallbacks = {
 };
 const timeoutManager = new TimeoutManager<TimeoutType>(new TimeoutStorage(), timeoutCallbacks, {
     fileName: TIMEOUTS_PROPERTY,
-    onError: async (id: string, type: TimeoutType, err: any) => {
+    onError: async (id: string, type: TimeoutType, err) => {
         await logger.log(`Fatal error in timeout \`${id}\` with type \`${type}\`: \`${err}\``, MultiLoggerLevel.Fatal);
     }
 });
@@ -178,9 +178,7 @@ const auditGuilds = async () => {
 
     // TODO: We're just logging for now, but we should actually warn the guild owners once we're sure this works
     for (const guild of client.guilds.cache.toJSON()) {
-        // Increment the audit counter for this guild
-        auditCounters[guild.id] = (auditCounters[guild.id] ?? 0) + 1;
-        const sendToSystemChannel = auditCounters[guild.id] % 7 === 0;
+        let guildOk = true;
         // Only audit guilds that are tracking at least one player
         const numTrackedPlayers = state.getNumTrackedPlayers(guild.id);
         if (numTrackedPlayers > 0) {
@@ -189,6 +187,11 @@ const auditGuilds = async () => {
                     const trackingChannel = state.getTrackingChannel(guild.id);
                     // Validate the bot's permissions in this channel
                     if (!botHasRequiredPermissionsInChannel(trackingChannel)) {
+                        // Increment the audit counter for this guild
+                        guildOk = false;
+                        auditCounters[guild.id] = (auditCounters[guild.id] ?? 0) + 1;
+                        const sendToSystemChannel = auditCounters[guild.id] % 7 === 0;
+                        // Send notification
                         const missingPermissionNames = getMissingRequiredChannelPermissionNames(trackingChannel);
                         const joinedPermissions = naturalJoin(missingPermissionNames, { bold: true });
                         if (sendToSystemChannel && guild.systemChannel) {
@@ -202,8 +205,13 @@ const auditGuilds = async () => {
                         }
                     }
                 } else {
+                    // Increment the audit counter for this guild
+                    guildOk = false;
+                    auditCounters[guild.id] = (auditCounters[guild.id] ?? 0) + 1;
+                    const sendToSystemChannel = auditCounters[guild.id] % 7 === 0;
+                    // Send notification
                     if (sendToSystemChannel && guild.systemChannel) {
-                        await guild.systemChannel.send(`Hello - I'm tracking OSRS players, yet you haven't selected a channel for me to send update messages. `
+                        await guild.systemChannel.send('Hello - I\'m tracking OSRS players, yet you haven\'t selected a channel for me to send update messages. '
                             + 'Please select a channel in your guild using the **/channel** command!');
                         logStatements.push(`_${guild.name}_ is tracking **${numTrackedPlayers}** players but has no tracking channel set (sent to system channel)`);
                     } else {
@@ -216,6 +224,10 @@ const auditGuilds = async () => {
                 logStatements.push(`Failure in _${guild.name}_: \`${err}\``);
             }
         }
+        // If the guild passed audit, delete it from the audit counters map
+        if (guildOk) {
+            delete auditCounters[guild.id];
+        }
     }
 
     // Log the findings
@@ -227,7 +239,7 @@ const auditGuilds = async () => {
     if (Object.keys(auditCounters).length > 0) {
         await pgStorageClient.writeMiscProperty('auditCounters', JSON.stringify(auditCounters));
         // TODO: Temp logging to see how this works
-        await logger.log(`Dumped audit counters as \`${JSON.stringify(auditCounters).slice(0, 1000)}\``);
+        await logger.log(`Dumped audit counters as \`${JSON.stringify(auditCounters).slice(0, 1600)}\``);
     }
 };
 
