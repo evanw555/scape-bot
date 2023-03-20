@@ -75,7 +75,12 @@ const timeoutCallbacks = {
         await weeklyTotalXpUpdate();
     }
 };
-const timeoutManager = new TimeoutManager<TimeoutType>(new TimeoutStorage(), timeoutCallbacks, { fileName: TIMEOUTS_PROPERTY });
+const timeoutManager = new TimeoutManager<TimeoutType>(new TimeoutStorage(), timeoutCallbacks, {
+    fileName: TIMEOUTS_PROPERTY,
+    onError: async (id: string, type: TimeoutType, err: any) => {
+        await logger.log(`Fatal error in timeout \`${id}\` with type \`${type}\`: \`${err}\``, MultiLoggerLevel.Fatal);
+    }
+});
 
 const loadState = async (): Promise<void> => {
     // TODO: Eventually, the whole "deserialize" thing won't be needed. We'll just need one method for loading up all stuff from PG on startup
@@ -414,11 +419,11 @@ client.on('ready', async () => {
         // Load the existing timeouts from storage (this must happen after the PG client connects, since it leverages PG for storage)
         await timeoutManager.loadTimeouts();
         // Start the weekly loop if the right timeout isn't already scheduled (get next Friday at 5:10pm)
-        if (!timeoutManager.hasTimeout(TimeoutType.WeeklyXpUpdate)) {
+        if (!timeoutManager.hasTimeoutWithType(TimeoutType.WeeklyXpUpdate)) {
             await timeoutManager.registerTimeout(TimeoutType.WeeklyXpUpdate, getNextFridayEvening(), { pastStrategy: PastTimeoutStrategy.Invoke });
         }
         // Start the daily loop if the right timeout isn't already scheduled (get next evening at 5:20pm)
-        if (!timeoutManager.hasTimeout(TimeoutType.DailyAudit)) {
+        if (!timeoutManager.hasTimeoutWithType(TimeoutType.DailyAudit)) {
             await timeoutManager.registerTimeout(TimeoutType.DailyAudit, getNextEvening(), { pastStrategy: PastTimeoutStrategy.Invoke });
         }
 
