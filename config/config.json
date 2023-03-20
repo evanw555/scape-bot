@@ -1,5 +1,5 @@
 {
-    "refreshInterval": 2000,
+    "refreshInterval": 1000,
     "presenceUpdateInterval": 300000,
     "timeZone": "America/Los_Angeles",
     "debugLog": {
