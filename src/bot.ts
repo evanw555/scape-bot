@@ -12,6 +12,7 @@ import { AUTH, CONFIG, TIMEOUTS_PROPERTY } from './constants';
 
 import state from './instances/state';
 import logger from './instances/logger';
+import loggerIndices from './instances/logger-indices';
 import pgStorageClient from './instances/pg-storage-client';
 import timeSlotInstance from './instances/timeslot';
 
@@ -395,9 +396,11 @@ client.on('ready', async () => {
                 // If a channel was properly fetched, add the logger
                 if (channelLogger) {
                     const channelLoggerToUse = channelLogger;
-                    logger.addOutput(async (text: string) => {
+                    const index = logger.addOutput(async (text: string) => {
                         await channelLoggerToUse.send(text);
                     }, channelLoggerConfig.level);
+                    // Save this index in the global mapping (so that we can adjust it later)
+                    loggerIndices[channelLoggerConfig.id] = index;
                 }
             }
         } else {

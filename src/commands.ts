@@ -14,6 +14,7 @@ import pgStorageClient from './instances/pg-storage-client';
 
 import debugLog from './instances/debug-log';
 import infoLog from './instances/info-log';
+import loggerIndices from './instances/logger-indices';
 
 const validSkills = new Set<string>(CONSTANTS.skills);
 
@@ -757,6 +758,26 @@ export const hiddenCommands: HiddenCommandsType = {
             }
         },
         text: 'Fetches a player\'s display name'
+    },
+    logger: {
+        fn: async (msg: Message, rawArgs: string) => {
+            try {
+                if (msg.channelId in loggerIndices) {
+                    if (rawArgs in MultiLoggerLevel) {
+                        const level = parseInt(rawArgs);
+                        logger.setOutputLevel(loggerIndices[msg.channelId], level);
+                        await msg.reply(`This logger is now at level **${MultiLoggerLevel[level]}**`);
+                    } else {
+                        await msg.reply(`\`${rawArgs}\` is not a valid level, options are \`${JSON.stringify(Object.keys(MultiLoggerLevel))}\``);
+                    }
+                } else {
+                    await msg.reply('This channel doesn\'t have a corresponding channel logger!');
+                }
+            } catch (err) {
+                await msg.reply(`Oops! \`${err}\``);
+            }
+        },
+        text: 'Sets the logging level of this channel\'s logger'
     }
 };
 
