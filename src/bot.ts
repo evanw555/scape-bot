@@ -456,25 +456,6 @@ client.on('ready', async () => {
         process.exit(1);
     }
 
-    // Regardless of whether loading the players/channel was successful, start the update loop
-    // TODO: Use timeout manager
-    setInterval(async () => {
-        if (!state.isDisabled()) {
-            const nextPlayer = state.nextTrackedPlayer();
-            if (nextPlayer) {
-                try {
-                    await updatePlayer(nextPlayer);
-                    await pgStorageClient.writeMiscProperty('timestamp', new Date().toJSON());
-                } catch (err) {
-                    // Emergency fallback in case of unhandled errors
-                    await logger.log(`Unhandled error while updating **${nextPlayer}**: \`${err}\``, MultiLoggerLevel.Error);
-                }
-            } else {
-                // No players being tracked
-            }
-        }
-    }, CONFIG.refreshInterval);
-
     // Set a timeout interval for updating the bot user activity
     // TODO: should this use the timeout manager?
     setInterval(() => {
@@ -498,6 +479,33 @@ client.on('ready', async () => {
             }
         }
     }, CONFIG.presenceUpdateInterval);
+
+    // Finally, run the synchronous update loop.
+    // The purpose of using a synchronous loop is to ensure there's extra time between updates in the case of slow network calls.
+    // TODO: We should make the scheduled events (e.g. weekly updates) use this same process to avoid concurrent state updates.
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+        if (state.isDisabled()) {
+            // If the bot is disabled, sleep for longer between iterations
+            await sleep(CONFIG.refreshInterval * 10);
+        } else {
+            // Update the next player
+            const nextPlayer = state.nextTrackedPlayer();
+            if (nextPlayer) {
+                try {
+                    await updatePlayer(nextPlayer);
+                    await pgStorageClient.writeMiscProperty('timestamp', new Date().toJSON());
+                } catch (err) {
+                    // Emergency fallback in case of unhandled errors
+                    await logger.log(`Unhandled error while updating **${nextPlayer}**: \`${err}\``, MultiLoggerLevel.Error);
+                }
+            } else {
+                // No players being tracked
+            }
+            // Sleep for the configured refresh interval
+            await sleep(CONFIG.refreshInterval);
+        }
+    }
 });
 
 client.on('guildCreate', async (guild) => {
