@@ -762,16 +762,23 @@ export const hiddenCommands: HiddenCommandsType = {
     logger: {
         fn: async (msg: Message, rawArgs: string) => {
             try {
+                // First, determine the ID of this channel logger
+                let id: Snowflake;
                 if (msg.channelId in loggerIndices) {
-                    if (rawArgs in MultiLoggerLevel) {
-                        const level = parseInt(rawArgs);
-                        logger.setOutputLevel(loggerIndices[msg.channelId], level);
-                        await msg.reply(`This logger is now at level **${MultiLoggerLevel[level]}**`);
-                    } else {
-                        await msg.reply(`\`${rawArgs}\` is not a valid level, options are \`${JSON.stringify(Object.keys(MultiLoggerLevel))}\``);
-                    }
+                    id = msg.channelId;
+                } else if (msg.channel.isDMBased() && msg.author.id in loggerIndices) {
+                    id = msg.author.id;
                 } else {
                     await msg.reply('This channel doesn\'t have a corresponding channel logger!');
+                    return;
+                }
+                // Now that the ID is confirmed to be in the logger map, reconfigure its level
+                if (rawArgs in MultiLoggerLevel) {
+                    const level = parseInt(rawArgs);
+                    logger.setOutputLevel(loggerIndices[id], level);
+                    await msg.reply(`This logger is now at level **${MultiLoggerLevel[level]}**`);
+                } else {
+                    await msg.reply(`\`${rawArgs}\` is not a valid level, options are \`${JSON.stringify(Object.keys(MultiLoggerLevel))}\``);
                 }
             } catch (err) {
                 await msg.reply(`Oops! \`${err}\``);
