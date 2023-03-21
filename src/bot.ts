@@ -240,7 +240,7 @@ const auditGuilds = async () => {
     if (Object.keys(auditCounters).length > 0) {
         await pgStorageClient.writeMiscProperty('auditCounters', JSON.stringify(auditCounters));
         // TODO: Temp logging to see how this works
-        await logger.log(`Dumped audit counters as \`${JSON.stringify(auditCounters).slice(0, 1600)}\``);
+        await logger.log(`Dumped audit counters as \`${JSON.stringify(auditCounters).slice(0, 1600)}\``, MultiLoggerLevel.Warn);
     }
 };
 
