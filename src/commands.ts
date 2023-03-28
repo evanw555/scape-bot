@@ -667,7 +667,9 @@ export const hiddenCommands: HiddenCommandsType = {
                         await msg.channel.send(`(Rollback) Detected negatives for **${rsn}**:\n` + logs.join('\n'));
                     }
                     // Update original message
-                    await replyMessage.edit(getStatusText());
+                    if (numPlayersProcessed % 5 === 0 || numPlayersProcessed === allPlayers.length) {
+                        await replyMessage.edit(getStatusText());
+                    }
                 }
                 await msg.channel.send(`Done, use this command again to commit the **${rollbackStaging.length}** change(s) to state/PG.`);
             } else {
