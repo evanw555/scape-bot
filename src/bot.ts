@@ -1,14 +1,14 @@
 import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel, ActivityType, Snowflake, PermissionFlagsBits } from 'discord.js';
 import { PlayerHiScores, TimeoutType } from './types';
 import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer, sanitizeRSN, sendDMToGuildOwner, botHasRequiredPermissionsInChannel, getNextEvening, getMissingRequiredChannelPermissionNames } from './util';
-import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel, naturalJoin } from 'evanw555.js';
+import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel, naturalJoin, getPreciseDurationString } from 'evanw555.js';
 import CommandReader from './command-reader';
 import CommandHandler from './command-handler';
 import commands from './commands';
 import { fetchHiScores } from './hiscores';
 import TimeoutStorage from './timeout-storage';
 
-import { AUTH, CONFIG, TIMEOUTS_PROPERTY } from './constants';
+import { AUTH, CONFIG, PLAYER_404_ERROR, TIMEOUTS_PROPERTY } from './constants';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -260,6 +260,9 @@ const weeklyTotalXpUpdate = async () => {
 
     // Get new total XP values
     const newTotalXpValues: Record<string, number> = {};
+    let numErrors = 0;
+    let num404s = 0;
+    const startTime = new Date().getTime();
     for (const rsn of state.getAllGloballyTrackedPlayers()) {
         try {
             const data: PlayerHiScores = await fetchHiScores(rsn);
@@ -269,10 +272,21 @@ const weeklyTotalXpUpdate = async () => {
                 newTotalXpValues[rsn] = totalXp;
             }
         } catch (err) {
-            // TODO: Log error?
+            if ((err instanceof Error) && err.message === PLAYER_404_ERROR) {
+                num404s++;
+            } else {
+                numErrors++;
+            }
             continue;
         }
     }
+
+    // Log errors / update speed
+    const endTime = new Date().getTime();
+    const duration = endTime - startTime;
+    const updatesPerSecond = (state.getNumGloballyTrackedPlayers() * 1000 / duration).toFixed(2);
+    await logger.log(`Weekly XP update complete for **${state.getNumGloballyTrackedPlayers()}** players in **${getPreciseDurationString(duration)}** `
+        + `(**${updatesPerSecond}** updates per second), with **${num404s}** 404(s) and **${numErrors}** other error(s)`, MultiLoggerLevel.Error);
 
     // For each player appearing in both last week's and this week's mapping, determine the change in total XP
     const playersToCompare: string[] = Object.keys(oldTotalXpValues).filter(rsn => rsn in newTotalXpValues);
