@@ -301,7 +301,6 @@ const weeklyTotalXpUpdate = async () => {
         .sort((x, y) => totalXpDiffs[y] - totalXpDiffs[x]);
 
     // Compute the winners and send out an update for each guild
-    const winnerLogs = [];
     for (const guildId of state.getAllRelevantGuilds()) {
         if (state.hasTrackingChannel(guildId)) {
             try {
@@ -310,9 +309,6 @@ const weeklyTotalXpUpdate = async () => {
 
                 // Only send out a message if there are any XP earners
                 if (winners.length !== 0) {
-                    // TODO: Temp logic for logging
-                    winnerLogs.push(`_${getGuildName(guildId)}_: ` + naturalJoin(winners.map(rsn => `**${state.getDisplayName(rsn)}** (${getQuantityWithUnits(totalXpDiffs[rsn])})`), { conjunction: '&' }));
-
                     // Send the message to the tracking channel
                     const medalNames = ['gold', 'silver', 'bronze'];
                     await state.getTrackingChannel(guildId).send({
@@ -324,9 +320,6 @@ const weeklyTotalXpUpdate = async () => {
                             };
                         })
                     });
-                } else {
-                    // TODO: Temp logic for logging
-                    winnerLogs.push(`~~_${getGuildName(guildId)}_~~`);
                 }
             } catch (err) {
                 await logger.log(`Failed to compute and send weekly XP info for guild \`${guildId}\`: \`${err}\``, MultiLoggerLevel.Error);
@@ -344,7 +337,9 @@ const weeklyTotalXpUpdate = async () => {
             for (const grandChannel of grandChannels) {
                 await grandChannel.send(grandText);
             }
-            await logger.log(`Sent out grand winner message to guild(s) ${naturalJoin(grandChannels.map(c => `_${c.guild.name}_`))}: ${grandText}`, MultiLoggerLevel.Warn);
+            await logger.log(`Grand weekly XP winner is **${state.getDisplayName(grandWinnerRsn)}** `
+                + `from ${naturalJoin(grandChannels.map(c => `_${c.guild.name}_`))} `
+                + `with **${getQuantityWithUnits(totalXpDiffs[grandWinnerRsn])} XP**`, MultiLoggerLevel.Error);
         }
     } catch (err) {
         await logger.log(`Failed to compute and send weekly grand winner info: \`${err}\``, MultiLoggerLevel.Error);
@@ -356,9 +351,6 @@ const weeklyTotalXpUpdate = async () => {
     } catch (err) {
         await logger.log(`Unable to write weekly XP snapshots to PG: \`${err}\``, MultiLoggerLevel.Error);
     }
-
-    // TODO: Temp logging to see how this is working
-    await logger.log(winnerLogs.join('\n'), MultiLoggerLevel.Warn);
 
     // Log all the data used to compute these values
     // TODO: Not needed for now, re-enable?
