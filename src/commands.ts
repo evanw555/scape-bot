@@ -113,7 +113,8 @@ const slashCommands: SlashCommandsType = {
         }],
         execute: async (interaction) => {
             const guildId = getInteractionGuildId(interaction);
-            const rsn = sanitizeRSN(interaction.options.getString('username', true));
+            const rawRsnInput = interaction.options.getString('username', true);
+            const rsn = sanitizeRSN(rawRsnInput);
             // Validate the RSN
             try {
                 validateRSN(rsn);
@@ -143,9 +144,14 @@ const slashCommands: SlashCommandsType = {
                 // TODO: This should instead be its own separate method perhaps?
                 await updatePlayer(rsn, { primer: true });
             }
+            // If the display name could not be found and it's different than what the user input, warn them
+            const warningEmbeds = getGuildWarningEmbeds(guildId);
+            if (!state.hasDisplayName(rsn) && rsn !== rawRsnInput) {
+                warningEmbeds.push(createWarningEmbed(`The correct formatting of this player's username could not be determined, `
+                    + `so they will be tracked as **${rsn}** (versus **${rawRsnInput.trim()}**) until they reach the overall hiscores.`));
+            }
             // Edit the reply with an initial success message (and any guild warnings there may be)
             const replyText = `Now tracking player **${state.getDisplayName(rsn)}**!\nUse **/list** to see tracked players.`;
-            const warningEmbeds = getGuildWarningEmbeds(guildId);
             await interaction.editReply({
                 content: replyText,
                 embeds: warningEmbeds
