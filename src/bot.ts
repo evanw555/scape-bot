@@ -114,7 +114,7 @@ const loadState = async (): Promise<void> => {
         }
     }
     if (timestampsFilledIn > 0) {
-        await logger.log(`Filled in **${timestampsFilledIn}** missing activity timestamps to state/PG (using _${arbitraryOldDate.toLocaleString()}_)`)
+        await logger.log(`Filled in **${timestampsFilledIn}** missing activity timestamps to state/PG (using _${arbitraryOldDate.toLocaleString()}_)`, MultiLoggerLevel.Warn);
     }
 
     const playerDisplayNames = await pgStorageClient.fetchAllPlayerDisplayNames();
