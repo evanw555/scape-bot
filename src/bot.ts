@@ -68,8 +68,15 @@ const timeoutCallbacks = {
         await auditGuilds();
         // TODO: Temp logic to do time slot analysis
         timeSlotInstance.incrementDay();
-        await logger.log(timeSlotInstance.getOverallDebugString(), MultiLoggerLevel.Warn);
-        await logger.log(timeSlotInstance.getConsistencyAnalysisString(), MultiLoggerLevel.Warn);
+        await logger.log(timeSlotInstance.getOverallDebugString(), MultiLoggerLevel.Info);
+        await logger.log(timeSlotInstance.getConsistencyAnalysisString(), MultiLoggerLevel.Info);
+        // Audit very inactive players
+        // TODO: Actually remove these players and notify the respective guilds
+        const fourMonths = 1000 * 60 * 60 * 24 * 30 * 4;
+        const numPlayersVeryInactive = state.getAllGloballyTrackedPlayers().filter(rsn => state.getTimeSincePlayerLastActive(rsn) > fourMonths).length;
+        if (numPlayersVeryInactive > 0) {
+            await logger.log(`There are **${numPlayersVeryInactive}** player(s) who haven't been active for over four months`, MultiLoggerLevel.Warn);
+        }
     },
     [TimeoutType.WeeklyXpUpdate]: async (): Promise<void> => {
         await timeoutManager.registerTimeout(TimeoutType.WeeklyXpUpdate, getNextFridayEvening(), { pastStrategy: PastTimeoutStrategy.Invoke });
