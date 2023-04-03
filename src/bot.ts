@@ -84,7 +84,6 @@ const timeoutManager = new TimeoutManager<TimeoutType>(new TimeoutStorage(), tim
 });
 
 const loadState = async (): Promise<void> => {
-    // TODO: Eventually, the whole "deserialize" thing won't be needed. We'll just need one method for loading up all stuff from PG on startup
     const trackedPlayers = await pgStorageClient.fetchAllTrackedPlayers();
     for (const [ guildId, players ] of Object.entries(trackedPlayers)) {
         for (const rsn of players) {
@@ -95,6 +94,20 @@ const loadState = async (): Promise<void> => {
     const playerActivityTimestamps = await pgStorageClient.fetchAllPlayerActivityTimestamps();
     for (const [ rsn, timestamp ] of Object.entries(playerActivityTimestamps)) {
         state.markPlayerAsActive(rsn, timestamp);
+    }
+
+    // TODO: Temp logic to fill in player activity timestamps for players without a timestamp
+    const arbitraryOldDate = new Date('12/15/2022');
+    let timestampsFilledIn = 0;
+    for (const rsn of state.getAllGloballyTrackedPlayers()) {
+        if (playerActivityTimestamps[rsn] === undefined) {
+            await pgStorageClient.updatePlayerActivityTimestamp(rsn, arbitraryOldDate);
+            state.markPlayerAsActive(rsn, arbitraryOldDate);
+            timestampsFilledIn++;
+        }
+    }
+    if (timestampsFilledIn > 0) {
+        await logger.log(`Filled in **${timestampsFilledIn}** missing activity timestamps to state/PG (using _${arbitraryOldDate.toLocaleString()}_)`)
     }
 
     const playerDisplayNames = await pgStorageClient.fetchAllPlayerDisplayNames();
