@@ -221,7 +221,7 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
                 await pgStorageClient.writePlayerHiScoreStatus(rsn, false);
                 state.setPlayerHiScoreStatus(rsn, false);
                 // TODO: Temp logging to see how this is playing out
-                await logger.log(`Silently removed **${state.getDisplayName(rsn)}** from the hiscores due to update 404`, MultiLoggerLevel.Warn);
+                await logger.log(`Silently removed **${state.getDisplayName(rsn)}** from the hiscores due to update 404`, MultiLoggerLevel.Info);
             }
             // If the player was active/inactive then suddenly sees a 404 (banned?), adjust their timestamp to bump them down to the archive queue
             if (options?.primer || state.getTimeSincePlayerLastActive(rsn) < INACTIVE_THRESHOLD_MILLIES) {
@@ -230,7 +230,7 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
                 await pgStorageClient.updatePlayerActivityTimestamp(rsn, archiveTimestamp);
                 state.markPlayerAsActive(rsn, archiveTimestamp);
                 // TODO: Temp logging to see how this is playing out
-                await logger.log(`Archive player **${state.getDisplayName(rsn)}** due to update 404`, MultiLoggerLevel.Warn);
+                await logger.log(`Archive player **${state.getDisplayName(rsn)}** due to update 404`, MultiLoggerLevel.Info);
 
             }
             // TODO: Should we re-enable the logic to remove 404 players? We haven't confirmed what this means yet.
@@ -408,7 +408,7 @@ export async function updateLevels(rsn: string, newLevels: Record<IndividualSkil
         state.setLevels(rsn, newLevels);
         state.setLastUpdated(rsn, new Date());
         if (updatedSkills.length > 0) {
-            await logger.log(`**${rsn}** update: \`${JSON.stringify(diff)}\``, MultiLoggerLevel.Info);
+            await logger.log(`**${rsn}** update: \`${JSON.stringify(diff)}\``, MultiLoggerLevel.Debug);
             return true;
         }
     }
@@ -489,7 +489,7 @@ export async function updateKillCounts(rsn: string, newScores: Record<Boss, numb
         state.setBosses(rsn, newScores);
         state.setLastUpdated(rsn, new Date());
         if (updatedBosses.length > 0) {
-            await logger.log(`**${rsn}** update: \`${JSON.stringify(diff)}\``, MultiLoggerLevel.Info);
+            await logger.log(`**${rsn}** update: \`${JSON.stringify(diff)}\``, MultiLoggerLevel.Debug);
             return true;
         }
     }
@@ -562,7 +562,7 @@ export async function updateClues(rsn: string, newScores: Record<IndividualClueT
         state.setClues(rsn, newScores);
         state.setLastUpdated(rsn, new Date());
         if (updatedClues.length > 0) {
-            await logger.log(`**${rsn}** update: \`${JSON.stringify(diff)}\``, MultiLoggerLevel.Info);
+            await logger.log(`**${rsn}** update: \`${JSON.stringify(diff)}\``, MultiLoggerLevel.Debug);
             return true;
         }
     }

@@ -88,7 +88,7 @@ export default class PlayerQueue {
                 nextQueue.queue.add(rsn);
                 void logger.log(`Down-queue **${rsn}** from _${queue.config.label}_ to _${nextQueue.config.label}_ (${this.getDebugString()})`, MultiLoggerLevel.Info);
             }
-            void logger.log(`[Q${i}] ${queue.counter}/${this.getQueueCounterMax(i)} -> ${rsn}`, MultiLoggerLevel.Debug);
+            void logger.log(`[Q${i}] ${queue.counter}/${this.getQueueCounterMax(i)} -> ${rsn}`, MultiLoggerLevel.Trace);
             return rsn;
         }
     }

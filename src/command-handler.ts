@@ -207,7 +207,7 @@ class CommandHandler {
             return;
         }
         const command = this.commands[interaction.commandName];
-        const debugString = `\`${interaction.user.tag}\` executed command \`${interaction.toString()}\` in ${interaction.channel}`;
+        const debugString = `\`${interaction.user.tag}\` executed command \`${interaction.toString()}\` in _${interaction.guild?.name ?? '???'}_ \`#${interaction.channel ?? '???'}\``;
         try {
             if (command.failIfDisabled) {
                 CommandHandler.failIfDisabled();
@@ -222,14 +222,15 @@ class CommandHandler {
                 }
             }
             if (typeof command.execute === 'function') {
-                await command.execute(interaction);
-                await logger.log(debugString, MultiLoggerLevel.Info);
+                const success = await command.execute(interaction);
+                await logger.log(debugString + ` ${success ? '✅' : '❌'}`, MultiLoggerLevel.Info);
             } else {
                 await interaction.reply(`Warning: slash command does not exist yet for command: ${interaction.commandName}`);
             }
         } catch (err) {
             if (err instanceof Error) {
                 await CommandHandler.handleError(interaction, err);
+                await logger.log(debugString + ' ⛔', MultiLoggerLevel.Info);
             } else {
                 await logger.log(`Unexpected error when ${debugString}: \`${err}\``, MultiLoggerLevel.Error);
             }

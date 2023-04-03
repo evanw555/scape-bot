@@ -65,6 +65,7 @@ const slashCommands: SlashCommandsType = {
     ping: {
         execute: async (interaction) => {
             await interaction.reply('pong!');
+            return true;
         },
         text: 'Replies with pong!'
     },
@@ -78,6 +79,7 @@ const slashCommands: SlashCommandsType = {
                 hasPrivilegedRole = role?.members.has(interaction.user.id);
             }
             await interaction.reply({ content: getHelpText(false, isAdmin, hasPrivilegedRole), ephemeral: true });
+            return true;
         },
         text: 'Shows help'
     },
@@ -98,6 +100,7 @@ const slashCommands: SlashCommandsType = {
                 }],
                 ephemeral: true
             });
+            return true;
         },
         text: 'Shows information about ScapeBot in this guild'
     },
@@ -119,7 +122,7 @@ const slashCommands: SlashCommandsType = {
                     content: `Invalid username: ${(err as Error).message}`,
                     ephemeral: true
                 });
-                return;
+                return false;
             }
             // Abort if the player is already being tracked
             if (state.isTrackingPlayer(guildId, rsn)) {
@@ -127,7 +130,7 @@ const slashCommands: SlashCommandsType = {
                     content: 'That player is already being tracked!\nUse **/check** to check their hiscores.',
                     ephemeral: true
                 });
-                return;
+                return false;
             }
             const globallyNewPlayer = !state.isPlayerTrackedInAnyGuilds(rsn);
             // Defer the reply because PG and validation may cause this command to time out
@@ -160,6 +163,7 @@ const slashCommands: SlashCommandsType = {
                     await logger.log(`\`${interaction.user.tag}\` has tracked player **${rsn}** (5xx? outage?)`, MultiLoggerLevel.Warn);
                 }
             }
+            return true;
         },
         text: 'Tracks a player and posts updates when they level up, kill a boss, complete a clue, and more',
         privilegedRole: true,
@@ -177,7 +181,7 @@ const slashCommands: SlashCommandsType = {
             const rsn = sanitizeRSN(interaction.options.getString('username', true));
             if (!rsn || !rsn.trim()) {
                 await interaction.reply({ content: 'Invalid username', ephemeral: true });
-                return;
+                return false;
             }
             if (state.isTrackingPlayer(guildId, rsn)) {
                 await pgStorageClient.deleteTrackedPlayer(guildId, rsn);
@@ -192,8 +196,10 @@ const slashCommands: SlashCommandsType = {
                         await logger.log(`(\`/remove\`) **${rsn}** now globally untracked, purged rows: \`${JSON.stringify(purgeResults)}\``, MultiLoggerLevel.Warn);
                     }
                 }
+                return true;
             } else {
                 await interaction.reply({ content: 'That player is not currently being tracked.', ephemeral: true });
+                return false;
             }
         },
         text: 'Stops tracking a player',
@@ -219,6 +225,7 @@ const slashCommands: SlashCommandsType = {
                     await logger.log(`(\`/clear\`) ${naturalJoin(globallyUntrackedPlayers, { bold: true })} now globally untracked, purged rows: \`${JSON.stringify(purgeResults)}\``, MultiLoggerLevel.Warn);
                 }
             }
+            return true;
         },
         text: 'Stops tracking all players',
         privilegedRole: true,
@@ -239,6 +246,7 @@ const slashCommands: SlashCommandsType = {
                     ephemeral: true
                 });
             }
+            return true;
         },
         text: 'Lists all the players currently being tracked'
     },
@@ -272,6 +280,7 @@ const slashCommands: SlashCommandsType = {
                     title: state.getDisplayName(rsn),
                     url: `${CONSTANTS.hiScoresUrlTemplate}${encodeURI(rsn)}`
                 });
+                return true;
             } catch (err) {
                 // For error messages, we want the user to see the raw RSN they entered.
                 // Showing the sanitized RSN may lead them to believe that the error is related to sanitization (I think?)
@@ -282,6 +291,7 @@ const slashCommands: SlashCommandsType = {
                     await logger.log(`Error while fetching hiscores (check) for player **${rsn}**: \`${err}\``, MultiLoggerLevel.Error);
                     await interaction.reply(`Couldn't fetch hiscores for player **${rawRsn.trim()}** :pensive:\n\`${err}\``);
                 }
+                return false;
             }
         },
         text: 'Shows all available hiscores data for some player',
@@ -320,6 +330,7 @@ const slashCommands: SlashCommandsType = {
                     url: `${CONSTANTS.osrsWikiBaseUrl}${encodeURIComponent(bossName)}`,
                     color: 10363483
                 });
+                return true;
             } catch (err) {
                 if (err instanceof Error) {
                     await logger.log(`Error while fetching hiscores (check) for player ${rsn}: ${err.toString()}`, MultiLoggerLevel.Error);
@@ -328,6 +339,7 @@ const slashCommands: SlashCommandsType = {
                         ephemeral: true
                     });
                 }
+                return false;
             }
         },
         text: 'Shows the kill count of a boss for some player',
@@ -346,7 +358,7 @@ const slashCommands: SlashCommandsType = {
                             content: `ScapeBot does not have sufficient permissions in this channel (missing ${joinedPermissions}). Please update channel permissions or try a different channel.`,
                             ephemeral: true
                         });
-                        return;
+                        return false;
                     }
 
                     await pgStorageClient.updateTrackingChannel(guild.id, interaction.channelId);
@@ -354,6 +366,7 @@ const slashCommands: SlashCommandsType = {
                     await interaction.reply('Player updates will now be sent to this channel!\nUse **/track** to start tracking players.');
                     // TODO: Reduce/remove this once we've seen it play out
                     await logger.log(`\`${interaction.user.tag}\` set the tracking channel for _${guild.name}_ to \`#${interaction.channel.name}\``, MultiLoggerLevel.Warn);
+                    return true;
                 } else {
                     await interaction.reply({
                         content: 'This channel cannot be used to track player updates! Please use **/channel** in a valid guild text channel',
@@ -366,6 +379,7 @@ const slashCommands: SlashCommandsType = {
                     await interaction.reply(`Couldn't set tracking channel to ${interaction.channel}`);
                 }
             }
+            return false;
         },
         text: 'All player updates will be sent to the channel where this command is issued',
         privilegedRole: true,
@@ -387,6 +401,7 @@ const slashCommands: SlashCommandsType = {
                     ephemeral: true
                 });
             }
+            return true;
         },
         text: 'Shows details of when each tracked player was last updated',
         admin: true
@@ -405,6 +420,7 @@ const slashCommands: SlashCommandsType = {
             // TODO: Can we somehow open an anonymous line of communication using the bot as a proxy?
             await logger.log(`**New feedback:** ${feedbackMessage}`.slice(0, 1990), MultiLoggerLevel.Fatal);
             await interaction.reply({ ephemeral: true, content: 'Your feedback has been sent!' });
+            return true;
         },
         text: 'Anonymously provide feedback to the developers of ScapeBot (e.g. report bugs, suggest features)',
         privilegedRole: true
@@ -425,6 +441,7 @@ const slashCommands: SlashCommandsType = {
                 content: `${privilegedRole} can now use ${getRoleCommandsListString(true)}.`,
                 ephemeral: true
             });
+            return true;
         },
         text: 'Sets a non-admin server role that can use commands like /track, /remove, and more',
         admin: true
