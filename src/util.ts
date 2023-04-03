@@ -715,10 +715,10 @@ export function getGuildWarningEmbeds(guildId: Snowflake): APIEmbed[] {
             if (!botHasRequiredPermissionsInChannel(trackingChannel)) {
                 const missingPermissionNames = getMissingRequiredChannelPermissionNames(trackingChannel);
                 const joinedPermissions = naturalJoin(missingPermissionNames, { bold: true });
-                embeds.push(createWarningEmbed(`Missing required permissions to send player update messages to tracking channel ${trackingChannel}! I need these permissions: ${joinedPermissions}`));
+                embeds.push(createWarningEmbed(`Missing required permissions to send player update messages to tracking channel ${trackingChannel}. I need these permissions: ${joinedPermissions}`));
             }
         } else {
-            embeds.push(createWarningEmbed('No channel has been selected to received player update messages. Please select a channel using the **/channel** command.'));
+            embeds.push(createWarningEmbed('No channel has been selected to receive player update messages. Please select a channel using the **/channel** command.'));
         }
     }
 
