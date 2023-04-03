@@ -3,7 +3,7 @@ import { FORMATTED_BOSS_NAMES, Boss, BOSSES, getRSNFormat, INVALID_FORMAT_ERROR 
 import { exec } from 'child_process';
 import { MultiLoggerLevel, naturalJoin, randChoice, randInt } from 'evanw555.js';
 import { PlayerHiScores, SlashCommandsType, HiddenCommandsType, CommandsType, SlashCommand, IndividualSkillName, IndividualClueType } from './types';
-import { replyUpdateMessage, sendUpdateMessage, updatePlayer, getBossName, isValidBoss, generateDetailsContentString, sanitizeRSN, botHasRequiredPermissionsInChannel, validateRSN, getMissingRequiredChannelPermissionNames } from './util';
+import { replyUpdateMessage, sendUpdateMessage, updatePlayer, getBossName, isValidBoss, generateDetailsContentString, sanitizeRSN, botHasRequiredPermissionsInChannel, validateRSN, getMissingRequiredChannelPermissionNames, getGuildWarningEmbeds, createWarningEmbed } from './util';
 import { fetchHiScores } from './hiscores';
 import CommandHandler from './command-handler';
 import { CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, BOSS_CHOICES, INVALID_TEXT_CHANNEL, SKILL_EMBED_COLOR, PLAYER_404_ERROR } from './constants';
@@ -143,9 +143,13 @@ const slashCommands: SlashCommandsType = {
                 // TODO: This should instead be its own separate method perhaps?
                 await updatePlayer(rsn, { primer: true });
             }
-            // Edit the reply with an initial success message
+            // Edit the reply with an initial success message (and any guild warnings there may be)
             const replyText = `Now tracking player **${state.getDisplayName(rsn)}**!\nUse **/list** to see tracked players.`;
-            await interaction.editReply(replyText);
+            const warningEmbeds = getGuildWarningEmbeds(guildId);
+            await interaction.editReply({
+                content: replyText,
+                embeds: warningEmbeds
+            });
             // Validate that the player exists, edit the reply to show a warning if not
             try {
                 await fetchHiScores(rsn);
@@ -153,11 +157,15 @@ const slashCommands: SlashCommandsType = {
                 await logger.log(`\`${interaction.user.tag}\` has tracked player **${state.getDisplayName(rsn)}** (**${state.getNumTrackedPlayers(guildId)}** in guild)`, MultiLoggerLevel.Warn);
             } catch (err) {
                 if ((err instanceof Error) && err.message === PLAYER_404_ERROR) {
-                    // If the hiscores returns a 404, just show a warning in the ephemeral reply
-                    await interaction.editReply(`${replyText}\n\n⚠️ **WARNING:** This player was _not_ found on the hiscores, `
-                        + 'meaning they either are temporarily missing or they don\'t exist at all. '
-                        + 'This player will still be tracked, but please ensure you spelled their username correctly. '
-                        + 'If you made a typo, please remove this player with **/remove**!');
+                    // If the hiscores returns a 404, add a warning to the existing list of guild warnings and edit the reply
+                    warningEmbeds.push(createWarningEmbed('This player was _not_ found on the hiscores, '
+                    + 'meaning they either are temporarily missing or they don\'t exist at all. '
+                    + 'This player will still be tracked, but please ensure you spelled their username correctly. '
+                    + 'If you made a typo, please remove this player with **/remove**!'));
+                    await interaction.editReply({
+                        content: replyText,
+                        embeds: warningEmbeds
+                    });
                     await logger.log(`\`${interaction.user.tag}\` has tracked player **${rsn}** (404)`, MultiLoggerLevel.Warn);
                 } else {
                     await logger.log(`\`${interaction.user.tag}\` has tracked player **${rsn}** (5xx? outage?)`, MultiLoggerLevel.Warn);

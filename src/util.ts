@@ -1,6 +1,6 @@
 import { Boss, BOSSES, INVALID_FORMAT_ERROR, FORMATTED_BOSS_NAMES, getRSNFormat } from 'osrs-json-hiscores';
-import { ChatInputCommandInteraction, Guild, PermissionFlagsBits, PermissionsBitField, TextBasedChannel, TextChannel } from 'discord.js';
-import { addReactsSync, MultiLoggerLevel, randChoice } from 'evanw555.js';
+import { APIEmbed, ChatInputCommandInteraction, Guild, PermissionFlagsBits, PermissionsBitField, Snowflake, TextBasedChannel, TextChannel, WebhookEditMessageOptions } from 'discord.js';
+import { addReactsSync, MultiLoggerLevel, naturalJoin, randChoice } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName, PlayerHiScores } from './types';
 import { fetchHiScores } from './hiscores';
 import { CONSTANTS, CONFIG, BOSS_EMBED_COLOR, CLUES_NO_ALL, CLUE_EMBED_COLOR, COMPLETE_VERB_BOSSES, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, DOPE_COMPLETE_VERBS, DOPE_KILL_VERBS, GRAY_EMBED_COLOR, PLAYER_404_ERROR, RED_EMBED_COLOR, SKILLS_NO_OVERALL, SKILL_EMBED_COLOR, YELLOW_EMBED_COLOR, REQUIRED_PERMISSIONS, REQUIRED_PERMISSION_NAMES, INACTIVE_THRESHOLD_MILLIES } from './constants';
@@ -702,4 +702,35 @@ export function getMissingRequiredChannelPermissionNames(channel: TextChannel): 
 
     // Return the name of each missing permission
     return REQUIRED_PERMISSION_NAMES.filter(n => !botPermissions.has(PermissionFlagsBits[n]));
+}
+
+export function getGuildWarningEmbeds(guildId: Snowflake): APIEmbed[] {
+    const embeds: APIEmbed[] = [];
+    // First, warn if there's no tracking channel set
+    const numTrackedPlayers = state.getNumTrackedPlayers(guildId);
+    if (numTrackedPlayers > 0) {
+        if (state.hasTrackingChannel(guildId)) {
+            const trackingChannel = state.getTrackingChannel(guildId);
+            // Validate the bot's permissions in this channel
+            if (!botHasRequiredPermissionsInChannel(trackingChannel)) {
+                const missingPermissionNames = getMissingRequiredChannelPermissionNames(trackingChannel);
+                const joinedPermissions = naturalJoin(missingPermissionNames, { bold: true });
+                embeds.push(createWarningEmbed(`Missing required permissions to send player update messages to tracking channel ${trackingChannel}! I need these permissions: ${joinedPermissions}`));
+            }
+        } else {
+            embeds.push(createWarningEmbed('No channel has been selected to received player update messages. Please select a channel using the **/channel** command.'));
+        }
+    }
+
+    return embeds;
+}
+
+export function createWarningEmbed(text: string): APIEmbed {
+    return {
+        description: text,
+        thumbnail: {
+            url: 'https://oldschool.runescape.wiki/images/Dungeon_icon.png'
+        },
+        color: RED_EMBED_COLOR
+    };
 }
