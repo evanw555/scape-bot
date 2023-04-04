@@ -221,7 +221,7 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
                 await pgStorageClient.writePlayerHiScoreStatus(rsn, false);
                 state.setPlayerHiScoreStatus(rsn, false);
                 // TODO: Temp logging to see how this is playing out
-                await logger.log(`Silently removed **${state.getDisplayName(rsn)}** from the hiscores due to update 404`, MultiLoggerLevel.Info);
+                await logger.log(`Silently removed **${state.getDisplayName(rsn)}** from the hiscores due to update 404`, MultiLoggerLevel.Debug);
             }
             // If the player was active/inactive then suddenly sees a 404 (banned?), adjust their timestamp to bump them down to the archive queue
             if (options?.primer || state.getTimeSincePlayerLastActive(rsn) < INACTIVE_THRESHOLD_MILLIES) {
@@ -230,7 +230,7 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
                 await pgStorageClient.updatePlayerActivityTimestamp(rsn, archiveTimestamp);
                 state.markPlayerAsActive(rsn, archiveTimestamp);
                 // TODO: Temp logging to see how this is playing out
-                await logger.log(`Archive player **${state.getDisplayName(rsn)}** due to update 404`, MultiLoggerLevel.Info);
+                await logger.log(`Archive player **${state.getDisplayName(rsn)}** due to update 404`, MultiLoggerLevel.Debug);
 
             }
             // TODO: Should we re-enable the logic to remove 404 players? We haven't confirmed what this means yet.
@@ -253,7 +253,7 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
             const displayName = await getRSNFormat(rsn);
             state.setDisplayName(rsn, displayName);
             await pgStorageClient.writePlayerDisplayName(rsn, displayName);
-            await logger.log(`Fetched display name for **${rsn}** as **${displayName}** (**${state.getNumPlayerDisplayNames()}**/**${state.getNumGloballyTrackedPlayers()}** complete)`, MultiLoggerLevel.Info);
+            await logger.log(`Fetched display name for **${rsn}** as **${displayName}** (**${state.getNumPlayerDisplayNames()}**/**${state.getNumGloballyTrackedPlayers()}** complete)`, MultiLoggerLevel.Debug);
         } catch (err) {
             // TODO: Reduce this down to Info if this appears to be working as expected (no repeated failures)
             await logger.log(`Failed to fetch display name for **${rsn}**: \`${err}\``, MultiLoggerLevel.Warn);
@@ -265,7 +265,7 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
         // This is the "primer" update, so write the player's hiscore status but DON'T notify
         state.setPlayerHiScoreStatus(rsn, data.onHiScores);
         await pgStorageClient.writePlayerHiScoreStatus(rsn, data.onHiScores);
-        await logger.log(`**${state.getDisplayName(rsn)}** primed with **${data.onHiScores}** hiscore status`, MultiLoggerLevel.Info);
+        await logger.log(`**${state.getDisplayName(rsn)}** primed with **${data.onHiScores}** hiscore status`, MultiLoggerLevel.Debug);
     } else {
         // On normal updates, check whether the player's overall hiscore state needs to be updated...
         if (!data.onHiScores && state.isPlayerOnHiScores(rsn)) {
