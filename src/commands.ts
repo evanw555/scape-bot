@@ -292,7 +292,8 @@ const slashCommands: SlashCommandsType = {
                 }
                 await replyUpdateMessage(interaction, messageText, 'overall', {
                     title: state.getDisplayName(rsn),
-                    url: `${CONSTANTS.hiScoresUrlTemplate}${encodeURI(rsn)}`
+                    url: `${CONSTANTS.hiScoresUrlTemplate}${encodeURI(rsn)}`,
+                    extraEmbeds: getGuildWarningEmbeds(interaction.guildId)
                 });
                 return true;
             } catch (err) {

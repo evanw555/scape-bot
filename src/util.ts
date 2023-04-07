@@ -60,6 +60,8 @@ interface UpdateMessageOptions {
     is99?: boolean,
     // Text to add at the top of the message(s) (outside the embed)
     header?: string,
+    // Extra embeds to add to the bottom of the message
+    extraEmbeds?: APIEmbed[]
 }
 
 interface SendUpdateMessageOptions extends UpdateMessageOptions {
@@ -76,7 +78,7 @@ export function buildUpdateMessage(text: string, name: string, options?: UpdateM
             color: options?.color ?? SKILL_EMBED_COLOR,
             title: options?.title,
             url: options?.url
-        }]
+        }, ...(options?.extraEmbeds ?? [])]
     };
 }
 
@@ -704,7 +706,10 @@ export function getMissingRequiredChannelPermissionNames(channel: TextChannel): 
     return REQUIRED_PERMISSION_NAMES.filter(n => !botPermissions.has(PermissionFlagsBits[n]));
 }
 
-export function getGuildWarningEmbeds(guildId: Snowflake): APIEmbed[] {
+export function getGuildWarningEmbeds(guildId: Snowflake | null): APIEmbed[] {
+    if (!guildId) {
+        return [];
+    }
     const embeds: APIEmbed[] = [];
     // First, warn if there's no tracking channel set
     const numTrackedPlayers = state.getNumTrackedPlayers(guildId);
