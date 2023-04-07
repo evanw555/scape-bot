@@ -96,8 +96,8 @@ class CommandHandler {
         } else if (err.message === UNAUTHORIZED_ROLE) {
             const guildId = interaction.guildId as string;
             const content = state.hasPrivilegedRole(guildId)
-                ? `You must have the ${state.getPrivilegedRole(guildId)} role to use this command`
-                : 'You are not an admin and there is no role set for this command';
+                ? `You must have the ${state.getPrivilegedRole(guildId)} role to use this command.`
+                : 'Only server admins can use this command. Server admins can use the **/role** command to grant access to a particular server role.';
             await interaction.reply({
                 content,
                 ephemeral: true
