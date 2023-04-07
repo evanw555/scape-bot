@@ -97,7 +97,7 @@ class CommandHandler {
             const guildId = interaction.guildId as string;
             const content = state.hasPrivilegedRole(guildId)
                 ? `You must have the ${state.getPrivilegedRole(guildId)} role to use this command.`
-                : 'Only server admins can use this command. Server admins can use the **/role** command to grant access to a particular server role.';
+                : 'Only server admins can use this command, but they can use the **/role** command to grant you access.';
             await interaction.reply({
                 content,
                 ephemeral: true
