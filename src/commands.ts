@@ -1,7 +1,7 @@
-import { ApplicationCommandOptionType, ChatInputCommandInteraction, Guild, Message, PermissionFlagsBits, Snowflake, TextChannel } from 'discord.js';
+import { APIEmbed, ApplicationCommandOptionType, ChatInputCommandInteraction, Guild, Message, PermissionFlagsBits, Snowflake, TextChannel } from 'discord.js';
 import { FORMATTED_BOSS_NAMES, Boss, BOSSES, getRSNFormat, INVALID_FORMAT_ERROR } from 'osrs-json-hiscores';
 import { exec } from 'child_process';
-import { MultiLoggerLevel, naturalJoin, randChoice, randInt } from 'evanw555.js';
+import { MultiLoggerLevel, getPreciseDurationString, naturalJoin, randChoice, randInt } from 'evanw555.js';
 import { PlayerHiScores, SlashCommandsType, HiddenCommandsType, CommandsType, SlashCommand, IndividualSkillName, IndividualClueType } from './types';
 import { replyUpdateMessage, sendUpdateMessage, updatePlayer, getBossName, isValidBoss, generateDetailsContentString, sanitizeRSN, botHasRequiredPermissionsInChannel, validateRSN, getMissingRequiredChannelPermissionNames, getGuildWarningEmbeds, createWarningEmbed } from './util';
 import { fetchHiScores } from './hiscores';
@@ -760,39 +760,6 @@ export const hiddenCommands: HiddenCommandsType = {
         },
         text: 'Removes a player from all guilds'
     },
-    name: {
-        fn: async (msg: Message, rawArgs, rawRsn) => {
-            if (!rawRsn || !rawRsn.trim()) {
-                await msg.reply('Invalid username');
-                return;
-            }
-            const rsn = sanitizeRSN(rawRsn);
-            try {
-                const displayName = await getRSNFormat(rsn);
-                await msg.reply(`Display name of **${rsn}** is **${displayName}**`);
-            } catch (err) {
-                await msg.reply(`Unable to fetch display name for **${rsn}**: \`${err}\``);
-            }
-        },
-        text: 'Fetches a player\'s display name'
-    },
-    testapi: {
-        fn: async (msg: Message, rawArgs: string) => {
-            const rsn = rawArgs.trim() || 'zezima';
-            const reply = await msg.reply(`Testing the hiscores API by querying with RSN **${rsn}**...`);
-            try {
-                await fetchHiScores(rsn);
-                await reply.edit(`API seems to be fine, fetched and parsed response for player **${rsn}**`);
-            } catch (err) {
-                let replyText = `API query failed with error: \`${err}\``;
-                if ((err instanceof Error) && err.message === INVALID_FORMAT_ERROR) {
-                    replyText += ' (the API has changed or just generally cannot be parsed)';
-                }
-                await reply.edit(replyText);
-            }
-        },
-        text: 'Fetches a player\'s display name'
-    },
     logger: {
         fn: async (msg: Message, rawArgs: string) => {
             try {
@@ -819,6 +786,75 @@ export const hiddenCommands: HiddenCommandsType = {
             }
         },
         text: 'Sets the logging level of this channel\'s logger'
+    },
+    player: {
+        fn: async (msg: Message, rawArgs, rawRsn) => {
+            if (!rawRsn || !rawRsn.trim()) {
+                await msg.reply('Invalid username');
+                return;
+            }
+            const rsn = sanitizeRSN(rawRsn);
+
+            const embeds: APIEmbed[] = [];
+
+            // First, try to fetch display name
+            try {
+                const displayName = await getRSNFormat(rsn);
+                embeds.push({
+                    description: `Fetched display name of **${rsn}** as **${displayName}**`
+                });
+            } catch (err) {
+                embeds.push(createWarningEmbed(`Unable to fetch display name for **${rsn}**: \`${err}\``));
+            }
+
+            // Show guild info about this player
+            const guilds = state.getGuildsTrackingPlayer(rsn);
+            if (guilds.length === 0) {
+                embeds.push(createWarningEmbed('No guilds tracking this player'));
+            } else {
+                const noun = guilds.length === 1 ? 'guild' : 'guilds';
+                embeds.push({
+                    description: `**${state.getDisplayName(rsn)}** is tracked in **${guilds.length}** ${noun}: `
+                        + guilds.map(id => msg.client.guilds.cache.has(id) ? `_${msg.client.guilds.cache.get(id)}_` : `\`${id}\``).join(', ')
+                });
+            }
+
+            // Show time-related info about this player
+            const lastRefresh = state.getLastUpdated(rsn);
+            if (lastRefresh) {
+                const timeSinceLastRefresh: number = new Date().getTime() - lastRefresh.getTime();
+                const timeSinceLastActive: number = state.getTimeSincePlayerLastActive(rsn);
+                embeds.push({
+                    description: `Time since...`,
+                    fields: [{
+                        name: 'Last Refresh',
+                        value: getPreciseDurationString(timeSinceLastRefresh)
+                    }, {
+                        name: 'Last Active',
+                        value: getPreciseDurationString(timeSinceLastActive)
+                    }]
+                });
+            }
+
+            // Test the API by fetching this player
+            try {
+                await fetchHiScores(rsn);
+                embeds.push({
+                    description: `API seems to be fine, fetched and parsed response for player **${rsn}**`
+                });
+            } catch (err) {
+                let errorText = `API query failed with error: \`${err}\``;
+                if ((err instanceof Error) && err.message === INVALID_FORMAT_ERROR) {
+                    errorText += ' (the API has changed or just generally cannot be parsed)';
+                }
+                embeds.push(createWarningEmbed(errorText));
+            }
+
+            await msg.reply({
+                embeds
+            })
+        },
+        text: 'Shows information about a given player'
     }
 };
 
