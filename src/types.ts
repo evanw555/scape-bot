@@ -61,7 +61,7 @@ export type BuiltSlashCommand = SlashCommandBuilder | Omit<SlashCommandBuilder, 
 
 export type SlashCommandName = 'help' | 'ping' | 'info' | 'track' | 'remove' | 'clear' | 'list' | 'check' | 'channel' | 'kc' | 'details' | 'feedback' | 'role';
 
-export type HiddenCommandName = 'help' | 'log' | 'thumbnail' | 'thumbnail99' | 'spoof' | 'spoofverbose' | 'uptime' | 'kill' | 'enable' | 'rollback' | 'removeglobal' | 'logger' | 'player';
+export type HiddenCommandName = 'help' | 'log' | 'thumbnail' | 'thumbnail99' | 'spoof' | 'spoofverbose' | 'uptime' | 'kill' | 'enable' | 'rollback' | 'removeglobal' | 'logger' | 'player' | 'guildnotify';
 
 export type CommandsType = Record<string, Command>;
 export type SlashCommandsType = Record<SlashCommandName, SlashCommand>;

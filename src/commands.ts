@@ -6,7 +6,7 @@ import { PlayerHiScores, SlashCommandsType, HiddenCommandsType, CommandsType, Sl
 import { replyUpdateMessage, sendUpdateMessage, updatePlayer, getBossName, isValidBoss, generateDetailsContentString, sanitizeRSN, botHasRequiredPermissionsInChannel, validateRSN, getMissingRequiredChannelPermissionNames, getGuildWarningEmbeds, createWarningEmbed } from './util';
 import { fetchHiScores } from './hiscores';
 import CommandHandler from './command-handler';
-import { CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, BOSS_CHOICES, INVALID_TEXT_CHANNEL, SKILL_EMBED_COLOR, PLAYER_404_ERROR } from './constants';
+import { CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, BOSS_CHOICES, INVALID_TEXT_CHANNEL, SKILL_EMBED_COLOR, PLAYER_404_ERROR, GRAY_EMBED_COLOR } from './constants';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -815,7 +815,7 @@ export const hiddenCommands: HiddenCommandsType = {
                 const noun = guilds.length === 1 ? 'guild' : 'guilds';
                 embeds.push({
                     description: `**${state.getDisplayName(rsn)}** is tracked in **${guilds.length}** ${noun}: `
-                        + guilds.map(id => msg.client.guilds.cache.has(id) ? `_${msg.client.guilds.cache.get(id)}_` : `\`${id}\``).join(', ')
+                        + guilds.map(id => `\`${id}\` (_${msg.client.guilds.cache.get(id) ?? '???'}_)`).join(', ')
                 });
             }
 
@@ -855,6 +855,30 @@ export const hiddenCommands: HiddenCommandsType = {
             })
         },
         text: 'Shows information about a given player'
+    },
+    guildnotify: {
+        fn: async (msg: Message, rawArgs: string, guildId: Snowflake, text: string) => {
+            // Validate the input
+            if (!guildId || !text) {
+                await msg.reply('usage: guildnotify GUILD_ID TEXT');
+                return;
+            }
+            if (!state.hasTrackingChannel(guildId)) {
+                await msg.reply(`Guild with ID \`${guildId}\` either has no tracking channel or doesn't exist`)
+                return;
+            }
+            // Send the message
+            try {
+                await sendUpdateMessage([state.getTrackingChannel(guildId)],
+                    text,
+                    'wrench',
+                    { color: GRAY_EMBED_COLOR, title: 'Message from ScapeBot\'s maintainers' });
+                await msg.reply(`**Sent message to guild _${msg.client.guilds.cache.get(guildId) ?? '???'}_:** ${text}`);
+            } catch (err) {
+                await msg.reply(`Failed to send message: \`${err}\``);
+            }
+        },
+        text: 'Sends an arbitrary message to some guild by ID'
     }
 };
 
