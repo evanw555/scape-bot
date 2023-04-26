@@ -738,13 +738,7 @@ export const hiddenCommands: HiddenCommandsType = {
             }
             await msg.reply(`Removed **${rsn}** from **${guildIds.length}** guild(s)`);
             // If no longer globally tracked (should be true), purge PG
-            if (!state.isPlayerTrackedInAnyGuilds(rsn)) {
-                const purgeResults = await pgStorageClient.purgeUntrackedPlayerData();
-                // If any rows were deleted, log this
-                if (Object.keys(purgeResults).length > 0) {
-                    await logger.log(`(\`removeglobal\`) **${rsn}** now globally untracked, purged rows: \`${JSON.stringify(purgeResults)}\``, MultiLoggerLevel.Warn);
-                }
-            }
+            await purgeUntrackedPlayers([rsn], 'removeglobal');
         },
         text: 'Removes a player from all guilds'
     },
