@@ -528,25 +528,34 @@ export async function updateClues(rsn: string, newScores: Record<IndividualClueT
         return false;
     }
     // Send a message showing the updated clues
+    const getClueCompletionPhrase = (_clue: IndividualClueType, _scoreGained: number, _newScore: number): string => {
+        let quantityText = '';
+        if (_scoreGained === 1 && _newScore === 1) {
+            quantityText = 'their first';
+        } else if (_scoreGained === _newScore) {
+            quantityText = `**${_scoreGained}**`;
+        } else if (_scoreGained === 1) {
+            quantityText = 'another';
+        } else {
+            quantityText = `**${_scoreGained}** more`;
+        }
+        return quantityText + ` **${_clue}** ${_scoreGained === 1 ? 'clue' : 'clues'} for a total of **${_newScore}**`;
+    };
     const updatedClues: IndividualClueType[] = toSortedCluesNoAll(Object.keys(diff));
     switch (updatedClues.length) {
     case 0:
         break;
     case 1: {
         const clue = updatedClues[0];
-        const scoreGained = diff[clue];
-        const text = `**${state.getDisplayName(rsn)}** has completed `
-            + (scoreGained === 1 ? 'another' : `**${scoreGained}** more`)
-            + ` **${clue}** `
-            + (scoreGained === 1 ? 'clue' : 'clues')
-            + ` for a total of **${newScores[clue]}**`;
+        const scoreGained = diff[clue] ?? 0;
+        const text = `**${state.getDisplayName(rsn)}** has completed ${getClueCompletionPhrase(clue, scoreGained, newScores[clue])}`;
         await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, clue, { color: CLUE_EMBED_COLOR });
         break;
     }
     default: {
         const text = updatedClues.map((clue) => {
-            const scoreGained = diff[clue];
-            return `${scoreGained === 1 ? 'another' : `**${scoreGained}** more`} **${clue}** ${scoreGained === 1 ? 'clue' : 'clues'} for a total of **${newScores[clue]}**`;
+            const scoreGained = diff[clue] ?? 0;
+            return getClueCompletionPhrase(clue, scoreGained, newScores[clue]);
         }).join('\n');
         await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn),
             `**${state.getDisplayName(rsn)}** has completed...\n${text}`,
