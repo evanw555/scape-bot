@@ -3,7 +3,7 @@ import { FORMATTED_BOSS_NAMES, Boss, BOSSES, getRSNFormat, INVALID_FORMAT_ERROR 
 import { exec } from 'child_process';
 import { MultiLoggerLevel, getPreciseDurationString, naturalJoin, randChoice, randInt } from 'evanw555.js';
 import { PlayerHiScores, SlashCommandsType, HiddenCommandsType, CommandsType, SlashCommand, IndividualSkillName, IndividualClueType } from './types';
-import { replyUpdateMessage, sendUpdateMessage, updatePlayer, getBossName, isValidBoss, generateDetailsContentString, sanitizeRSN, botHasRequiredPermissionsInChannel, validateRSN, getMissingRequiredChannelPermissionNames, getGuildWarningEmbeds, createWarningEmbed } from './util';
+import { replyUpdateMessage, sendUpdateMessage, updatePlayer, getBossName, isValidBoss, generateDetailsContentString, sanitizeRSN, botHasRequiredPermissionsInChannel, validateRSN, getMissingRequiredChannelPermissionNames, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers } from './util';
 import { fetchHiScores } from './hiscores';
 import CommandHandler from './command-handler';
 import { CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, BOSS_CHOICES, INVALID_TEXT_CHANNEL, SKILL_EMBED_COLOR, PLAYER_404_ERROR, GRAY_EMBED_COLOR } from './constants';
@@ -203,13 +203,7 @@ const slashCommands: SlashCommandsType = {
                 await interaction.reply(`No longer tracking player **${rsn}**.\nYou can still use **/check** to see this player's hiscores.`);
                 await logger.log(`\`${interaction.user.tag}\` removed player **${rsn}** (**${state.getNumTrackedPlayers(guildId)}** in guild)`, MultiLoggerLevel.Warn);
                 // If this player is now globally untracked, purge untracked player data
-                if (!state.isPlayerTrackedInAnyGuilds(rsn)) {
-                    const purgeResults = await pgStorageClient.purgeUntrackedPlayerData();
-                    // If any rows were deleted, log this
-                    if (Object.keys(purgeResults).length > 0) {
-                        await logger.log(`(\`/remove\`) **${rsn}** now globally untracked, purged rows: \`${JSON.stringify(purgeResults)}\``, MultiLoggerLevel.Warn);
-                    }
-                }
+                await purgeUntrackedPlayers([rsn], '/remove');
                 return true;
             } else {
                 await interaction.reply({ content: 'That player is not currently being tracked.', ephemeral: true });
@@ -223,22 +217,16 @@ const slashCommands: SlashCommandsType = {
     clear: {
         execute: async (interaction) => {
             const guildId = getInteractionGuildId(interaction);
-            // TODO: Can we add a batch delete operation?
+            await interaction.deferReply({ ephemeral: true });
+            // Remove the players
             const playersToRemove = state.getAllTrackedPlayers(guildId);
             for (const rsn of playersToRemove) {
                 await pgStorageClient.deleteTrackedPlayer(guildId, rsn);
+                state.removeTrackedPlayer(guildId, rsn);
             }
-            state.clearAllTrackedPlayers(guildId);
-            await interaction.reply({ content: 'No longer tracking any players.\nUse **/track** to track more players.', ephemeral: true });
             // If some of the removed players are now globally untracked, purge untracked player data
-            const globallyUntrackedPlayers = playersToRemove.filter(rsn => !state.isPlayerTrackedInAnyGuilds(rsn));
-            if (globallyUntrackedPlayers.length > 0) {
-                const purgeResults = await pgStorageClient.purgeUntrackedPlayerData();
-                // If any rows were deleted, log this
-                if (Object.keys(purgeResults).length > 0) {
-                    await logger.log(`(\`/clear\`) ${naturalJoin(globallyUntrackedPlayers, { bold: true })} now globally untracked, purged rows: \`${JSON.stringify(purgeResults)}\``, MultiLoggerLevel.Warn);
-                }
-            }
+            await purgeUntrackedPlayers(playersToRemove, '/clear');
+            await interaction.editReply('No longer tracking any players.\nUse **/track** to track more players.');
             return true;
         },
         text: 'Stops tracking all players',

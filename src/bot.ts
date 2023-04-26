@@ -1,6 +1,6 @@
 import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel, ActivityType, Snowflake, PermissionFlagsBits } from 'discord.js';
 import { PlayerHiScores, TimeoutType } from './types';
-import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer, sanitizeRSN, sendDMToGuildOwner, botHasRequiredPermissionsInChannel, getNextEvening, getMissingRequiredChannelPermissionNames } from './util';
+import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer, sanitizeRSN, sendDMToGuildOwner, botHasRequiredPermissionsInChannel, getNextEvening, getMissingRequiredChannelPermissionNames, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers } from './util';
 import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel, naturalJoin, getPreciseDurationString } from 'evanw555.js';
 import CommandReader from './command-reader';
 import CommandHandler from './command-handler';
@@ -199,55 +199,55 @@ const auditGuilds = async () => {
 
     // TODO: We're just logging for now, but we should actually warn the guild owners once we're sure this works
     for (const guild of client.guilds.cache.toJSON()) {
-        let guildOk = true;
         // Only audit guilds that are tracking at least one player
         const numTrackedPlayers = state.getNumTrackedPlayers(guild.id);
         if (numTrackedPlayers > 0) {
             try {
-                if (state.hasTrackingChannel(guild.id)) {
-                    const trackingChannel = state.getTrackingChannel(guild.id);
-                    // Validate the bot's permissions in this channel
-                    if (!botHasRequiredPermissionsInChannel(trackingChannel)) {
-                        // Increment the audit counter for this guild
-                        guildOk = false;
-                        auditCounters[guild.id] = (auditCounters[guild.id] ?? 0) + 1;
-                        const sendToSystemChannel = auditCounters[guild.id] % 7 === 0;
-                        // Send notification
-                        const missingPermissionNames = getMissingRequiredChannelPermissionNames(trackingChannel);
-                        const joinedPermissions = naturalJoin(missingPermissionNames, { bold: true });
-                        if (sendToSystemChannel && guild.systemChannel) {
-                            await guild.systemChannel.send('Hello - I am missing the required permissions to send OSRS update messages to the '
-                                + `tracking channel ${trackingChannel}. Please grant me the following: ${joinedPermissions}`);
-                            logStatements.push(`_${guild.name}_ is tracking **${numTrackedPlayers}** players but is missing tracking channel permission(s) ${joinedPermissions} (sent to system channel)`);
-                        } else {
-                            await sendDMToGuildOwner(guild, 'Hello - I am missing the required permissions to send OSRS update messages to the '
-                                + `tracking channel ${trackingChannel} in your guild _${guild}_. Please grant me the following: ${joinedPermissions}`);
-                            logStatements.push(`_${guild.name}_ is tracking **${numTrackedPlayers}** players but is missing tracking channel permission(s) ${joinedPermissions} (DM sent)`);
-                        }
-                    }
-                } else {
+                const embeds = getGuildWarningEmbeds(guild.id);
+                if (embeds.length > 0) {
+                    let logStatement = `_${guild.name}_: **${embeds.length}** problem${embeds.length === 1 ? '' : 's'}`;
                     // Increment the audit counter for this guild
-                    guildOk = false;
                     auditCounters[guild.id] = (auditCounters[guild.id] ?? 0) + 1;
-                    const sendToSystemChannel = auditCounters[guild.id] % 7 === 0;
-                    // Send notification
-                    if (sendToSystemChannel && guild.systemChannel) {
-                        await guild.systemChannel.send('Hello - I\'m tracking OSRS players, yet you haven\'t selected a channel for me to send update messages. '
-                            + 'Please select a channel in your guild using the **/channel** command!');
-                        logStatements.push(`_${guild.name}_ is tracking **${numTrackedPlayers}** players but has no tracking channel set (sent to system channel)`);
-                    } else {
-                        await sendDMToGuildOwner(guild, `Hello - I'm tracking OSRS players in your guild _${guild}_, yet you haven't selected a channel for me to send update messages. `
-                            + 'Please select a channel in your guild using the **/channel** command!');
-                        logStatements.push(`_${guild.name}_ is tracking **${numTrackedPlayers}** players but has no tracking channel set (DM sent)`);
+                    const days = auditCounters[guild.id];
+                    logStatement += ` for **${days}** day${days === 1 ? '' : 's'}`;
+                    // If the problem has persisted for so many days, clear all players from this guild
+                    const clearPlayers = days >= 16;
+                    if (clearPlayers) {
+                        // Remove all the players from this guild
+                        const playersToRemove = state.getAllTrackedPlayers(guild.id);
+                        for (const rsn of playersToRemove) {
+                            await pgStorageClient.deleteTrackedPlayer(guild.id, rsn);
+                            state.removeTrackedPlayer(guild.id, rsn);
+                        }
+                        // If some of the removed players are now globally untracked, purge untracked player data
+                        await purgeUntrackedPlayers(playersToRemove, 'audit');
+                        // Add error embed
+                        embeds.push(createWarningEmbed(`This problem has been unresolved for **${days}** days, so I've stopped tracking your players. Use **/track** to add them back: ${naturalJoin(state.getDisplayNames(playersToRemove), { bold: true })}`));
+                        logStatement += ` (cleared all **${playersToRemove.length}** player${playersToRemove.length === 1 ? '' : 's'})`;
                     }
+                    // Send notification
+                    const sendToSystemChannel = clearPlayers || (days % 5 === 0);
+                    if (sendToSystemChannel && guild.systemChannel) {
+                        await guild.systemChannel.send({
+                            content: 'Hello - I\'m tracking OSRS players for you, yet I\'m unable to function properly due to the following problems:',
+                            embeds
+                        });
+                        logStatement += ', sent to system channel';
+                    } else {
+                        await sendDMToGuildOwner(guild,
+                            `Hello - I'm tracking OSRS players in your guild _${guild}_, yet I'm unable to function properly due to the following problems:`,
+                            embeds);
+                        logStatement += ', sent to owner DM';
+                    }
+                    // Add log statement
+                    logStatements.push(logStatement);
+                } else {
+                    // If the guild passed audit, delete it from the audit counters map
+                    delete auditCounters[guild.id];
                 }
             } catch (err) {
                 logStatements.push(`Failure in _${guild.name}_: \`${err}\``);
             }
-        }
-        // If the guild passed audit, delete it from the audit counters map
-        if (guildOk) {
-            delete auditCounters[guild.id];
         }
     }
 

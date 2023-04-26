@@ -571,6 +571,23 @@ export async function updateClues(rsn: string, newScores: Record<IndividualClueT
     return false;
 }
 
+/**
+ * Given a set of RSNs, trigger a purge of player data from PG if any of the players are globally untracked.
+ * @param rsns Set of RSNs to check for purging
+ * @param label Label for logging purposes only
+ */
+export async function purgeUntrackedPlayers(rsns: string[], label: string) {
+    // If any of the given players are globally untracked, purge untracked player data
+    const globallyUntrackedPlayers = rsns.filter(rsn => !state.isPlayerTrackedInAnyGuilds(rsn));
+    if (globallyUntrackedPlayers.length > 0) {
+        const purgeResults = await pgStorageClient.purgeUntrackedPlayerData();
+        // If any rows were deleted, log this
+        if (Object.keys(purgeResults).length > 0) {
+            await logger.log(`(\`${label}\`) ${naturalJoin(globallyUntrackedPlayers, { bold: true })} now globally untracked, purged rows: \`${JSON.stringify(purgeResults)}\``, MultiLoggerLevel.Warn);
+        }
+    }
+}
+
 export function getQuantityWithUnits(quantity: number): string {
     if (quantity < 1000) {
         return quantity.toString();
@@ -654,10 +671,13 @@ export function validateRSN(rsn: string): void {
     }
 }
 
-export async function sendDMToGuildOwner(guild: Guild, text: string) {
+export async function sendDMToGuildOwner(guild: Guild, text: string, embeds: APIEmbed[] = []) {
     const owner = await guild.fetchOwner();
     // Implicitly creates a DM channel with the owner
-    await owner.send(text);
+    await owner.send({
+        content: text,
+        embeds
+    });
 }
 
 export function getBotPermissionsInChannel(channel: TextChannel): PermissionsBitField {

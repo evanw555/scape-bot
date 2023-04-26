@@ -286,6 +286,10 @@ export default class State {
         this._displayNames[rsn] = displayName;
     }
 
+    getDisplayNames(rsns: string[]): string[] {
+        return rsns.map(rsn => this.getDisplayName(rsn));
+    }
+
     // TODO: Will this be needed after we're done populating names?
     getNumPlayerDisplayNames(): number {
         return Object.keys(this._displayNames).length;
