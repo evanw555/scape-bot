@@ -638,13 +638,19 @@ export function getNextEvening(): Date {
  */
 export function generateDetailsContentString(players: string[]): string {
     const CONTENT_MAX_LENGTH = 2000;
-    let contentString = '';
-    for (let i = 0; i < players.length; i++) {
-        const rsn = players[i];
-        const line = `**${state.getDisplayName(rsn)}**: last updated **${state.getLastUpdated(rsn)?.toLocaleTimeString('en-US', { timeZone: CONFIG.timeZone })}**\n`;
+    let contentString = 'When each tracked player was last updated (in PST):\n';
+    const orderedPlayers: string[] = players.filter(rsn => state.getLastUpdated(rsn) !== undefined)
+        .sort((x, y) => (state.getLastUpdated(y)?.getTime() ?? 0) - (state.getLastUpdated(x)?.getTime() ?? 0));
+    const datelessPlayers: string[] = players.filter(rsn => !orderedPlayers.includes(rsn));
+    if (datelessPlayers.length > 0) {
+        contentString += `(**${datelessPlayers.length}** ${datelessPlayers.length === 1 ? 'player hasn\'t' : 'players haven\'t'} been updated since the last reboot)\n`;
+    }
+    for (let i = 0; i < orderedPlayers.length; i++) {
+        const rsn = orderedPlayers[i];
+        const line = `**${state.getDisplayName(rsn)}**: _${state.getLastUpdated(rsn)?.toLocaleTimeString('en-US', { timeZone: CONFIG.timeZone })}_\n`;
         // The cutoff text is based on the remaining players from the previous iteration,
         // so we can just use the index (instead i + 1 to indicate count)
-        const cutoffText = `**plus ${players.length - i} more...**`;
+        const cutoffText = `**plus ${orderedPlayers.length - i} more...**`;
         // If appending to the content string will exceed the max character limit, add the
         // cutoff text and finish
         if (contentString.length + line.length > CONTENT_MAX_LENGTH - cutoffText.length) {
