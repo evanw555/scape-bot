@@ -1,6 +1,6 @@
 import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel, ActivityType, Snowflake, PermissionFlagsBits } from 'discord.js';
 import { PlayerHiScores, TimeoutType } from './types';
-import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer, sanitizeRSN, sendDMToGuildOwner, botHasRequiredPermissionsInChannel, getNextEvening, getMissingRequiredChannelPermissionNames, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers } from './util';
+import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer, sanitizeRSN, sendDMToGuildOwner, getNextEvening, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers } from './util';
 import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel, naturalJoin, getPreciseDurationString } from 'evanw555.js';
 import CommandReader from './command-reader';
 import CommandHandler from './command-handler';
@@ -194,6 +194,7 @@ const client = new Client({
 const auditGuilds = async () => {
     // First, load up the audit notification counters for each guild
     const auditCounters: Record<Snowflake, number> = JSON.parse(await pgStorageClient.fetchMiscProperty('auditCounters') ?? '{}');
+    const newAuditCounters: Record<Snowflake, number> = {};
 
     const logStatements: string[] = [];
 
@@ -207,8 +208,8 @@ const auditGuilds = async () => {
                 if (embeds.length > 0) {
                     let logStatement = `_${guild.name}_: **${embeds.length}** problem${embeds.length === 1 ? '' : 's'}`;
                     // Increment the audit counter for this guild
-                    auditCounters[guild.id] = (auditCounters[guild.id] ?? 0) + 1;
-                    const days = auditCounters[guild.id];
+                    newAuditCounters[guild.id] = (auditCounters[guild.id] ?? 0) + 1;
+                    const days = newAuditCounters[guild.id];
                     logStatement += ` for **${days}** day${days === 1 ? '' : 's'}`;
                     // If the problem has persisted for so many days, clear all players from this guild
                     const clearPlayers = days >= 16;
@@ -241,9 +242,6 @@ const auditGuilds = async () => {
                     }
                     // Add log statement
                     logStatements.push(logStatement);
-                } else {
-                    // If the guild passed audit, delete it from the audit counters map
-                    delete auditCounters[guild.id];
                 }
             } catch (err) {
                 logStatements.push(`Failure in _${guild.name}_: \`${err}\``);
@@ -257,10 +255,10 @@ const auditGuilds = async () => {
     }
 
     // Write the updated counters back to PG
-    if (Object.keys(auditCounters).length > 0) {
-        await pgStorageClient.writeMiscProperty('auditCounters', JSON.stringify(auditCounters));
+    if (Object.keys(newAuditCounters).length > 0) {
+        await pgStorageClient.writeMiscProperty('auditCounters', JSON.stringify(newAuditCounters));
         // TODO: Temp logging to see how this works
-        await logger.log(`Dumped audit counters as \`${JSON.stringify(auditCounters).slice(0, 1600)}\``, MultiLoggerLevel.Warn);
+        await logger.log(`Dumped audit counters as \`${JSON.stringify(newAuditCounters).slice(0, 1600)}\``, MultiLoggerLevel.Warn);
     }
 };
 
