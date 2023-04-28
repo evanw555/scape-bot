@@ -90,6 +90,15 @@ export default class PlayerQueue {
             void logger.log(`[Q${i}] ${queue.counter}/${this.getQueueCounterMax(i)} -> ${rsn}`, MultiLoggerLevel.Trace);
             return rsn;
         }
+        // Emergency fallback logging
+        const queuesMetadata = this.queues.map(q => {
+            return {
+                label: q.config.label,
+                size: q.queue.size(),
+                counter: q.counter
+            };
+        });
+        void logger.log(`Went through all queues without returning anything: \`${JSON.stringify(queuesMetadata)}\``, MultiLoggerLevel.Error);
     }
 
     markAsActive(rsn: string, timestamp?: Date): void {
