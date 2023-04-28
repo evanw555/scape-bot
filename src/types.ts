@@ -32,7 +32,8 @@ export interface ScapeBotConfig {
     presenceUpdateInterval: number,
     timeZone: string,
     debugLog: ScapeBotLoggerConfig,
-    infoLog: ScapeBotLoggerConfig
+    infoLog: ScapeBotLoggerConfig,
+    supportInviteUrl: string
 }
 
 export interface ScapeBotConstants {

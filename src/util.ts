@@ -1,5 +1,5 @@
 import { Boss, BOSSES, INVALID_FORMAT_ERROR, FORMATTED_BOSS_NAMES, getRSNFormat } from 'osrs-json-hiscores';
-import { APIEmbed, ChatInputCommandInteraction, Guild, PermissionFlagsBits, PermissionsBitField, Snowflake, TextBasedChannel, TextChannel, WebhookEditMessageOptions } from 'discord.js';
+import { APIEmbed, ChatInputCommandInteraction, Guild, MessageCreateOptions, PermissionFlagsBits, PermissionsBitField, Snowflake, TextBasedChannel, TextChannel, WebhookEditMessageOptions } from 'discord.js';
 import { addReactsSync, MultiLoggerLevel, naturalJoin, randChoice } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName, PlayerHiScores } from './types';
 import { fetchHiScores } from './hiscores';
@@ -680,13 +680,10 @@ export function validateRSN(rsn: string): void {
     }
 }
 
-export async function sendDMToGuildOwner(guild: Guild, text: string, embeds: APIEmbed[] = []) {
+export async function sendDMToGuildOwner(guild: Guild, data: string | MessageCreateOptions) {
     const owner = await guild.fetchOwner();
     // Implicitly creates a DM channel with the owner
-    await owner.send({
-        content: text,
-        embeds
-    });
+    await owner.send(data);
 }
 
 export function getBotPermissionsInChannel(channel: TextChannel): PermissionsBitField {

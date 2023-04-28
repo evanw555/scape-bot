@@ -9,5 +9,6 @@
     "infoLog": {
         "logCapacity": 15,
         "logMaxEntryLength": 160
-    }
+    },
+    "supportInviteUrl": "https://discord.gg/pQDk6x96y5"
 }

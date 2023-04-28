@@ -1,4 +1,4 @@
-import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel, ActivityType, Snowflake, PermissionFlagsBits } from 'discord.js';
+import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel, ActivityType, Snowflake, PermissionFlagsBits, MessageCreateOptions, ButtonStyle, ComponentType } from 'discord.js';
 import { PlayerHiScores, TimeoutType } from './types';
 import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer, sanitizeRSN, sendDMToGuildOwner, getNextEvening, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers } from './util';
 import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel, naturalJoin, getPreciseDurationString } from 'evanw555.js';
@@ -235,9 +235,10 @@ const auditGuilds = async () => {
                         });
                         logStatement += ', sent to system channel';
                     } else {
-                        await sendDMToGuildOwner(guild,
-                            `Hello - I'm tracking OSRS players in your guild _${guild}_, yet I'm unable to function properly due to the following problems:`,
-                            embeds);
+                        await sendDMToGuildOwner(guild, {
+                            content: `Hello - I'm tracking OSRS players in your guild _${guild}_, yet I'm unable to function properly due to the following problems:`,
+                            embeds
+                        });
                         logStatement += ', sent to owner DM';
                     }
                     // Add log statement
@@ -539,8 +540,19 @@ client.on('ready', async () => {
 
 client.on('guildCreate', async (guild) => {
     const systemChannel = guild.systemChannel;
-    const welcomeText = `Thanks for adding ${client.user} to your server! Admins: to get started, please use **/channel**`
-        + ' in the text channel that should receive player updates and **/help** for a list of useful commands.';
+    const welcomeMessageOptions: MessageCreateOptions = {
+        content: `Thanks for adding ${client.user} to your server! Admins: to get started, please use **/channel**`
+            + ' in the text channel that should receive player updates and **/help** for a list of useful commands.',
+        components: [{
+            type: ComponentType.ActionRow,
+            components: [{
+                type: ComponentType.Button,
+                style: ButtonStyle.Link,
+                label: 'Join the Official Server',
+                url: CONFIG.supportInviteUrl
+            }]
+        }],
+    };
     let welcomeLog = 'N/A';
     try {
         const botMember = guild.members.me;
@@ -558,12 +570,12 @@ client.on('guildCreate', async (guild) => {
             throw new Error('Missing basic permissions in system channel');
         }
         // If it has permissions, send to the system channel
-        await systemChannel.send(welcomeText);
+        await systemChannel.send(welcomeMessageOptions);
         welcomeLog = `welcome message sent to \`#${systemChannel.name}\``;
     } catch (err) {
         // Failed to send to the system channel, so fall back to guild owner DM
         try {
-            await sendDMToGuildOwner(guild, welcomeText);
+            await sendDMToGuildOwner(guild, welcomeMessageOptions);
             welcomeLog = `sent welcome message DM to owner due to error: \`${err}\``;
         } catch (err2) {
             welcomeLog = `unable to send any welcome message at all: \`${err}\`, then \`${err2}\``;

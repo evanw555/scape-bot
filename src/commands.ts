@@ -1,4 +1,4 @@
-import { APIEmbed, ApplicationCommandOptionType, ChatInputCommandInteraction, Guild, Message, PermissionFlagsBits, Snowflake, TextChannel } from 'discord.js';
+import { APIEmbed, ApplicationCommandOptionType, ButtonStyle, ChatInputCommandInteraction, ComponentType, Guild, Message, PermissionFlagsBits, Snowflake, TextChannel } from 'discord.js';
 import { FORMATTED_BOSS_NAMES, Boss, BOSSES, getRSNFormat, INVALID_FORMAT_ERROR } from 'osrs-json-hiscores';
 import { exec } from 'child_process';
 import { MultiLoggerLevel, getPreciseDurationString, naturalJoin, randChoice, randInt } from 'evanw555.js';
@@ -6,7 +6,7 @@ import { PlayerHiScores, SlashCommandsType, HiddenCommandsType, CommandsType, Sl
 import { replyUpdateMessage, sendUpdateMessage, updatePlayer, getBossName, isValidBoss, generateDetailsContentString, sanitizeRSN, botHasRequiredPermissionsInChannel, validateRSN, getMissingRequiredChannelPermissionNames, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers } from './util';
 import { fetchHiScores } from './hiscores';
 import CommandHandler from './command-handler';
-import { CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, BOSS_CHOICES, INVALID_TEXT_CHANNEL, SKILL_EMBED_COLOR, PLAYER_404_ERROR, GRAY_EMBED_COLOR } from './constants';
+import { CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, BOSS_CHOICES, INVALID_TEXT_CHANNEL, SKILL_EMBED_COLOR, PLAYER_404_ERROR, GRAY_EMBED_COLOR, CONFIG } from './constants';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -78,7 +78,19 @@ const slashCommands: SlashCommandsType = {
                 const role = guild.roles.cache.get(state.getPrivilegedRole(guild.id).id);
                 hasPrivilegedRole = role?.members.has(interaction.user.id);
             }
-            await interaction.reply({ content: getHelpText(false, isAdmin, hasPrivilegedRole), ephemeral: true });
+            await interaction.reply({
+                content: getHelpText(false, isAdmin, hasPrivilegedRole),
+                components: [{
+                    type: ComponentType.ActionRow,
+                    components: [{
+                        type: ComponentType.Button,
+                        style: ButtonStyle.Link,
+                        label: 'Get Help in the Official Server',
+                        url: CONFIG.supportInviteUrl
+                    }]
+                }],
+                ephemeral: true
+            });
             return true;
         },
         text: 'Shows help'
