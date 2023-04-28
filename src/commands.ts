@@ -624,12 +624,6 @@ export const hiddenCommands: HiddenCommandsType = {
     },
     rollback: {
         fn: async (msg: Message, rawArgs, rsnArg: string | undefined) => {
-            if (rollbackLock) {
-                await msg.reply('Rollback in progress, try again later!');
-                return;
-            }
-            rollbackLock = true;
-
             // Optionally, support rollbacks for just one specific player
             const sanitizedRsnArg = rsnArg && sanitizeRSN(rsnArg);
             // If an arg was provided, validate that this player is tracked by some guild
@@ -637,6 +631,12 @@ export const hiddenCommands: HiddenCommandsType = {
                 await msg.reply(`Cannot rollback for **${sanitizedRsnArg}**, player isn't tracked by any guilds!`);
                 return;
             }
+
+            if (rollbackLock) {
+                await msg.reply('Rollback in progress, try again later!');
+                return;
+            }
+            rollbackLock = true;
 
             if (rollbackStaging.length === 0) {
                 const playersToCheck: string[] = sanitizedRsnArg ? [sanitizedRsnArg] : state.getAllGloballyTrackedPlayers();
