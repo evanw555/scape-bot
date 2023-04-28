@@ -611,21 +611,29 @@ export const hiddenCommands: HiddenCommandsType = {
         text: 'Enables the bot, this should be used after the bot has been disabled due to an incompatible API change'
     },
     rollback: {
-        fn: async (msg: Message) => {
+        fn: async (msg: Message, rawArgs, rsnArg: string | undefined) => {
             if (rollbackLock) {
                 await msg.reply('Rollback in progress, try again later!');
                 return;
             }
             rollbackLock = true;
 
+            // Optionally, support rollbacks for just one specific player
+            const sanitizedRsnArg = rsnArg && sanitizeRSN(rsnArg);
+            // If an arg was provided, validate that this player is tracked by some guild
+            if (sanitizedRsnArg && !state.isPlayerTrackedInAnyGuilds(sanitizedRsnArg)) {
+                await msg.reply(`Cannot rollback for **${sanitizedRsnArg}**, player isn't tracked by any guilds!`);
+                return;
+            }
+
             if (rollbackStaging.length === 0) {
-                const allPlayers: string[] = state.getAllGloballyTrackedPlayers();
+                const playersToCheck: string[] = sanitizedRsnArg ? [sanitizedRsnArg] : state.getAllGloballyTrackedPlayers();
                 let numPlayersProcessed = 0;
                 const getStatusText = () => {
-                    return `Checking for rollback-impacted data... **(${numPlayersProcessed}/${allPlayers.length})**`;
+                    return `Checking for rollback-impacted data... **(${numPlayersProcessed}/${playersToCheck.length})**`;
                 };
                 const replyMessage = await msg.reply(getStatusText());
-                for (const rsn of allPlayers) {
+                for (const rsn of playersToCheck) {
                     numPlayersProcessed++;
                     let data: PlayerHiScores;
                     try {
@@ -687,7 +695,7 @@ export const hiddenCommands: HiddenCommandsType = {
                         await msg.channel.send(`(Rollback) Detected negatives for **${rsn}**:\n` + logs.join('\n'));
                     }
                     // Update original message
-                    if (numPlayersProcessed % 5 === 0 || numPlayersProcessed === allPlayers.length) {
+                    if (numPlayersProcessed % 5 === 0 || numPlayersProcessed === playersToCheck.length) {
                         await replyMessage.edit(getStatusText());
                     }
                 }
