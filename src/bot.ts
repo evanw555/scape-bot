@@ -528,6 +528,8 @@ client.on('ready', async () => {
                 }
             } else {
                 // No players being tracked
+                await logger.log(`No player returned from queue in main update loop! **${state.getNumGloballyTrackedPlayers()}** players globally tracked`, MultiLoggerLevel.Error);
+                await sleep(CONFIG.refreshInterval * 10);
             }
             // Sleep for the configured refresh interval
             await sleep(CONFIG.refreshInterval);
