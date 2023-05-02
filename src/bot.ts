@@ -15,6 +15,7 @@ import logger from './instances/logger';
 import loggerIndices from './instances/logger-indices';
 import pgStorageClient from './instances/pg-storage-client';
 import timeSlotInstance from './instances/timeslot';
+import timer from './instances/timer';
 
 // TODO: Deprecate CommandReader in favor of CommandHandler
 const commandReader: CommandReader = new CommandReader();
@@ -53,15 +54,6 @@ export async function sendRestartMessage(downtimeMillis: number): Promise<void> 
     // await logger.log(state.toDebugString());
 }
 
-const getGuildName = (guildId: Snowflake): string => {
-    // This function is overly cautious, perhaps unreasonably so...
-    try {
-        return client.guilds.cache.get(guildId)?.name ?? guildId;
-    } catch (err) {
-        return guildId;
-    }
-};
-
 const timeoutCallbacks = {
     [TimeoutType.DailyAudit]: async (): Promise<void> => {
         await timeoutManager.registerTimeout(TimeoutType.DailyAudit, getNextEvening(), { pastStrategy: PastTimeoutStrategy.Invoke });
@@ -77,6 +69,9 @@ const timeoutCallbacks = {
         if (numPlayersVeryInactive > 0) {
             await logger.log(`There are **${numPlayersVeryInactive}** player(s) who haven't been active for over four months`, MultiLoggerLevel.Warn);
         }
+        // Reset the interval measurement data
+        await logger.log(timer.getIntervalMeasurementDebugString(), MultiLoggerLevel.Warn);
+        timer.resetIntervalMeasurement();
     },
     [TimeoutType.WeeklyXpUpdate]: async (): Promise<void> => {
         await timeoutManager.registerTimeout(TimeoutType.WeeklyXpUpdate, getNextFridayEvening(), { pastStrategy: PastTimeoutStrategy.Invoke });
@@ -523,6 +518,9 @@ client.on('ready', async () => {
                 try {
                     await updatePlayer(nextPlayer);
                     await pgStorageClient.writeMiscProperty('timestamp', new Date().toJSON());
+                    // Increment the interval counter
+                    // TODO: How is this affected on error? On disabled?
+                    timer.incrementIntervals();
                 } catch (err) {
                     // Emergency fallback in case of unhandled errors
                     await logger.log(`Unhandled error while updating **${nextPlayer}**: \`${err}\``, MultiLoggerLevel.Error);

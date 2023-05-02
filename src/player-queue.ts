@@ -1,8 +1,7 @@
 import { CircularQueue, getPreciseDurationString, MultiLoggerLevel, naturalJoin } from 'evanw555.js';
 
-import { CONFIG } from './constants';
-
 import logger from './instances/logger';
+import timer from './instances/timer';
 
 interface QueueConfig {
     label: string,
@@ -154,7 +153,7 @@ export default class PlayerQueue {
             result *= this.getQueueCounterMax(i);
         }
         // Add 1 to account for the fact that there might be a lower queue we'll have to visit once per loop
-        return (result + 1) * CONFIG.refreshInterval;
+        return (result + 1) * timer.getEffectiveRefreshInterval();
     }
 
     getDurationString(): string {
@@ -177,7 +176,7 @@ export default class PlayerQueue {
 
     getDebugString(): string {
         return naturalJoin(this.queues.map(queue => {
-            return `**${queue.queue.size()}** ${queue.config.label}`
+            return `**${queue.queue.size()}** ${queue.config.label}`;
         }));
     }
 

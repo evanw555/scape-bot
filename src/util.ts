@@ -1,6 +1,6 @@
 import { Boss, BOSSES, INVALID_FORMAT_ERROR, FORMATTED_BOSS_NAMES, getRSNFormat } from 'osrs-json-hiscores';
 import { APIEmbed, ChatInputCommandInteraction, Guild, MessageCreateOptions, PermissionFlagsBits, PermissionsBitField, Snowflake, TextBasedChannel, TextChannel, WebhookEditMessageOptions } from 'discord.js';
-import { addReactsSync, MultiLoggerLevel, naturalJoin, randChoice } from 'evanw555.js';
+import { addReactsSync, getPreciseDurationString, MultiLoggerLevel, naturalJoin, randChoice } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName, PlayerHiScores } from './types';
 import { fetchHiScores } from './hiscores';
 import { CONSTANTS, CONFIG, BOSS_EMBED_COLOR, CLUES_NO_ALL, CLUE_EMBED_COLOR, COMPLETE_VERB_BOSSES, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, DOPE_COMPLETE_VERBS, DOPE_KILL_VERBS, GRAY_EMBED_COLOR, PLAYER_404_ERROR, RED_EMBED_COLOR, SKILLS_NO_OVERALL, SKILL_EMBED_COLOR, YELLOW_EMBED_COLOR, REQUIRED_PERMISSIONS, REQUIRED_PERMISSION_NAMES, INACTIVE_THRESHOLD_MILLIES } from './constants';
@@ -9,6 +9,7 @@ import state from './instances/state';
 import logger from './instances/logger';
 import pgStorageClient from './instances/pg-storage-client';
 import timeSlotInstance from './instances/timeslot';
+import timer from './instances/timer';
 
 const validSkills: Set<string> = new Set(CONSTANTS.skills);
 const validClues: Set<string> = new Set(CLUES_NO_ALL);
@@ -643,7 +644,7 @@ export function generateDetailsContentString(players: string[]): string {
         .sort((x, y) => (state.getLastUpdated(y)?.getTime() ?? 0) - (state.getLastUpdated(x)?.getTime() ?? 0));
     const datelessPlayers: string[] = players.filter(rsn => !orderedPlayers.includes(rsn));
     if (datelessPlayers.length > 0) {
-        contentString += `(**${datelessPlayers.length}** ${datelessPlayers.length === 1 ? 'player hasn\'t' : 'players haven\'t'} been updated since the last reboot)\n`;
+        contentString += `(**${datelessPlayers.length}** ${datelessPlayers.length === 1 ? 'player hasn\'t' : 'players haven\'t'} been updated since the last reboot **${getPreciseDurationString(timer.getTimeSinceBoot())}** ago)\n`;
     }
     for (let i = 0; i < orderedPlayers.length; i++) {
         const rsn = orderedPlayers[i];

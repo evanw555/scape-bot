@@ -11,6 +11,7 @@ import { CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, BOSS_CHOICES, INVALID_TEXT_
 import state from './instances/state';
 import logger from './instances/logger';
 import pgStorageClient from './instances/pg-storage-client';
+import timer from './instances/timer';
 
 import debugLog from './instances/debug-log';
 import infoLog from './instances/info-log';
@@ -98,6 +99,7 @@ const slashCommands: SlashCommandsType = {
     info: {
         execute: async (interaction) => {
             const guildId = getInteractionGuildId(interaction);
+            // TODO: If bot is disabled, show warning about inaccurate refresh durations
             await interaction.reply({
                 embeds: [{
                     description: `**Players:** ${state.getNumTrackedPlayers(guildId)}\n`
@@ -159,7 +161,7 @@ const slashCommands: SlashCommandsType = {
             // If the display name could not be found and it's different than what the user input, warn them
             const warningEmbeds = getGuildWarningEmbeds(guildId);
             if (!state.hasDisplayName(rsn) && rsn !== rawRsnInput) {
-                warningEmbeds.push(createWarningEmbed(`The correct formatting of this player's username could not be determined, `
+                warningEmbeds.push(createWarningEmbed('The correct formatting of this player\'s username could not be determined, '
                     + `so they will be tracked as **${rsn}** (versus **${rawRsnInput.trim()}**) until they reach the overall hiscores.`));
             }
             // Edit the reply with an initial success message (and any guild warnings there may be)
@@ -600,6 +602,8 @@ export const hiddenCommands: HiddenCommandsType = {
             await msg.reply('Enabling the bot... If the API format is still not supported, the bot will disable itself.');
             await pgStorageClient.writeMiscProperty('disabled', 'false');
             state.setDisabled(false);
+            // Reset the interval measurement data
+            timer.resetIntervalMeasurement();
         },
         text: 'Enables the bot, this should be used after the bot has been disabled due to an incompatible API change'
     },
@@ -808,7 +812,7 @@ export const hiddenCommands: HiddenCommandsType = {
                 const timeSinceLastRefresh: number = new Date().getTime() - lastRefresh.getTime();
                 const timeSinceLastActive: number = state.getTimeSincePlayerLastActive(rsn);
                 embeds.push({
-                    description: `Time since...`,
+                    description: 'Time since...',
                     fields: [{
                         name: 'Last Refresh',
                         value: getPreciseDurationString(timeSinceLastRefresh)
@@ -835,7 +839,7 @@ export const hiddenCommands: HiddenCommandsType = {
 
             await msg.reply({
                 embeds
-            })
+            });
         },
         text: 'Shows information about a given player'
     },
@@ -847,7 +851,7 @@ export const hiddenCommands: HiddenCommandsType = {
                 return;
             }
             if (!state.hasTrackingChannel(guildId)) {
-                await msg.reply(`Guild with ID \`${guildId}\` either has no tracking channel or doesn't exist`)
+                await msg.reply(`Guild with ID \`${guildId}\` either has no tracking channel or doesn't exist`);
                 return;
             }
             // Send the message
