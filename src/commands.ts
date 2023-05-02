@@ -532,19 +532,27 @@ export const hiddenCommands: HiddenCommandsType = {
         text: 'Spoof an update notification for some player with random skill/boss updates',
         failIfDisabled: true
     },
-    uptime: {
-        fn: (msg) => {
-            exec('uptime --pretty', (error, stdout, stderr) => {
-                if (error) {
-                    void msg.channel.send(`\`\`\`\n${error.message}\n\`\`\``);
-                    return;
-                } else if (stderr) {
-                    void msg.channel.send(`\`\`\`\n${stderr}\n\`\`\``);
-                    return;
-                } else {
-                    void msg.channel.send(`\`${stdout}\``);
-                }
+    admin: {
+        fn: async (msg) => {
+            // Get host uptime info
+            const uptimeString = await new Promise((resolve) => {
+                exec('uptime --pretty', (error, stdout, stderr) => {
+                    if (error) {
+                        resolve(error.message);
+                        void msg.channel.send(`\`\`\`\n${error.message}\n\`\`\``);
+                        return;
+                    } else if (stderr) {
+                        resolve(stderr);
+                        void msg.channel.send(`\`\`\`\n${stderr}\n\`\`\``);
+                        return;
+                    } else {
+                        resolve(stdout);
+                        void msg.channel.send(`\`${stdout}\``);
+                    }
+                });
             });
+            // Send admin info back to user
+            await msg.channel.send(`Admin Information:\n**Host Uptime:** \`${uptimeString}\`\n**Timer Info:** \`${timer.getIntervalMeasurementDebugString()}\``);
         },
         text: 'Show the uptime of the host (not the bot)'
     },
