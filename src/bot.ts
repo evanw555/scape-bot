@@ -520,9 +520,6 @@ client.on('ready', async () => {
                 try {
                     await updatePlayer(nextPlayer);
                     await pgStorageClient.writeMiscProperty('timestamp', new Date().toJSON());
-                    // Increment the interval counter
-                    // TODO: How is this affected on error? On disabled?
-                    timer.incrementIntervals();
                 } catch (err) {
                     // Emergency fallback in case of unhandled errors
                     await logger.log(`Unhandled error while updating **${nextPlayer}**: \`${err}\``, MultiLoggerLevel.Error);
@@ -532,6 +529,9 @@ client.on('ready', async () => {
                 await logger.log(`No player returned from queue in main update loop! **${state.getNumGloballyTrackedPlayers()}** players globally tracked`, MultiLoggerLevel.Error);
                 await sleep(CONFIG.refreshInterval * 10);
             }
+            // Increment the interval counter
+            // TODO: How is this affected on error? On disabled?
+            timer.incrementIntervals();
             // Sleep for the configured refresh interval
             await sleep(CONFIG.refreshInterval);
         }
