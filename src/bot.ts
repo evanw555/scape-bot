@@ -1,6 +1,6 @@
-import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel, ActivityType, Snowflake, PermissionFlagsBits, MessageCreateOptions } from 'discord.js';
+import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel, ActivityType, Snowflake, PermissionFlagsBits, MessageCreateOptions, ButtonStyle, ComponentType } from 'discord.js';
 import { PlayerHiScores, TimeoutType } from './types';
-import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer, sanitizeRSN, sendDMToGuildOwner, getNextEvening, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers, getHelpComponents } from './util';
+import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer, sanitizeRSN, sendDMToGuildOwner, getNextEvening, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers } from './util';
 import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel, naturalJoin, getPreciseDurationString } from 'evanw555.js';
 import CommandReader from './command-reader';
 import CommandHandler from './command-handler';
@@ -226,15 +226,13 @@ const auditGuilds = async () => {
                     if (sendToSystemChannel && guild.systemChannel) {
                         await guild.systemChannel.send({
                             content: 'Hello - I\'m tracking OSRS players for you, yet I\'m unable to function properly due to the following problems:',
-                            embeds,
-                            components: getHelpComponents('Questions? Join the Official Server')
+                            embeds
                         });
                         logStatement += ', sent to system channel';
                     } else {
                         await sendDMToGuildOwner(guild, {
                             content: `Hello - I'm tracking OSRS players in your guild _${guild}_, yet I'm unable to function properly due to the following problems:`,
-                            embeds,
-                            components: getHelpComponents('Questions? Join the Official Server')
+                            embeds
                         });
                         logStatement += ', sent to owner DM';
                     }
@@ -520,6 +518,9 @@ client.on('ready', async () => {
                 try {
                     await updatePlayer(nextPlayer);
                     await pgStorageClient.writeMiscProperty('timestamp', new Date().toJSON());
+                    // Increment the interval counter
+                    // TODO: How is this affected on error? On disabled?
+                    timer.incrementIntervals();
                 } catch (err) {
                     // Emergency fallback in case of unhandled errors
                     await logger.log(`Unhandled error while updating **${nextPlayer}**: \`${err}\``, MultiLoggerLevel.Error);
@@ -529,9 +530,6 @@ client.on('ready', async () => {
                 await logger.log(`No player returned from queue in main update loop! **${state.getNumGloballyTrackedPlayers()}** players globally tracked`, MultiLoggerLevel.Error);
                 await sleep(CONFIG.refreshInterval * 10);
             }
-            // Increment the interval counter
-            // TODO: How is this affected on error? On disabled?
-            timer.incrementIntervals();
             // Sleep for the configured refresh interval
             await sleep(CONFIG.refreshInterval);
         }
@@ -543,7 +541,15 @@ client.on('guildCreate', async (guild) => {
     const welcomeMessageOptions: MessageCreateOptions = {
         content: `Thanks for adding ${client.user} to your server! Admins: to get started, please use **/channel**`
             + ' in the text channel that should receive player updates and **/help** for a list of useful commands.',
-        components: getHelpComponents('Join the Official Server')
+        components: [{
+            type: ComponentType.ActionRow,
+            components: [{
+                type: ComponentType.Button,
+                style: ButtonStyle.Link,
+                label: 'Join the Official Server',
+                url: CONFIG.supportInviteUrl
+            }]
+        }],
     };
     let welcomeLog = 'N/A';
     try {

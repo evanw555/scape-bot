@@ -1,9 +1,9 @@
 import { Boss, BOSSES, INVALID_FORMAT_ERROR, FORMATTED_BOSS_NAMES, getRSNFormat } from 'osrs-json-hiscores';
-import { APIEmbed, ActionRowData, ButtonStyle, ChatInputCommandInteraction, ComponentType, Guild, MessageActionRowComponentData, MessageCreateOptions, PermissionFlagsBits, PermissionsBitField, Snowflake, TextBasedChannel, TextChannel } from 'discord.js';
-import { addReactsSync, DiscordTimestampFormat, getPreciseDurationString, MultiLoggerLevel, naturalJoin, randChoice, toDiscordTimestamp } from 'evanw555.js';
+import { APIEmbed, ChatInputCommandInteraction, Guild, MessageCreateOptions, PermissionFlagsBits, PermissionsBitField, Snowflake, TextBasedChannel, TextChannel, WebhookEditMessageOptions } from 'discord.js';
+import { addReactsSync, getPreciseDurationString, MultiLoggerLevel, naturalJoin, randChoice } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName, PlayerHiScores } from './types';
 import { fetchHiScores } from './hiscores';
-import { CONSTANTS, BOSS_EMBED_COLOR, CLUES_NO_ALL, CLUE_EMBED_COLOR, COMPLETE_VERB_BOSSES, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, DOPE_COMPLETE_VERBS, DOPE_KILL_VERBS, GRAY_EMBED_COLOR, PLAYER_404_ERROR, RED_EMBED_COLOR, SKILLS_NO_OVERALL, SKILL_EMBED_COLOR, YELLOW_EMBED_COLOR, REQUIRED_PERMISSIONS, REQUIRED_PERMISSION_NAMES, INACTIVE_THRESHOLD_MILLIES, CONFIG } from './constants';
+import { CONSTANTS, CONFIG, BOSS_EMBED_COLOR, CLUES_NO_ALL, CLUE_EMBED_COLOR, COMPLETE_VERB_BOSSES, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, DOPE_COMPLETE_VERBS, DOPE_KILL_VERBS, GRAY_EMBED_COLOR, PLAYER_404_ERROR, RED_EMBED_COLOR, SKILLS_NO_OVERALL, SKILL_EMBED_COLOR, YELLOW_EMBED_COLOR, REQUIRED_PERMISSIONS, REQUIRED_PERMISSION_NAMES, INACTIVE_THRESHOLD_MILLIES } from './constants';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -639,7 +639,7 @@ export function getNextEvening(): Date {
  */
 export function generateDetailsContentString(players: string[]): string {
     const CONTENT_MAX_LENGTH = 2000;
-    let contentString = 'When each tracked player was last updated:\n';
+    let contentString = 'When each tracked player was last updated (in PST):\n';
     const orderedPlayers: string[] = players.filter(rsn => state.getLastUpdated(rsn) !== undefined)
         .sort((x, y) => (state.getLastUpdated(y)?.getTime() ?? 0) - (state.getLastUpdated(x)?.getTime() ?? 0));
     const datelessPlayers: string[] = players.filter(rsn => !orderedPlayers.includes(rsn));
@@ -648,20 +648,17 @@ export function generateDetailsContentString(players: string[]): string {
     }
     for (let i = 0; i < orderedPlayers.length; i++) {
         const rsn = orderedPlayers[i];
-        const date = state.getLastUpdated(rsn);
-        if (date) {
-            const line = `**${state.getDisplayName(rsn)}**: ${toDiscordTimestamp(date, DiscordTimestampFormat.LongTime)}\n`;
-            // The cutoff text is based on the remaining players from the previous iteration,
-            // so we can just use the index (instead i + 1 to indicate count)
-            const cutoffText = `**plus ${orderedPlayers.length - i} more...**`;
-            // If appending to the content string will exceed the max character limit, add the
-            // cutoff text and finish
-            if (contentString.length + line.length > CONTENT_MAX_LENGTH - cutoffText.length) {
-                contentString += cutoffText;
-                break;
-            }
-            contentString += line;
+        const line = `**${state.getDisplayName(rsn)}**: _${state.getLastUpdated(rsn)?.toLocaleTimeString('en-US', { timeZone: CONFIG.timeZone })}_\n`;
+        // The cutoff text is based on the remaining players from the previous iteration,
+        // so we can just use the index (instead i + 1 to indicate count)
+        const cutoffText = `**plus ${orderedPlayers.length - i} more...**`;
+        // If appending to the content string will exceed the max character limit, add the
+        // cutoff text and finish
+        if (contentString.length + line.length > CONTENT_MAX_LENGTH - cutoffText.length) {
+            contentString += cutoffText;
+            break;
         }
+        contentString += line;
     }
     return contentString;
 }
@@ -774,21 +771,4 @@ export function createWarningEmbed(text: string): APIEmbed {
         },
         color: RED_EMBED_COLOR
     };
-}
-
-/**
- * Generates an "action row" as a list of message components.
- * @param inviteText Text to show on the server invite button
- * @returns Action row component list
- */
-export function getHelpComponents(inviteText: string): ActionRowData<MessageActionRowComponentData>[] {
-    return [{
-        type: ComponentType.ActionRow,
-        components: [{
-            type: ComponentType.Button,
-            style: ButtonStyle.Link,
-            label: inviteText,
-            url: CONFIG.supportInviteUrl
-        }]
-    }];
 }
