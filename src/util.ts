@@ -1,5 +1,5 @@
 import { Boss, BOSSES, INVALID_FORMAT_ERROR, FORMATTED_BOSS_NAMES, getRSNFormat } from 'osrs-json-hiscores';
-import { APIEmbed, ChatInputCommandInteraction, Guild, MessageCreateOptions, PermissionFlagsBits, PermissionsBitField, Snowflake, TextBasedChannel, TextChannel, WebhookEditMessageOptions } from 'discord.js';
+import { APIEmbed, ChatInputCommandInteraction, Guild, MessageCreateOptions, PermissionFlagsBits, PermissionsBitField, Snowflake, TextBasedChannel, TextChannel } from 'discord.js';
 import { addReactsSync, getPreciseDurationString, MultiLoggerLevel, naturalJoin, randChoice } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName, PlayerHiScores } from './types';
 import { fetchHiScores } from './hiscores';
