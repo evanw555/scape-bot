@@ -1,6 +1,6 @@
-import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel, ActivityType, Snowflake, PermissionFlagsBits, MessageCreateOptions, ButtonStyle, ComponentType } from 'discord.js';
+import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel, ActivityType, Snowflake, PermissionFlagsBits, MessageCreateOptions } from 'discord.js';
 import { PlayerHiScores, TimeoutType } from './types';
-import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer, sanitizeRSN, sendDMToGuildOwner, getNextEvening, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers } from './util';
+import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer, sanitizeRSN, sendDMToGuildOwner, getNextEvening, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers, getHelpComponents } from './util';
 import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel, naturalJoin, getPreciseDurationString } from 'evanw555.js';
 import CommandReader from './command-reader';
 import CommandHandler from './command-handler';
@@ -226,13 +226,15 @@ const auditGuilds = async () => {
                     if (sendToSystemChannel && guild.systemChannel) {
                         await guild.systemChannel.send({
                             content: 'Hello - I\'m tracking OSRS players for you, yet I\'m unable to function properly due to the following problems:',
-                            embeds
+                            embeds,
+                            components: getHelpComponents('Questions? Join the Official Server')
                         });
                         logStatement += ', sent to system channel';
                     } else {
                         await sendDMToGuildOwner(guild, {
                             content: `Hello - I'm tracking OSRS players in your guild _${guild}_, yet I'm unable to function properly due to the following problems:`,
-                            embeds
+                            embeds,
+                            components: getHelpComponents('Questions? Join the Official Server')
                         });
                         logStatement += ', sent to owner DM';
                     }
@@ -541,15 +543,7 @@ client.on('guildCreate', async (guild) => {
     const welcomeMessageOptions: MessageCreateOptions = {
         content: `Thanks for adding ${client.user} to your server! Admins: to get started, please use **/channel**`
             + ' in the text channel that should receive player updates and **/help** for a list of useful commands.',
-        components: [{
-            type: ComponentType.ActionRow,
-            components: [{
-                type: ComponentType.Button,
-                style: ButtonStyle.Link,
-                label: 'Join the Official Server',
-                url: CONFIG.supportInviteUrl
-            }]
-        }],
+        components: getHelpComponents('Join the Official Server')
     };
     let welcomeLog = 'N/A';
     try {
