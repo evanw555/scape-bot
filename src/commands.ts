@@ -535,26 +535,30 @@ export const hiddenCommands: HiddenCommandsType = {
     admin: {
         fn: async (msg) => {
             // Get host uptime info
-            const uptimeString = await new Promise((resolve) => {
+            const uptimeString = await new Promise<string>((resolve) => {
                 exec('uptime --pretty', (error, stdout, stderr) => {
                     if (error) {
                         resolve(error.message);
-                        void msg.channel.send(`\`\`\`\n${error.message}\n\`\`\``);
-                        return;
                     } else if (stderr) {
                         resolve(stderr);
-                        void msg.channel.send(`\`\`\`\n${stderr}\n\`\`\``);
-                        return;
                     } else {
                         resolve(stdout);
-                        void msg.channel.send(`\`${stdout}\``);
                     }
                 });
             });
             // Send admin info back to user
-            await msg.channel.send(`Admin Information:\n**Host Uptime:** \`${uptimeString}\`\n**Timer Info:** \`${timer.getIntervalMeasurementDebugString()}\``);
+            await msg.channel.send({
+                content: 'Admin Information:',
+                embeds: [{
+                    title: 'Host Uptime',
+                    description: `\`${uptimeString.trim()}\``
+                }, {
+                    title: 'Timer Info',
+                    description: `\`${timer.getIntervalMeasurementDebugString()}\``
+                }]
+            });
         },
-        text: 'Show the uptime of the host (not the bot)'
+        text: 'Show various debug data for admins'
     },
     kill: {
         fn: (msg) => {
