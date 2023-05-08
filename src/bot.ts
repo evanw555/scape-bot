@@ -1,7 +1,7 @@
 import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel, ActivityType, Snowflake, PermissionFlagsBits, MessageCreateOptions } from 'discord.js';
 import { PlayerHiScores, TimeoutType } from './types';
 import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer, sanitizeRSN, sendDMToGuildOwner, getNextEvening, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers, getHelpComponents } from './util';
-import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel, naturalJoin, getPreciseDurationString } from 'evanw555.js';
+import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel, naturalJoin, getPreciseDurationString, toDiscordTimestamp } from 'evanw555.js';
 import CommandReader from './command-reader';
 import CommandHandler from './command-handler';
 import commands from './commands';
@@ -505,6 +505,16 @@ client.on('ready', async () => {
         }
     }, CONFIG.presenceUpdateInterval);
 
+    // Set an interval to monitor whether updates have stopped
+    // TODO: Once we determine the cause of the broken update loop, we can maybe remove this
+    setInterval(() => {
+        const millisSinceLastUpdate = new Date().getTime() - state.getTimestamp().getTime();
+        // If it's been longer than 1 minute, log an error
+        if (millisSinceLastUpdate > 1000 * 60) {
+            void logger.log(`It's been **${getPreciseDurationString(millisSinceLastUpdate)}** since the last update (${toDiscordTimestamp(state.getTimestamp())}), everything ok?`, MultiLoggerLevel.Error);
+        }
+    }, 1000 * 60 * 10); // Every 10 minutes
+
     // Finally, run the synchronous update loop.
     // The purpose of using a synchronous loop is to ensure there's extra time between updates in the case of slow network calls.
     // TODO: We should make the scheduled events (e.g. weekly updates) use this same process to avoid concurrent state updates.
@@ -520,6 +530,7 @@ client.on('ready', async () => {
                 try {
                     await updatePlayer(nextPlayer);
                     await pgStorageClient.writeMiscProperty('timestamp', new Date().toJSON());
+                    state.setTimestamp(new Date());
                 } catch (err) {
                     // Emergency fallback in case of unhandled errors
                     await logger.log(`Unhandled error while updating **${nextPlayer}**: \`${err}\``, MultiLoggerLevel.Error);
