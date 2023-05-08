@@ -508,10 +508,12 @@ client.on('ready', async () => {
     // Set an interval to monitor whether updates have stopped
     // TODO: Once we determine the cause of the broken update loop, we can maybe remove this
     setInterval(() => {
-        const millisSinceLastUpdate = new Date().getTime() - state.getTimestamp().getTime();
-        // If it's been longer than 1 minute, log an error
-        if (millisSinceLastUpdate > 1000 * 60) {
-            void logger.log(`It's been **${getPreciseDurationString(millisSinceLastUpdate)}** since the last update (${toDiscordTimestamp(state.getTimestamp())}), everything ok?`, MultiLoggerLevel.Error);
+        if (!state.isDisabled()) {
+            const millisSinceLastUpdate = new Date().getTime() - state.getTimestamp().getTime();
+            // If it's been longer than 1 minute, log an error
+            if (millisSinceLastUpdate > 1000 * 60) {
+                void logger.log(`It's been **${getPreciseDurationString(millisSinceLastUpdate)}** since the last update (${toDiscordTimestamp(state.getTimestamp())}), everything ok?`, MultiLoggerLevel.Error);
+            }
         }
     }, 1000 * 60 * 10); // Every 10 minutes
 
