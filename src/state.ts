@@ -484,6 +484,15 @@ export default class State {
     }
 
     /**
+     * @returns Sorted list of all relevant guild IDs, from most players tracked to fewest players tracked
+     */
+    getGuildsByPlayerCount(): Snowflake[] {
+        const allGuildIds: Snowflake[] = this.getAllRelevantGuilds();
+        allGuildIds.sort((x, y) => this.getNumTrackedPlayers(y) - this.getNumTrackedPlayers(x));
+        return allGuildIds;
+    }
+
+    /**
      * TODO: This is just used on startup to troubleshoot some issues. Should it be removed?
      */
     toDebugString(): string {

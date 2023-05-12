@@ -547,6 +547,12 @@ export const hiddenCommands: HiddenCommandsType = {
                 }, {
                     title: 'Timer Info',
                     description: `\`${timer.getIntervalMeasurementDebugString()}\``
+                }, {
+                    title: 'Largest Guilds',
+                    description: state.getGuildsByPlayerCount()
+                        .slice(0, 10)
+                        .map((id, i) => `**${i + 1}.** _${msg.client.guilds.cache.get(id)?.name ?? '???'}_: **${state.getNumTrackedPlayers(id)}**`)
+                        .join('\n')
                 }]
             });
         },
