@@ -375,7 +375,8 @@ export async function updateLevels(rsn: string, newLevels: Record<IndividualSkil
                 + (levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`)
                 + ` in **${skill}** and is now level **99**`,
             skill, {
-                header: '@everyone',
+                // TODO: Disabling the @everyone tagnow , but make it configurable when we support server settings
+                // header: '@everyone',
                 is99: true,
                 reacts: ['🇬', '🇿']
             });
