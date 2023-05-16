@@ -548,6 +548,9 @@ export const hiddenCommands: HiddenCommandsType = {
                     title: 'Timer Info',
                     description: `\`${timer.getIntervalMeasurementDebugString()}\``
                 }, {
+                    title: 'Total XP',
+                    description: `Populated for **${state.getNumPlayerTotalXp()}** of **${state.getNumGloballyTrackedPlayers()}** players`
+                }, {
                     title: 'Largest Guilds',
                     description: state.getGuildsByPlayerCount()
                         .slice(0, 10)

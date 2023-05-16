@@ -288,12 +288,9 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
         }
     }
 
-    let anyActivity = false;
-
     // Check if levels have changes and send notifications
     if (state.hasLevels(rsn)) {
-        const activity = await updateLevels(rsn, data.levelsWithDefaults, options?.spoofedDiff);
-        anyActivity = anyActivity || activity;
+        await updateLevels(rsn, data.levelsWithDefaults, options?.spoofedDiff);
     } else {
         // If this player has no levels in the state, prime with initial data (NOT including assumed defaults)
         state.setLevels(rsn, data.levels);
@@ -303,8 +300,7 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
 
     // Check if bosses have changes and send notifications
     if (state.hasBosses(rsn)) {
-        const activity = await updateKillCounts(rsn, data.bossesWithDefaults, options?.spoofedDiff);
-        anyActivity = anyActivity || activity;
+        await updateKillCounts(rsn, data.bossesWithDefaults, options?.spoofedDiff);
     } else {
         // If this player has no bosses in the state, prime with initial data (NOT including assumed defaults)
         state.setBosses(rsn, data.bosses);
@@ -314,8 +310,7 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
 
     // Check if clues have changes and send notifications
     if (state.hasClues(rsn)) {
-        const activity = await updateClues(rsn, data.cluesWithDefaults, options?.spoofedDiff);
-        anyActivity = anyActivity || activity;
+        await updateClues(rsn, data.cluesWithDefaults, options?.spoofedDiff);
     } else {
         // If this player has no clues in the state, prime with initial data (NOT including assumed defaults)
         state.setClues(rsn, data.clues);
@@ -323,15 +318,32 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
         await pgStorageClient.writePlayerClues(rsn, data.clues);
     }
 
+    // If there's no total XP for this player, fill it in now
+    // TODO: This is temp logic to avoid every player being marked as active while total XP values are being filled in. Delete this later...
+    if (!state.hasTotalXp(rsn)) {
+        // Update their total XP in the state and in PG
+        state.setTotalXp(rsn, data.totalXp);
+        await pgStorageClient.updatePlayerTotalXp(rsn, data.totalXp);
+    }
+    // "Activity" is determined by a positive change in total XP
+    const activity = data.totalXp > state.getTotalXp(rsn);
+    // TODO: Temp logging to track XP-negative situations
+    if (data.totalXp < state.getTotalXp(rsn)) {
+        await logger.log(`Negative total XP diff for player **${state.getDisplayName(rsn)}**:  \`${state.getTotalXp(rsn)}\` -> \`${data.totalXp}\``, MultiLoggerLevel.Error);
+    }
+
     // If the player saw any sort of activity (or if we're priming a new player's data)
-    if (anyActivity || options?.primer) {
+    if (activity || options?.primer) {
         // Mark the player as active
         state.markPlayerAsActive(rsn);
         await pgStorageClient.updatePlayerActivityTimestamp(rsn);
+        // Update their total XP in the state and in PG
+        state.setTotalXp(rsn, data.totalXp);
+        await pgStorageClient.updatePlayerTotalXp(rsn, data.totalXp);
     }
 
     // TODO: Temp logic for time slot activity analysis
-    if (anyActivity) {
+    if (activity) {
         timeSlotInstance.incrementPlayer(rsn);
     }
 }

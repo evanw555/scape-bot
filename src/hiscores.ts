@@ -105,7 +105,6 @@ export async function fetchHiScores(rsn: string): Promise<PlayerHiScores> {
 
     // If there were missing skills, these values won't be accurate (so don't include them)
     if (Object.keys(levels).length === Object.keys(levelsWithDefaults).length) {
-        result.totalXp = stats.skills.overall.xp;
         result.baseLevel = Math.min(...Object.values(levels));
         result.totalLevel = [0, ...Object.values(levels)].reduce((x, y) => x + y);
     }

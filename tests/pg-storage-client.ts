@@ -146,6 +146,10 @@ describe('PGStorageClient Tests', () => {
         expect(offHiScores2.sort().join(',')).equals('player1,player2');
     });
 
+    it('can read and write player total xp', async () => {
+        // TODO: Add tests for this
+    });
+
     it('can read and write player activity timestamps', async () => {
         // TODO: Add tests for this
     });

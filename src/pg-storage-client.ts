@@ -7,11 +7,12 @@ import { IndividualSkillName, IndividualClueType, MiscPropertyName } from './typ
 
 import logger from './instances/logger';
 
-type TableName = 'weekly_xp_snapshots' | 'player_levels' | 'player_bosses' | 'player_clues' | 'tracked_players' | 'tracking_channels' | 'player_hiscore_status' | 'player_display_names' | 'player_activity_timestamps' | 'bot_counters' | 'privileged_roles' | 'misc_properties';
+type TableName = 'weekly_xp_snapshots' | 'player_total_xp' | 'player_levels' | 'player_bosses' | 'player_clues' | 'tracked_players' | 'tracking_channels' | 'player_hiscore_status' | 'player_display_names' | 'player_activity_timestamps' | 'bot_counters' | 'privileged_roles' | 'misc_properties';
 
 export default class PGStorageClient {
     private static readonly TABLES: Record<TableName, string> = {
         'weekly_xp_snapshots': 'CREATE TABLE weekly_xp_snapshots (rsn VARCHAR(12) PRIMARY KEY, xp BIGINT);',
+        'player_total_xp': 'CREATE TABLE player_total_xp (rsn VARCHAR(12) PRIMARY KEY, xp BIGINT);',
         'player_levels': 'CREATE TABLE player_levels (rsn VARCHAR(12), skill VARCHAR(12), level SMALLINT, PRIMARY KEY (rsn, skill));',
         'player_bosses': 'CREATE TABLE player_bosses (rsn VARCHAR(12), boss VARCHAR(32), score SMALLINT, PRIMARY KEY (rsn, boss));',
         'player_clues': 'CREATE TABLE player_clues (rsn VARCHAR(12), clue VARCHAR(12), score SMALLINT, PRIMARY KEY (rsn, clue));',
@@ -28,6 +29,7 @@ export default class PGStorageClient {
     // List of tables that should be purged if the player corresponding to a row is missing from tracked_players
     private static readonly PURGEABLE_PLAYER_TABLES: TableName[] = [
         'weekly_xp_snapshots',
+        'player_total_xp',
         'player_levels',
         'player_bosses',
         'player_clues',
@@ -88,13 +90,27 @@ export default class PGStorageClient {
         return Object.keys(PGStorageClient.TABLES) as TableName[];
     }
     
-    async writeWeeklyXpSnapshots(snapshots: Record<Snowflake, number>): Promise<void> {
+    async writeWeeklyXpSnapshots(snapshots: Record<string, number>): Promise<void> {
         await this.client.query(format('INSERT INTO weekly_xp_snapshots VALUES %L ON CONFLICT (rsn) DO UPDATE SET xp = EXCLUDED.xp;', Object.entries(snapshots)));
     }
     
-    async fetchWeeklyXpSnapshots(): Promise<Record<Snowflake, number>> {
-        const result: Record<Snowflake, number> = {};
+    async fetchWeeklyXpSnapshots(): Promise<Record<string, number>> {
+        const result: Record<string, number> = {};
         const res = await this.client.query<{rsn: string, xp: number}>('SELECT * FROM weekly_xp_snapshots;');
+        for (const row of res.rows) {
+            // Big ints are returned as strings in node-postgres
+            result[row.rsn] = parseInt(row.xp.toString());
+        }
+        return result;
+    }
+
+    async updatePlayerTotalXp(rsn: string, xp: number): Promise<void> {
+        await this.client.query('INSERT INTO player_total_xp VALUES ($1, $2) ON CONFLICT (rsn) DO UPDATE SET xp = EXCLUDED.xp;', [rsn, xp]);
+    }
+
+    async fetchTotalXpForAllPlayers(): Promise<Record<string, number>> {
+        const result: Record<string, number> = {};
+        const res = await this.client.query<{rsn: string, xp: number}>('SELECT * FROM player_total_xp;');
         for (const row of res.rows) {
             // Big ints are returned as strings in node-postgres
             result[row.rsn] = parseInt(row.xp.toString());

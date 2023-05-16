@@ -18,6 +18,7 @@ export default class State {
     private readonly _botCounters: Record<Snowflake, number>;
     private readonly _lastUpdate: Record<string, Date>;
     private readonly _displayNames: Record<string, string>;
+    private readonly _totalXp: Record<string, number>;
     private readonly _maintainerIds: Set<Snowflake>;
 
     private readonly _masterPlayerQueue: PlayerQueue;
@@ -38,6 +39,7 @@ export default class State {
         this._botCounters = {};
         this._lastUpdate = {};
         this._displayNames = {};
+        this._totalXp = {};
         this._maintainerIds = new Set();
 
         this._masterPlayerQueue = new PlayerQueue({
@@ -148,6 +150,8 @@ export default class State {
             delete this._bosses[rsn];
             delete this._clues[rsn];
             delete this._lastUpdate[rsn];
+            delete this._displayNames[rsn];
+            delete this._totalXp[rsn];
             this._playersOffHiScores.delete(rsn);
             void logger.log(`Removed player ${rsn} from the master queue`, MultiLoggerLevel.Debug);
         }
@@ -293,6 +297,23 @@ export default class State {
     // TODO: Will this be needed after we're done populating names?
     getNumPlayerDisplayNames(): number {
         return Object.keys(this._displayNames).length;
+    }
+
+    getTotalXp(rsn: string): number {
+        return this._totalXp[rsn] ?? 0;
+    }
+
+    hasTotalXp(rsn: string): boolean {
+        return rsn in this._totalXp;
+    }
+
+    setTotalXp(rsn: string, xp: number) {
+        this._totalXp[rsn] = xp;
+    }
+
+    // TODO: Will this be needed after we're done populating total XP?
+    getNumPlayerTotalXp(): number {
+        return Object.keys(this._totalXp).length;
     }
 
     addMaintainerId(userId: Snowflake): void {

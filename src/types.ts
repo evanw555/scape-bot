@@ -118,7 +118,7 @@ export interface ParsedCommand {
 
 export interface PlayerHiScores {
     onHiScores: boolean,
-    totalXp?: number,
+    totalXp: number,
     baseLevel?: number,
     totalLevel?: number,
     levels: Partial<Record<IndividualSkillName, number>>,
