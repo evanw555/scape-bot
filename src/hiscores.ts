@@ -94,7 +94,6 @@ export async function fetchHiScores(rsn: string): Promise<PlayerHiScores> {
 
     const result: PlayerHiScores = {
         onHiScores: stats.skills.overall.rank !== -1,
-        totalXp: stats.skills.overall.xp,
         levels,
         levelsWithDefaults: levelsWithDefaults as Record<IndividualSkillName, number>,
         bosses,
@@ -102,6 +101,11 @@ export async function fetchHiScores(rsn: string): Promise<PlayerHiScores> {
         clues,
         cluesWithDefaults: cluesWithDefaults as Record<IndividualClueType, number>
     };
+
+    // Total XP is excluded if the player is not on the overall hiscores
+    if (stats.skills.overall.xp > 0) {
+        result.totalXp = stats.skills.overall.xp;
+    }
 
     // If there were missing skills, these values won't be accurate (so don't include them)
     if (Object.keys(levels).length === Object.keys(levelsWithDefaults).length) {

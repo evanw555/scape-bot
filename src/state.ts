@@ -308,6 +308,10 @@ export default class State {
     }
 
     setTotalXp(rsn: string, xp: number) {
+        // TODO: Temp logging to ensure this is always positive
+        if (xp < 1) {
+            void logger.log(`**WARNING!** Attempted to set total XP for **${rsn}** to \`${xp}\``, MultiLoggerLevel.Warn);
+        }
         this._totalXp[rsn] = xp;
     }
 

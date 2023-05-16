@@ -92,6 +92,9 @@ const loadState = async (): Promise<void> => {
         }
     }
 
+    // TODO: Temp logic to delete all <1 total XP values
+    await pgStorageClient.purgeNonPositiveTotalXp();
+
     const totalXpForAllPlayers = await pgStorageClient.fetchTotalXpForAllPlayers();
     for (const [ rsn, xp ] of Object.entries(totalXpForAllPlayers)) {
         state.setTotalXp(rsn, xp);
