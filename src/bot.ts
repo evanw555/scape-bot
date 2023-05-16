@@ -7,7 +7,7 @@ import CommandHandler from './command-handler';
 import commands from './commands';
 import TimeoutStorage from './timeout-storage';
 
-import { AUTH, CONFIG, TIMEOUTS_PROPERTY } from './constants';
+import { AUTH, CONFIG, INACTIVE_THRESHOLD_MILLIES, TIMEOUTS_PROPERTY } from './constants';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -61,6 +61,20 @@ const timeoutCallbacks = {
         timeSlotInstance.incrementDay();
         await logger.log(timeSlotInstance.getOverallDebugString(), MultiLoggerLevel.Info);
         await logger.log(timeSlotInstance.getConsistencyAnalysisString(), MultiLoggerLevel.Info);
+        // Fill in missing activity timestamps before auditing very inactive players
+        // TODO: Temp logic to fill in player activity timestamps for players without a timestamp
+        const archiveTimestamp = new Date(new Date().getTime() - INACTIVE_THRESHOLD_MILLIES);
+        let timestampsFilledIn = 0;
+        for (const rsn of state.getAllGloballyTrackedPlayers()) {
+            if (!state.hasPlayerActivityTimestamp(rsn)) {
+                await pgStorageClient.updatePlayerActivityTimestamp(rsn, archiveTimestamp);
+                state.markPlayerAsActive(rsn, archiveTimestamp);
+                timestampsFilledIn++;
+            }
+        }
+        if (timestampsFilledIn > 0) {
+            await logger.log(`Filled in **${timestampsFilledIn}** missing activity timestamps to state/PG (using _${archiveTimestamp.toLocaleString()}_)`, MultiLoggerLevel.Warn);
+        }
         // Audit very inactive players
         // TODO: Actually remove these players and notify the respective guilds
         const fourMonths = 1000 * 60 * 60 * 24 * 30 * 4;
@@ -100,20 +114,6 @@ const loadState = async (): Promise<void> => {
     const playerActivityTimestamps = await pgStorageClient.fetchAllPlayerActivityTimestamps();
     for (const [ rsn, timestamp ] of Object.entries(playerActivityTimestamps)) {
         state.markPlayerAsActive(rsn, timestamp);
-    }
-
-    // TODO: Temp logic to fill in player activity timestamps for players without a timestamp
-    const arbitraryOldDate = new Date('12/15/2022');
-    let timestampsFilledIn = 0;
-    for (const rsn of state.getAllGloballyTrackedPlayers()) {
-        if (playerActivityTimestamps[rsn] === undefined) {
-            await pgStorageClient.updatePlayerActivityTimestamp(rsn, arbitraryOldDate);
-            state.markPlayerAsActive(rsn, arbitraryOldDate);
-            timestampsFilledIn++;
-        }
-    }
-    if (timestampsFilledIn > 0) {
-        await logger.log(`Filled in **${timestampsFilledIn}** missing activity timestamps to state/PG (using _${arbitraryOldDate.toLocaleString()}_)`, MultiLoggerLevel.Warn);
     }
 
     const playerDisplayNames = await pgStorageClient.fetchAllPlayerDisplayNames();
