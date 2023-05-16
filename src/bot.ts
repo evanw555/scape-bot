@@ -77,10 +77,10 @@ const timeoutCallbacks = {
         }
         // Audit very inactive players
         // TODO: Actually remove these players and notify the respective guilds
-        const fourMonths = 1000 * 60 * 60 * 24 * 30 * 4;
-        const numPlayersVeryInactive = state.getAllGloballyTrackedPlayers().filter(rsn => state.getTimeSincePlayerLastActive(rsn) > fourMonths).length;
+        const sixMonths = 1000 * 60 * 60 * 24 * 30 * 6;
+        const numPlayersVeryInactive = state.getAllGloballyTrackedPlayers().filter(rsn => state.getTimeSincePlayerLastActive(rsn) > sixMonths).length;
         if (numPlayersVeryInactive > 0) {
-            await logger.log(`There are **${numPlayersVeryInactive}** player(s) who haven't been active for over four months`, MultiLoggerLevel.Warn);
+            await logger.log(`There are **${numPlayersVeryInactive}** player(s) who haven't been active for over six months`, MultiLoggerLevel.Warn);
         }
         // Reset the interval measurement data
         await logger.log(timer.getIntervalMeasurementDebugString(), MultiLoggerLevel.Warn);
