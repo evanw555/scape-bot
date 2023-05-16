@@ -104,14 +104,6 @@ export default class PGStorageClient {
         return result;
     }
 
-    // TODO: Temp logic to purge bad data
-    async purgeNonPositiveTotalXp() {
-        const result = await this.client.query('DELETE FROM player_total_xp WHERE xp < 1;');
-        if (result.rowCount) {
-            await logger.log(`Delete **${result.rowCount}** non-positive row(s) from \`player_total_xp\``, MultiLoggerLevel.Warn);
-        }
-    }
-
     async updatePlayerTotalXp(rsn: string, xp: number): Promise<void> {
         await this.client.query('INSERT INTO player_total_xp VALUES ($1, $2) ON CONFLICT (rsn) DO UPDATE SET xp = EXCLUDED.xp;', [rsn, xp]);
     }
