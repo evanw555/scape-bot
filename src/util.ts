@@ -3,7 +3,7 @@ import { APIEmbed, ActionRowData, ButtonStyle, ChatInputCommandInteraction, Comp
 import { addReactsSync, DiscordTimestampFormat, getPreciseDurationString, MultiLoggerLevel, naturalJoin, randChoice, toDiscordTimestamp } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName, PlayerHiScores } from './types';
 import { fetchHiScores } from './hiscores';
-import { CONSTANTS, BOSS_EMBED_COLOR, CLUES_NO_ALL, CLUE_EMBED_COLOR, COMPLETE_VERB_BOSSES, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, DOPE_COMPLETE_VERBS, DOPE_KILL_VERBS, GRAY_EMBED_COLOR, PLAYER_404_ERROR, RED_EMBED_COLOR, SKILLS_NO_OVERALL, SKILL_EMBED_COLOR, YELLOW_EMBED_COLOR, REQUIRED_PERMISSIONS, REQUIRED_PERMISSION_NAMES, INACTIVE_THRESHOLD_MILLIES, CONFIG } from './constants';
+import { CONSTANTS, BOSS_EMBED_COLOR, CLUES_NO_ALL, CLUE_EMBED_COLOR, COMPLETE_VERB_BOSSES, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, DOPE_COMPLETE_VERBS, DOPE_KILL_VERBS, GRAY_EMBED_COLOR, PLAYER_404_ERROR, RED_EMBED_COLOR, SKILLS_NO_OVERALL, SKILL_EMBED_COLOR, YELLOW_EMBED_COLOR, REQUIRED_PERMISSIONS, REQUIRED_PERMISSION_NAMES, INACTIVE_THRESHOLD_MILLIES, CONFIG, DEFAULT_AXIOS_CONFIG } from './constants';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -815,5 +815,5 @@ export function getHelpComponents(inviteText: string): ActionRowData<MessageActi
 }
 
 export async function fetchDisplayName(rsn: string): Promise<string> {
-    return getRSNFormat(rsn, { timeout: 5000 });
+    return getRSNFormat(rsn, DEFAULT_AXIOS_CONFIG);
 }
