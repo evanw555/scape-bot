@@ -1,9 +1,9 @@
 import { APIEmbed, ApplicationCommandOptionType, ChatInputCommandInteraction, Guild, Message, PermissionFlagsBits, Snowflake, TextChannel } from 'discord.js';
-import { FORMATTED_BOSS_NAMES, Boss, BOSSES, getRSNFormat, INVALID_FORMAT_ERROR } from 'osrs-json-hiscores';
+import { FORMATTED_BOSS_NAMES, Boss, BOSSES, INVALID_FORMAT_ERROR } from 'osrs-json-hiscores';
 import { exec } from 'child_process';
 import { MultiLoggerLevel, getPreciseDurationString, naturalJoin, randChoice, randInt } from 'evanw555.js';
 import { PlayerHiScores, SlashCommandsType, HiddenCommandsType, CommandsType, SlashCommand, IndividualSkillName, IndividualClueType } from './types';
-import { replyUpdateMessage, sendUpdateMessage, updatePlayer, getBossName, isValidBoss, generateDetailsContentString, sanitizeRSN, botHasRequiredPermissionsInChannel, validateRSN, getMissingRequiredChannelPermissionNames, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers, getHelpComponents } from './util';
+import { replyUpdateMessage, sendUpdateMessage, updatePlayer, getBossName, isValidBoss, generateDetailsContentString, sanitizeRSN, botHasRequiredPermissionsInChannel, validateRSN, getMissingRequiredChannelPermissionNames, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers, getHelpComponents, fetchDisplayName } from './util';
 import { fetchHiScores } from './hiscores';
 import CommandHandler from './command-handler';
 import { CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, BOSS_CHOICES, INVALID_TEXT_CHANNEL, SKILL_EMBED_COLOR, PLAYER_404_ERROR, GRAY_EMBED_COLOR } from './constants';
@@ -799,7 +799,7 @@ export const hiddenCommands: HiddenCommandsType = {
 
             // First, try to fetch display name
             try {
-                const displayName = await getRSNFormat(rsn);
+                const displayName = await fetchDisplayName(rsn);
                 embeds.push({
                     description: `Fetched display name of **${rsn}** as **${displayName}**`
                 });

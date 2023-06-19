@@ -253,7 +253,7 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
     // Try to fetch a missing display name only if "priming" or if the player is on the hiscores (since that's when the name becomes accessible)
     if ((options?.primer || data.onHiScores) && !state.hasDisplayName(rsn)) {
         try {
-            const displayName = await getRSNFormat(rsn);
+            const displayName = await fetchDisplayName(rsn);
             state.setDisplayName(rsn, displayName);
             await pgStorageClient.writePlayerDisplayName(rsn, displayName);
             await logger.log(`Fetched display name for **${rsn}** as **${displayName}** (**${state.getNumPlayerDisplayNames()}**/**${state.getNumGloballyTrackedPlayers()}** complete)`, MultiLoggerLevel.Debug);
@@ -812,4 +812,8 @@ export function getHelpComponents(inviteText: string): ActionRowData<MessageActi
             url: CONFIG.supportInviteUrl
         }]
     }];
+}
+
+export async function fetchDisplayName(rsn: string): Promise<string> {
+    return getRSNFormat(rsn, { timeout: 5000 });
 }
