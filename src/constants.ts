@@ -72,5 +72,5 @@ export const UNAUTHORIZED_ROLE = 'err/unauthorized-role';
 export const PLAYER_404_ERROR = 'Request failed with status code 404';
 
 export const DEFAULT_AXIOS_CONFIG: { timeout: number } = {
-    timeout: 10000
+    timeout: 30000
 };
