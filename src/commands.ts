@@ -244,10 +244,18 @@ const slashCommands: SlashCommandsType = {
             const guildId = getInteractionGuildId(interaction);
             if (state.isTrackingAnyPlayers(guildId)) {
                 const displayNames = state.getAllTrackedPlayers(guildId).map(rsn => state.getDisplayName(rsn));
-                await interaction.reply({
-                    content: `Currently tracking players ${naturalJoin(displayNames, { bold: true })}.\nUse **/track** to track more players!`,
-                    ephemeral: true
-                });
+                const textReply = `Currently tracking players ${naturalJoin(displayNames, { bold: true })}.\nUse **/track** to track more players!`;
+                if (textReply.length < 1990) {
+                    await interaction.reply({
+                        content: textReply,
+                        ephemeral: true
+                    });
+                } else {
+                    await interaction.reply({
+                        content: `Currently tracking **${displayNames.length}** players (too many to show in one message)`,
+                        ephemeral: true
+                    });
+                }
             } else {
                 await interaction.reply({
                     content: 'Currently not tracking any players.\nUse **/track** to track more players!',
