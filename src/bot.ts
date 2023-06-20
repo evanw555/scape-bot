@@ -1,6 +1,6 @@
 import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel, ActivityType, Snowflake, PermissionFlagsBits, MessageCreateOptions } from 'discord.js';
 import { TimeoutType } from './types';
-import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer, sanitizeRSN, sendDMToGuildOwner, getNextEvening, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers, getHelpComponents } from './util';
+import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer, sendDMToGuildOwner, getNextEvening, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers, getHelpComponents } from './util';
 import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel, naturalJoin, getPreciseDurationString, toDiscordTimestamp } from 'evanw555.js';
 import CommandReader from './command-reader';
 import CommandHandler from './command-handler';
@@ -22,21 +22,9 @@ const commandHandler: CommandHandler = new CommandHandler(commands);
 
 export async function sendRestartMessage(downtimeMillis: number): Promise<void> {
     let text = `ScapeBot online after **${getDurationString(downtimeMillis)}** of downtime. `
-        + `In **${client.guilds.cache.size}** guild(s) tracking **${state.getNumGloballyTrackedPlayers()}** player(s) (${state.getPlayerQueueDebugString()}).`;
-    // Add refresh duration info
-    text += `\nℹ️ Current refresh durations: ${state.getRefreshDurationString()}.`;
-    // TODO: Temp logging while we're still populating display names into PG
-    if (state.getNumPlayerDisplayNames() < state.getNumGloballyTrackedPlayers()) {
-        const displayNamesRemaining = state.getNumGloballyTrackedPlayers() - state.getNumPlayerDisplayNames();
-        text += `\nℹ️ Loaded **${state.getNumPlayerDisplayNames()}** display names from PG, need to populate **${displayNamesRemaining}** more.`;
-    }
+        + `In **${client.guilds.cache.size}** guild(s) tracking **${state.getNumGloballyTrackedPlayers()}** player(s).`;
     // TODO: Temp logic to log how many players are off the hiscores
     text += `\nℹ️ **${state.getNumPlayersOffHiScores()}** players are off the hiscores (**${Math.floor(100 * state.getNumPlayersOffHiScores() / state.getNumGloballyTrackedPlayers())}%**)`;
-    // TODO: Temp logic to log how many RSNs are unsanitized
-    const numUnsanitizedRSNs = state.getAllGloballyTrackedPlayers().filter(rsn => rsn !== sanitizeRSN(rsn)).length;
-    if (numUnsanitizedRSNs > 0) {
-        text += `\nℹ️ There are still **${numUnsanitizedRSNs}** unsanitized RSNs!`;
-    }
     // Add timeout manager info
     if (timeoutManager.toStrings().length > 0) {
         text += '\nℹ️ **Timeouts scheduled:**\n' + timeoutManager.toStrings().join('\n');
