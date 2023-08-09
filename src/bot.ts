@@ -1,5 +1,5 @@
 import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel, ActivityType, Snowflake, PermissionFlagsBits, MessageCreateOptions } from 'discord.js';
-import { TimeoutType } from './types';
+import { DailyAnalyticsLabel, TimeoutType } from './types';
 import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer, sendDMToGuildOwner, getNextEvening, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers, getHelpComponents } from './util';
 import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel, naturalJoin, getPreciseDurationString, toDiscordTimestamp } from 'evanw555.js';
 import CommandReader from './command-reader';
@@ -73,6 +73,15 @@ const timeoutCallbacks = {
         // Reset the interval measurement data
         await logger.log(timer.getIntervalMeasurementDebugString(), MultiLoggerLevel.Warn);
         timer.resetIntervalMeasurement();
+        // Log daily analytics
+        try {
+            await pgStorageClient.writeDailyAnalyticsRow(new Date(), DailyAnalyticsLabel.NumGuilds, client.guilds.cache.size);
+            await pgStorageClient.writeDailyAnalyticsRow(new Date(), DailyAnalyticsLabel.NumPlayers, state.getNumGloballyTrackedPlayers());
+            // TODO: Temp logging to see if this works
+            await logger.log(`Wrote daily analytics rows, all num guilds: \`${JSON.stringify(await pgStorageClient.fetchDailyAnalyticsForLabel(DailyAnalyticsLabel.NumGuilds)).slice(0, 1000)}\``, MultiLoggerLevel.Warn);
+        } catch (err) {
+            await logger.log(`Failed to write daily analytics rows: \`${err}\``, MultiLoggerLevel.Warn);
+        }
     },
     [TimeoutType.WeeklyXpUpdate]: async (): Promise<void> => {
         await timeoutManager.registerTimeout(TimeoutType.WeeklyXpUpdate, getNextFridayEvening(), { pastStrategy: PastTimeoutStrategy.Invoke });
@@ -561,12 +570,12 @@ client.on('guildCreate', async (guild) => {
         }
     }
     // TODO: Reduce this back down to debug once we see how this plays out
-    await logger.log(`Bot has been added to guild _${guild.name}_, now in **${client.guilds.cache.size}** guilds (${welcomeLog})`, MultiLoggerLevel.Error);
+    // await logger.log(`Bot has been added to guild _${guild.name}_, now in **${client.guilds.cache.size}** guilds (${welcomeLog})`, MultiLoggerLevel.Error);
 });
 
 client.on('guildDelete', async (guild) => {
     // TODO: Reduce this back down to debug once we see how this plays out
-    await logger.log(`Bot has been removed from guild _${guild.name}_, now in **${client.guilds.cache.size}** guilds`, MultiLoggerLevel.Error);
+    // await logger.log(`Bot has been removed from guild _${guild.name}_, now in **${client.guilds.cache.size}** guilds`, MultiLoggerLevel.Error);
     try {
         // Purge all data related to this guild from PG and from the state
         const purgeGuildResult = await pgStorageClient.purgeGuildData(guild.id);

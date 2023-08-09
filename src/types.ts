@@ -128,3 +128,11 @@ export interface PlayerHiScores {
     clues: Partial<Record<IndividualClueType, number>>,
     cluesWithDefaults: Record<IndividualClueType, number>
 }
+
+/**
+ * Used to create small int labels for storing "daily_analytics" rows in PG.
+ */
+export enum DailyAnalyticsLabel {
+    NumGuilds = 1,
+    NumPlayers = 2
+}

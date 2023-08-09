@@ -3,11 +3,11 @@ import { MultiLoggerLevel } from 'evanw555.js';
 import { Boss } from 'osrs-json-hiscores';
 import { Client, ClientConfig } from 'pg';
 import format from 'pg-format';
-import { IndividualSkillName, IndividualClueType, MiscPropertyName } from './types';
+import { IndividualSkillName, IndividualClueType, MiscPropertyName, DailyAnalyticsLabel } from './types';
 
 import logger from './instances/logger';
 
-type TableName = 'weekly_xp_snapshots' | 'player_total_xp' | 'player_levels' | 'player_bosses' | 'player_clues' | 'tracked_players' | 'tracking_channels' | 'player_hiscore_status' | 'player_display_names' | 'player_activity_timestamps' | 'bot_counters' | 'privileged_roles' | 'misc_properties';
+type TableName = 'weekly_xp_snapshots' | 'player_total_xp' | 'player_levels' | 'player_bosses' | 'player_clues' | 'tracked_players' | 'tracking_channels' | 'player_hiscore_status' | 'player_display_names' | 'player_activity_timestamps' | 'bot_counters' | 'privileged_roles' | 'daily_analytics' | 'misc_properties';
 
 export default class PGStorageClient {
     private static readonly TABLES: Record<TableName, string> = {
@@ -23,6 +23,7 @@ export default class PGStorageClient {
         'player_activity_timestamps': 'CREATE TABLE player_activity_timestamps (rsn VARCHAR(12) PRIMARY KEY, timestamp TIMESTAMPTZ);',
         'bot_counters': 'CREATE TABLE bot_counters (user_id BIGINT PRIMARY KEY, counter INTEGER);',
         'privileged_roles': 'CREATE TABLE privileged_roles (guild_id BIGINT PRIMARY KEY, role_id BIGINT);',
+        'daily_analytics': 'CREATE TABLE numeric_analytics (date DATE, label SMALLINT, value INTEGER, PRIMARY KEY (date, label));',
         'misc_properties': 'CREATE TABLE misc_properties (name VARCHAR(32) PRIMARY KEY, value VARCHAR(2048));'
     };
 
@@ -311,6 +312,20 @@ export default class PGStorageClient {
     
     async writePrivilegedRole(guildId: Snowflake, roleId: Snowflake): Promise<void> {
         await this.client.query('INSERT INTO privileged_roles VALUES ($1, $2) ON CONFLICT (guild_id) DO UPDATE SET role_id = EXCLUDED.role_id;', [guildId, roleId]);
+    }
+
+    // TODO: Update this to make the return type better. Idk what it should actually be... Maybe a list?
+    async fetchDailyAnalyticsForLabel(label: DailyAnalyticsLabel): Promise<Record<string, number>> {
+        const result: Record<string, number> = {};
+        const queryResult = await this.client.query<{date: Date, value: number}>('SELECT * FROM daily_analytics WHERE label = $1;', [label]);
+        for (const row of queryResult.rows) {
+            result[row.date.toLocaleDateString()] = row.value;
+        }
+        return result;
+    }
+
+    async writeDailyAnalyticsRow(date: Date, label: DailyAnalyticsLabel, value: number): Promise<void> {
+        await this.client.query('INSERT INTO daily_analytics VALUES ($1, $2, $3) ON CONFLICT DO NOTHING;', [date, label, value]);
     }
     
     async fetchMiscProperty(name: MiscPropertyName): Promise<string | null> {
