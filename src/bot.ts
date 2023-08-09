@@ -78,7 +78,7 @@ const timeoutCallbacks = {
             await pgStorageClient.writeDailyAnalyticsRow(new Date(), DailyAnalyticsLabel.NumGuilds, client.guilds.cache.size);
             await pgStorageClient.writeDailyAnalyticsRow(new Date(), DailyAnalyticsLabel.NumPlayers, state.getNumGloballyTrackedPlayers());
             // TODO: Temp logging to see if this works
-            await logger.log(`Wrote daily analytics rows, all num guilds: \`${JSON.stringify(await pgStorageClient.fetchDailyAnalyticsForLabel(DailyAnalyticsLabel.NumGuilds)).slice(0, 1000)}\``, MultiLoggerLevel.Warn);
+            await logger.log(`Wrote daily analytics rows, num guild rows: \`${Object.keys(await pgStorageClient.fetchDailyAnalyticsForLabel(DailyAnalyticsLabel.NumGuilds)).length}\``, MultiLoggerLevel.Warn);
         } catch (err) {
             await logger.log(`Failed to write daily analytics rows: \`${err}\``, MultiLoggerLevel.Warn);
         }

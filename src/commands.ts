@@ -1,8 +1,8 @@
 import { APIEmbed, ApplicationCommandOptionType, ChatInputCommandInteraction, Guild, Message, PermissionFlagsBits, Snowflake, TextChannel } from 'discord.js';
 import { FORMATTED_BOSS_NAMES, Boss, BOSSES, INVALID_FORMAT_ERROR } from 'osrs-json-hiscores';
 import { exec } from 'child_process';
-import { MultiLoggerLevel, getPreciseDurationString, naturalJoin, randChoice, randInt } from 'evanw555.js';
-import { PlayerHiScores, SlashCommandsType, HiddenCommandsType, CommandsType, SlashCommand, IndividualSkillName, IndividualClueType } from './types';
+import { MultiLoggerLevel, forEachMessage, getPreciseDurationString, naturalJoin, randChoice, randInt } from 'evanw555.js';
+import { PlayerHiScores, SlashCommandsType, HiddenCommandsType, CommandsType, SlashCommand, IndividualSkillName, IndividualClueType, DailyAnalyticsLabel } from './types';
 import { replyUpdateMessage, sendUpdateMessage, updatePlayer, getBossName, isValidBoss, generateDetailsContentString, sanitizeRSN, botHasRequiredPermissionsInChannel, validateRSN, getMissingRequiredChannelPermissionNames, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers, getHelpComponents, fetchDisplayName } from './util';
 import { fetchHiScores } from './hiscores';
 import CommandHandler from './command-handler';
@@ -533,7 +533,7 @@ export const hiddenCommands: HiddenCommandsType = {
         failIfDisabled: true
     },
     admin: {
-        fn: async (msg) => {
+        fn: async (msg, rawArgs, subcommand) => {
             // Get host uptime info
             const uptimeString = await new Promise<string>((resolve) => {
                 exec('uptime --pretty', (error, stdout, stderr) => {
@@ -566,6 +566,35 @@ export const hiddenCommands: HiddenCommandsType = {
                         .join('\n')
                 }]
             });
+            // TODO: Temp logic for subcommands can live here
+            if (subcommand === 'populate_daily_analytics') {
+                const messageBase = 'Populating daily analytics using log messages from this channel...';
+                const replyMessage = await msg.reply(messageBase);
+                const p = /now in \*?\*?(\d+)\*?\*? guilds/;
+                const result: Record<string, number> = {};
+                let lastReplyEdit = new Date().getTime();
+                await forEachMessage(msg.channel, async (message) => {
+                    if (message.author.bot) {
+                        const m = message.content.match(p);
+                        if (m && m[1]) {
+                            const n = parseInt(m[1]);
+                            const dateString = message.createdAt.toLocaleDateString();
+                            result[dateString] = Math.max(result[dateString] ?? 0, n);
+                            const currentTime = new Date().getTime();
+                            if (currentTime - lastReplyEdit > 5000) {
+                                lastReplyEdit = currentTime;
+                                await replyMessage.edit(messageBase + ` (extracted from **${Object.keys(result).length}** dates, latest **${dateString}**)`);
+                            }
+                        }
+                    }
+                });
+                await replyMessage.edit(`Done. Extracted **${Object.keys(result).length}** data points. Writing values to PG...`);
+                // Now, write all the values
+                for (const [dateString, value] of Object.entries(result)) {
+                    await pgStorageClient.writeDailyAnalyticsRow(new Date(dateString), DailyAnalyticsLabel.NumGuilds, value);
+                }
+                await replyMessage.edit('Done. Operation complete!');
+            }
         },
         text: 'Show various debug data for admins'
     },
