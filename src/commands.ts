@@ -578,7 +578,7 @@ export const hiddenCommands: HiddenCommandsType = {
                         const m = message.content.match(p);
                         if (m && m[1]) {
                             const n = parseInt(m[1]);
-                            const dateString = message.createdAt.toLocaleDateString();
+                            const dateString = message.createdAt.toDateString();
                             result[dateString] = Math.max(result[dateString] ?? 0, n);
                             const currentTime = new Date().getTime();
                             if (currentTime - lastReplyEdit > 5000) {
