@@ -15,7 +15,7 @@ describe('PGStorageClient Tests', () => {
         host: 'localhost',
         port: 5432,
         database: 'scape_bot_test',
-        user: 'tester'
+        user: 'postgres'
     });
 
     before(async () => {
@@ -80,6 +80,16 @@ describe('PGStorageClient Tests', () => {
         expect('player1' in results).true;
         expect(results.player1.master).equals(masterScore);
     });
+
+    it('can read and write player activities', async () => {
+        const riftsClosedScore = randInt(1, 99);
+        await pgStorageClient.writePlayerActivities('player1', { riftsClosed: riftsClosedScore });
+
+        const results = await pgStorageClient.fetchAllPlayerActivities();
+
+        expect('player1' in results).true;
+        expect(results.player1.riftsClosed).equals(riftsClosedScore);
+    })
 
     it('can add and remove tracked players', async () => {
         await pgStorageClient.deleteTrackedPlayer('12345', 'player1');
