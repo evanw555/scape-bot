@@ -1,9 +1,9 @@
 import { Boss, BOSSES, INVALID_FORMAT_ERROR, FORMATTED_BOSS_NAMES, getRSNFormat } from 'osrs-json-hiscores';
 import { APIEmbed, ActionRowData, ButtonStyle, ChatInputCommandInteraction, ComponentType, Guild, MessageActionRowComponentData, MessageCreateOptions, PermissionFlagsBits, PermissionsBitField, Snowflake, TextBasedChannel, TextChannel } from 'discord.js';
 import { addReactsSync, DiscordTimestampFormat, getPreciseDurationString, MultiLoggerLevel, naturalJoin, randChoice, toDiscordTimestamp } from 'evanw555.js';
-import { IndividualClueType, IndividualSkillName, PlayerHiScores } from './types';
+import { IndividualClueType, IndividualSkillName, IndividualActivityName, PlayerHiScores } from './types';
 import { fetchHiScores } from './hiscores';
-import { CONSTANTS, BOSS_EMBED_COLOR, CLUES_NO_ALL, CLUE_EMBED_COLOR, COMPLETE_VERB_BOSSES, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, DOPE_COMPLETE_VERBS, DOPE_KILL_VERBS, GRAY_EMBED_COLOR, PLAYER_404_ERROR, RED_EMBED_COLOR, SKILLS_NO_OVERALL, SKILL_EMBED_COLOR, YELLOW_EMBED_COLOR, REQUIRED_PERMISSIONS, REQUIRED_PERMISSION_NAMES, INACTIVE_THRESHOLD_MILLIES, CONFIG, DEFAULT_AXIOS_CONFIG } from './constants';
+import { CONSTANTS, BOSS_EMBED_COLOR, CLUES_NO_ALL, CLUE_EMBED_COLOR, COMPLETE_VERB_BOSSES, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, DOPE_COMPLETE_VERBS, DOPE_KILL_VERBS, GRAY_EMBED_COLOR, PLAYER_404_ERROR, RED_EMBED_COLOR, SKILLS_NO_OVERALL, SKILL_EMBED_COLOR, YELLOW_EMBED_COLOR, REQUIRED_PERMISSIONS, REQUIRED_PERMISSION_NAMES, INACTIVE_THRESHOLD_MILLIES, CONFIG, DEFAULT_AXIOS_CONFIG, OTHER_ACTIVITIES, DEFAULT_ACTIVITY_SCORE, ACTIVITY_EMBED_COLOR } from './constants';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -323,6 +323,17 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
         await pgStorageClient.writePlayerClues(rsn, data.clues);
     }
 
+    // Check if other activities have changes and send notifications
+    if (state.hasActivities(rsn)) {
+        const a = await updateActivities(rsn, data.activitiesWithDefaults, options?.spoofedDiff);
+        activity = activity || a;
+    } else {
+        // If this player has no activities in the state, prime with initial date (NOT including assumed defaults)
+        state.setActivities(rsn, data.activities);
+        state.setLastUpdated(rsn, new Date());
+        await pgStorageClient.writePlayerActivities(rsn, data.activities);
+    }
+
     // If the user is on the overall hiscores, process their total XP
     if (data.totalXp) {
         // If there's no total XP for this player, fill it in now
@@ -522,7 +533,7 @@ export async function updateKillCounts(rsn: string, newScores: Record<Boss, numb
 
 export async function updateClues(rsn: string, newScores: Record<IndividualClueType, number>, spoofedDiff?: Record<string, number>): Promise<boolean> {
     // We shouldn't be doing this if this player doesn't have any clue info in the state
-    if (!state.hasBosses(rsn)) {
+    if (!state.hasClues(rsn)) {
         return false;
     }
 
@@ -595,6 +606,88 @@ export async function updateClues(rsn: string, newScores: Record<IndividualClueT
         state.setClues(rsn, newScores);
         state.setLastUpdated(rsn, new Date());
         if (updatedClues.length > 0) {
+            await logger.log(`**${rsn}** update: \`${JSON.stringify(diff)}\``, MultiLoggerLevel.Debug);
+            return true;
+        }
+    }
+    return false;
+}
+
+export async function updateActivities(rsn: string, newScores: Record<IndividualActivityName, number>, spoofedDiff?: Record<string, number>): Promise<boolean> {
+    // We shouldn't be doing this if this player doesn't have any activity info in the state
+    if (!state.hasActivities(rsn)) {
+        return false;
+    }
+
+    // Compute diff for each activity
+    let diff: Partial<Record<IndividualActivityName, number>>;
+    try {
+        if (spoofedDiff) {
+            diff = {};
+            for (const activity of OTHER_ACTIVITIES) {
+                if (activity in spoofedDiff) {
+                    diff[activity] = spoofedDiff[activity];
+                    newScores[activity] += spoofedDiff[activity];
+                }
+            }
+        } else {
+            diff = computeDiff(state.getActivities(rsn), newScores, DEFAULT_ACTIVITY_SCORE);
+        }
+    } catch (err) {
+        if (err instanceof Error && err.message) {
+            await logger.log(`Failed to compute activity score diff for player ${rsn}: ${err.message}`, MultiLoggerLevel.Error);
+        }
+        return false;
+    }
+    if (!diff) {
+        return false;
+    }
+    // Send a message showing the updated activities
+    const getActivityCompletionPhrase = (_activity: IndividualActivityName, _scoreGained: number, _newScore: number): string => {
+        let quantityText = '';
+        if (_scoreGained === 1 && _newScore === 1) {
+            quantityText = 'their first';
+        } else if (_scoreGained === _newScore) {
+            quantityText = `**${_scoreGained}**`;
+        } else if (_scoreGained === 1) {
+            quantityText = 'another';
+        } else {
+            quantityText = `**${_scoreGained}** more`;
+        }
+        return quantityText + ` **${_activity}** for a total of **${_newScore}**`;
+    };
+    const updatedActivities: IndividualActivityName[] = Object.keys(diff) as IndividualActivityName[];
+    switch (updatedActivities.length) {
+    case 0:
+        break;
+    case 1: {
+        const activity = updatedActivities[0];
+        const scoreGained = diff[activity] ?? 0;
+        const text = `**${state.getDisplayName(rsn)}** has completed ${getActivityCompletionPhrase(activity, scoreGained, newScores[activity])}`;
+        await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, activity, { color: ACTIVITY_EMBED_COLOR });
+        break;
+    }
+    default: {
+        const text = updatedActivities.map((activity) => {
+            const scoreGained = diff[activity] ?? 0;
+            return getActivityCompletionPhrase(activity, scoreGained, newScores[activity]);
+        }).join('\n');
+        await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn),
+            `**${state.getDisplayName(rsn)}** has completed...\n${text}`,
+            // Show the first activity as the icon
+            updatedActivities[0],
+            { color: ACTIVITY_EMBED_COLOR });
+        break;
+    }
+    }
+
+    // If not spoofing the diff, update player's activities
+    if (!spoofedDiff) {
+        // Write only updated clues to PG
+        await pgStorageClient.writePlayerClues(rsn, filterMap(newScores, updatedActivities));
+        state.setActivities(rsn, newScores);
+        state.setLastUpdated(rsn, new Date());
+        if (updatedActivities.length > 0) {
             await logger.log(`**${rsn}** update: \`${JSON.stringify(diff)}\``, MultiLoggerLevel.Debug);
             return true;
         }

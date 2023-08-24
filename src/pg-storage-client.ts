@@ -3,11 +3,11 @@ import { MultiLoggerLevel } from 'evanw555.js';
 import { Boss } from 'osrs-json-hiscores';
 import { Client, ClientConfig } from 'pg';
 import format from 'pg-format';
-import { IndividualSkillName, IndividualClueType, MiscPropertyName, DailyAnalyticsLabel } from './types';
+import { IndividualSkillName, IndividualClueType, IndividualActivityName, MiscPropertyName, DailyAnalyticsLabel } from './types';
 
 import logger from './instances/logger';
 
-type TableName = 'weekly_xp_snapshots' | 'player_total_xp' | 'player_levels' | 'player_bosses' | 'player_clues' | 'tracked_players' | 'tracking_channels' | 'player_hiscore_status' | 'player_display_names' | 'player_activity_timestamps' | 'bot_counters' | 'privileged_roles' | 'daily_analytics' | 'misc_properties';
+type TableName = 'weekly_xp_snapshots' | 'player_total_xp' | 'player_levels' | 'player_bosses' | 'player_clues' | 'player_activities' | 'tracked_players' | 'tracking_channels' | 'player_hiscore_status' | 'player_display_names' | 'player_activity_timestamps' | 'bot_counters' | 'privileged_roles' | 'daily_analytics' | 'misc_properties';
 
 export default class PGStorageClient {
     private static readonly TABLES: Record<TableName, string> = {
@@ -16,6 +16,7 @@ export default class PGStorageClient {
         'player_levels': 'CREATE TABLE player_levels (rsn VARCHAR(12), skill VARCHAR(12), level SMALLINT, PRIMARY KEY (rsn, skill));',
         'player_bosses': 'CREATE TABLE player_bosses (rsn VARCHAR(12), boss VARCHAR(32), score SMALLINT, PRIMARY KEY (rsn, boss));',
         'player_clues': 'CREATE TABLE player_clues (rsn VARCHAR(12), clue VARCHAR(12), score SMALLINT, PRIMARY KEY (rsn, clue));',
+        'player_activities': 'CREATE TABLE player_activities (rsn VARCHAR(12), activities VARCHAR(12), score SMALLINT, PRIMARY KEY (rsn, activity));',
         'tracked_players': 'CREATE TABLE tracked_players (guild_id BIGINT, rsn VARCHAR(12), PRIMARY KEY (guild_id, rsn));',
         'tracking_channels': 'CREATE TABLE tracking_channels (guild_id BIGINT PRIMARY KEY, channel_id BIGINT);',
         'player_hiscore_status': 'CREATE TABLE player_hiscore_status (rsn VARCHAR(12) PRIMARY KEY, on_hiscores BOOLEAN);',
@@ -34,6 +35,7 @@ export default class PGStorageClient {
         'player_levels',
         'player_bosses',
         'player_clues',
+        'player_activities',
         'player_hiscore_status',
         'player_display_names',
         'player_activity_timestamps'
@@ -173,6 +175,26 @@ export default class PGStorageClient {
     async fetchAllPlayerClues(): Promise<Record<string, Partial<Record<IndividualClueType, number>>>> {
         const result: Record<string, Partial<Record<IndividualClueType, number>>> = {};
         const queryResult = await this.client.query<{rsn: string, clue: IndividualClueType, score: number}>('SELECT * FROM player_clues;');
+        for (const row of queryResult.rows) {
+            if (!result[row.rsn]) {
+                result[row.rsn] = {};
+            }
+            result[row.rsn][row.clue] = row.score;
+        }
+        return result;
+    }
+
+    async writePlayerActivities(rsn: string, activities: Record<string, number>): Promise<void> {
+        const values = Object.keys(activities).map(activity => [rsn, activity, activities[activity]]);
+        if (values.length === 0) {
+            return;
+        }
+        await this.client.query(format('INSERT INTO player_activities VALUES %L ON CONFLICT (rsn, activity) DO UPDATE SET score = EXCLUDED.score;', values));
+    }
+
+    async fetchAllPlayerActivities(): Promise<Record<string, Partial<Record<IndividualActivityName, number>>>> {
+        const result: Record<string, Partial<Record<IndividualActivityName, number>>> = {};
+        const queryResult = await this.client.query<{rsn: string, clue: IndividualActivityName, score: number}>('SELECT * FROM player_activities;');
         for (const row of queryResult.rows) {
             if (!result[row.rsn]) {
                 result[row.rsn] = {};

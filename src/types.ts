@@ -51,6 +51,10 @@ export interface ScapeBotConstants {
 export type IndividualSkillName = Exclude<SkillName, 'overall'>;
 export type IndividualClueType = Exclude<ClueType, 'all'>;
 
+// Miscellaneous activities, e.g. rifts, LMS, league points - because the definition of a 'miscellaneous' activity is
+// less predictable, it is better to be narrow with this type and add additional activities as it becomes necessary.
+export type IndividualActivityName = 'leaguePoints' | 'lastManStanding' | 'pvpArena' | 'soulWarsZeal' | 'riftsClosed' ;
+
 export interface SerializedGuildState {
     trackingChannelId?: Snowflake,
     players: string[]
@@ -126,7 +130,9 @@ export interface PlayerHiScores {
     bosses: Partial<Record<Boss, number>>,
     bossesWithDefaults: Record<Boss, number>,
     clues: Partial<Record<IndividualClueType, number>>,
-    cluesWithDefaults: Record<IndividualClueType, number>
+    cluesWithDefaults: Record<IndividualClueType, number>,
+    activities: Partial<Record<IndividualActivityName, number>>,
+    activitiesWithDefaults: Record<IndividualActivityName, number>
 }
 
 /**

@@ -1,7 +1,7 @@
 import { APIRole, Role, Snowflake, TextChannel } from 'discord.js';
-import { Boss } from 'osrs-json-hiscores';
+import {  Boss } from 'osrs-json-hiscores';
 import { MultiLoggerLevel } from 'evanw555.js';
-import { IndividualClueType, IndividualSkillName } from './types';
+import { IndividualClueType, IndividualSkillName, IndividualActivityName } from './types';
 import { ACTIVE_THRESHOLD_MILLIS, INACTIVE_THRESHOLD_MILLIES } from './constants';
 import PlayerQueue from './player-queue';
 
@@ -15,6 +15,7 @@ export default class State {
     private readonly _levels: Record<string, Partial<Record<IndividualSkillName, number>>>;
     private readonly _bosses: Record<string, Partial<Record<Boss, number>>>;
     private readonly _clues: Record<string, Partial<Record<IndividualClueType, number>>>;
+    private readonly _activities: Record<string, Partial<Record<IndividualActivityName, number>>>;
     private readonly _botCounters: Record<Snowflake, number>;
     private readonly _lastUpdate: Record<string, Date>;
     private readonly _displayNames: Record<string, string>;
@@ -35,6 +36,7 @@ export default class State {
         this._levels = {};
         this._bosses = {};
         this._clues = {};
+        this._activities = {};
 
         this._botCounters = {};
         this._lastUpdate = {};
@@ -153,6 +155,7 @@ export default class State {
             delete this._levels[rsn];
             delete this._bosses[rsn];
             delete this._clues[rsn];
+            delete this._activities[rsn];
             delete this._lastUpdate[rsn];
             delete this._displayNames[rsn];
             delete this._totalXp[rsn];
@@ -465,6 +468,51 @@ export default class State {
             throw new Error(`Trying to set ${clue} score for ${rsn} without there being pre-existing clues`);
         }
         this._clues[rsn][clue] = score;
+    }
+
+    hasActivities(rsn: string): boolean {
+        return rsn in this._activities;
+    }
+
+    /**
+     * NOTE: This only contains values that are definitively known via the API (does NOT contain assumed defaults)
+     */
+    getActivities(rsn: string): Partial<Record<IndividualActivityName, number>> {
+        return this._activities[rsn];
+    }
+
+    /**
+     * NOTE: It is expected that the input map only contains values that are definitively known via the API (does NOT contain assumed defaults) 
+     */
+    setActivities(rsn: string, activities: Partial<Record<IndividualActivityName, number>>): void {
+        this._activities[rsn] = activities;
+    }
+
+    /**
+     * NOTE: It is expected that the input map only contains values that are definitively known via the API (does NOT contain assumed defaults) 
+     */
+    setAllActivities(allActivities: Record<string, Partial<Record<IndividualActivityName, number>>>): void {
+        for (const [rsn, activities] of Object.entries(allActivities)) {
+            this.setActivities(rsn, activities);
+        }
+    }
+
+    hasActivity(rsn: string, activity: IndividualActivityName): boolean {
+        return this.hasActivities(rsn) && activity in this._activities[rsn];
+    }
+
+    getActivity(rsn: string, activity: IndividualActivityName): number {
+        if (!this.hasActivity(rsn, activity)) {
+            throw new Error(`Trying to get ${activity} score for ${rsn} without checking if it's in the state`);
+        }
+        return this._activities[rsn][activity] as number;
+    }
+
+    setActivity(rsn: string, activity: IndividualActivityName, score: number): void {
+        if (!this.hasActivities(rsn)) {
+            throw new Error(`Trying to set ${activity} score for ${rsn} without there being pre-existing activities`);
+        }
+        this._activities[rsn][activity] = score;
     }
 
     getBotCounter(botId: Snowflake): number {
