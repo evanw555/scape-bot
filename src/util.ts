@@ -676,9 +676,9 @@ export async function updateActivities(rsn: string, newScores: Record<Individual
         case 'leaguePoints':
             return `has earned ${getActivityCompletionPhrase(getActivityName(_activity), _scoreGained, _newScore)}`;
         case 'lastManStanding':
-            return `is now rank **${_newScore}** in **Last Man Standing**`;
+            return `has a score of **${_newScore}** in **Last Man Standing**`;
         case 'pvpArena':
-            return  `is now rank **${_newScore}** in the **PvP Arena**`;
+            return  `has a score of **${_newScore}** in the **PvP Arena**`;
         case 'soulWarsZeal':
             return `has earned ${getActivityCompletionPhrase(getActivityName(_activity), _scoreGained, _newScore)}`;
         case 'riftsClosed':
