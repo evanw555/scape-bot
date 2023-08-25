@@ -525,7 +525,7 @@ export async function updateKillCounts(rsn: string, newScores: Record<Boss, numb
             state.getTrackingChannelsForPlayer(rsn),
             `**${state.getDisplayName(rsn)}** ${verb}...\n${text}`,
             // Show the first boss in the list as the icon
-            getBossName(updatedBosses[0]),
+            updatedBosses[0],
             { color: BOSS_EMBED_COLOR }
         );
         break;
