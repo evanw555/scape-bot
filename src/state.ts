@@ -1,5 +1,5 @@
 import { APIRole, Role, Snowflake, TextChannel } from 'discord.js';
-import {  Boss } from 'osrs-json-hiscores';
+import { Boss } from 'osrs-json-hiscores';
 import { MultiLoggerLevel } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName, IndividualActivityName } from './types';
 import { ACTIVE_THRESHOLD_MILLIS, INACTIVE_THRESHOLD_MILLIES } from './constants';

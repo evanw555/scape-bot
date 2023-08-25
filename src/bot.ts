@@ -425,7 +425,7 @@ client.on('ready', async () => {
             }
         });
         if (activitiesMissingThumbnail.length) {
-            await logger.log(`The following thumbnails are missing: \`${JSON.stringify(activitiesMissingThumbnail)}\``);
+            await logger.log(`The following thumbnails are missing: \`${JSON.stringify(activitiesMissingThumbnail)}\``, MultiLoggerLevel.Error);
         }
 
         // Fetch guilds to load them into the cache
