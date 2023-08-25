@@ -6,7 +6,7 @@ import { PlayerHiScores, SlashCommandsType, HiddenCommandsType, CommandsType, Sl
 import { replyUpdateMessage, sendUpdateMessage, updatePlayer, getBossName, isValidBoss, generateDetailsContentString, sanitizeRSN, botHasRequiredPermissionsInChannel, validateRSN, getMissingRequiredChannelPermissionNames, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers, getHelpComponents, fetchDisplayName } from './util';
 import { fetchHiScores } from './hiscores';
 import CommandHandler from './command-handler';
-import { CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, BOSS_CHOICES, INVALID_TEXT_CHANNEL, SKILL_EMBED_COLOR, PLAYER_404_ERROR, GRAY_EMBED_COLOR, OTHER_ACTIVITIES } from './constants';
+import { CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, BOSS_CHOICES, INVALID_TEXT_CHANNEL, SKILL_EMBED_COLOR, PLAYER_404_ERROR, GRAY_EMBED_COLOR, OTHER_ACTIVITIES, OTHER_ACTIVITIES_MAP } from './constants';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -293,7 +293,7 @@ const slashCommands: SlashCommandsType = {
                     messageText += '\n\n' + CLUES_NO_ALL.filter(clue => data.clues[clue]).map(clue => `**${data.clues[clue]}** ${clue}`).join('\n');
                 }
                 if (OTHER_ACTIVITIES.some(activity => data.activities[activity])) {
-                    messageText += '\n\n' + OTHER_ACTIVITIES.filter(activity => data.activities[activity]).map(activity => `**${data.activities[activity]}** ${activity}`).join('\n');
+                    messageText += '\n\n' + OTHER_ACTIVITIES.filter(activity => data.activities[activity]).map(activity => `**${data.activities[activity]}** ${OTHER_ACTIVITIES_MAP[activity]}`).join('\n');
                 }
                 await replyUpdateMessage(interaction, messageText, 'overall', {
                     title: state.getDisplayName(rsn),

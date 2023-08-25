@@ -15,7 +15,7 @@ describe('PGStorageClient Tests', () => {
         host: 'localhost',
         port: 5432,
         database: 'scape_bot_test',
-        user: 'postgres'
+        user: 'tester'
     });
 
     before(async () => {

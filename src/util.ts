@@ -28,6 +28,10 @@ export function isValidBoss(boss: string): boss is Boss {
     return BOSSES.indexOf(boss as Boss) > -1;
 }
 
+export function isValidActivity(activity: string): activity is IndividualActivityName {
+    return OTHER_ACTIVITIES.indexOf(activity as IndividualActivityName) > -1;
+}
+
 export function getThumbnail(name: string, options?: { is99?: boolean }) {
     if (validSkills.has(name)) {
         const skill = name;
@@ -45,6 +49,12 @@ export function getThumbnail(name: string, options?: { is99?: boolean }) {
         const boss = name;
         return {
             url: `${CONSTANTS.baseThumbnailUrl}${boss}${CONSTANTS.imageFileExtension}`
+        };
+    }
+    if (isValidActivity(name)) {
+        const activity = name;
+        return {
+            url: `${CONSTANTS.baseThumbnailUrl}${activity}${CONSTANTS.imageFileExtension}`
         };
     }
     if (validMiscThumbnails.has(name)) {
@@ -661,26 +671,40 @@ export async function updateActivities(rsn: string, newScores: Record<Individual
         }
         return quantityText + ` **${_activity}** for a total of **${_newScore}**`;
     };
+    const getActivityPhrase = (_activity: string, _scoreGained: number, _newScore: number): string => {
+        switch (_activity) {
+        case 'leaguePoints':
+            return `has earned ${getActivityCompletionPhrase(getActivityName(_activity), _scoreGained, _newScore)}`;
+        case 'lastManStanding':
+            return `is now rank **${_newScore}** in **Last Man Standing**`;
+        case 'pvpArena':
+            return  `is now rank **${_newScore}** in the **PvP Arena**`;
+        case 'soulWarsZeal':
+            return `has earned ${getActivityCompletionPhrase(getActivityName(_activity), _scoreGained, _newScore)}`;
+        case 'riftsClosed':
+            return `closed another ${_scoreGained === 1 ? '' : `**${_scoreGained}** `}**${_scoreGained === 1 ? 'rift' : 'rifts'}** for a total of **${_newScore}**`;
+        default:
+            return 'N/A';
+        }
+    };
     const updatedActivities: IndividualActivityName[] = Object.keys(diff) as IndividualActivityName[];
     switch (updatedActivities.length) {
     case 0:
         break;
     case 1: {
         const activity = updatedActivities[0];
-        const activityName = getActivityName(activity);
         const scoreGained = diff[activity] ?? 0;
-        const text = `**${state.getDisplayName(rsn)}** has completed ${getActivityCompletionPhrase(activityName, scoreGained, newScores[activity])}`;
+        const text = `**${state.getDisplayName(rsn)}** ${getActivityPhrase(activity, scoreGained, newScores[activity])}`;
         await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, activity, { color: ACTIVITY_EMBED_COLOR });
         break;
     }
     default: {
         const text = updatedActivities.map((activity) => {
             const scoreGained = diff[activity] ?? 0;
-            const activityName = getActivityName(activity);
-            return getActivityCompletionPhrase(activityName, scoreGained, newScores[activity]);
+            return getActivityPhrase(activity, scoreGained, newScores[activity]);
         }).join('\n');
         await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn),
-            `**${state.getDisplayName(rsn)}** has completed...\n${text}`,
+            `**${state.getDisplayName(rsn)}**...\n${text}`,
             // Show the first activity as the icon
             updatedActivities[0],
             { color: ACTIVITY_EMBED_COLOR });
