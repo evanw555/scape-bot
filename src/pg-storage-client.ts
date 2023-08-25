@@ -199,7 +199,7 @@ export default class PGStorageClient {
             if (!result[row.rsn]) {
                 result[row.rsn] = {};
             }
-            result[row.rsn][row.activity] = row.score;
+            result[row.rsn][row.activity] = parseInt(row.score.toString());
         }
         return result;
     }
