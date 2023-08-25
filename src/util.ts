@@ -1,4 +1,5 @@
 import { Boss, BOSSES, INVALID_FORMAT_ERROR, FORMATTED_BOSS_NAMES, getRSNFormat } from 'osrs-json-hiscores';
+import fs from 'fs';
 import { APIEmbed, ActionRowData, ButtonStyle, ChatInputCommandInteraction, ComponentType, Guild, MessageActionRowComponentData, MessageCreateOptions, PermissionFlagsBits, PermissionsBitField, Snowflake, TextBasedChannel, TextChannel } from 'discord.js';
 import { addReactsSync, DiscordTimestampFormat, getPreciseDurationString, MultiLoggerLevel, naturalJoin, randChoice, toDiscordTimestamp } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName, IndividualActivityName, PlayerHiScores } from './types';
@@ -915,4 +916,8 @@ export function getHelpComponents(inviteText: string): ActionRowData<MessageActi
 
 export async function fetchDisplayName(rsn: string): Promise<string> {
     return getRSNFormat(rsn, DEFAULT_AXIOS_CONFIG);
+}
+
+export function readDir(dir: string): string[] {
+    return fs.readdirSync(dir);
 }

@@ -1,13 +1,14 @@
+import { BOSSES, CLUES } from 'osrs-json-hiscores';
 import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel, ActivityType, Snowflake, PermissionFlagsBits, MessageCreateOptions } from 'discord.js';
 import { DailyAnalyticsLabel, TimeoutType } from './types';
-import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer, sendDMToGuildOwner, getNextEvening, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers, getHelpComponents } from './util';
+import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer, sendDMToGuildOwner, getNextEvening, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers, getHelpComponents, readDir } from './util';
 import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel, naturalJoin, getPreciseDurationString, toDiscordTimestamp } from 'evanw555.js';
 import CommandReader from './command-reader';
 import CommandHandler from './command-handler';
 import commands from './commands';
 import TimeoutStorage from './timeout-storage';
 
-import { AUTH, CONFIG, INACTIVE_THRESHOLD_MILLIES, TIMEOUTS_PROPERTY } from './constants';
+import { AUTH, CONFIG, INACTIVE_THRESHOLD_MILLIES, OTHER_ACTIVITIES, SKILLS_NO_OVERALL, TIMEOUTS_PROPERTY } from './constants';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -411,6 +412,20 @@ client.on('ready', async () => {
             }
         } else {
             await logger.log('No channel loggers were specified in auth.json!', MultiLoggerLevel.Warn);
+        }
+
+        // Audit activity thumbnails
+        const existingThumbnails = readDir('./static/thumbnails').concat(readDir('./static/thumbnails/clues'));
+        const activitiesMissingThumbnail: string[] = [];
+        const allActivities = [...OTHER_ACTIVITIES, ...BOSSES, ...SKILLS_NO_OVERALL, ...CLUES];
+        allActivities.forEach((activity) => {
+            const iconHit = existingThumbnails.find(fileName => fileName.toLowerCase().includes(activity.toLowerCase()));
+            if (!iconHit) {
+                activitiesMissingThumbnail.push(activity);
+            }
+        });
+        if (activitiesMissingThumbnail.length) {
+            await logger.log(`The following thumbnails are missing: \`${JSON.stringify(activitiesMissingThumbnail)}\``);
         }
 
         // Fetch guilds to load them into the cache
