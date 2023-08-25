@@ -81,6 +81,16 @@ describe('PGStorageClient Tests', () => {
         expect(results.player1.master).equals(masterScore);
     });
 
+    it('can read and write player activities', async () => {
+        const riftsClosedScore = randInt(1, 99);
+        await pgStorageClient.writePlayerActivities('player1', { riftsClosed: riftsClosedScore });
+
+        const results = await pgStorageClient.fetchAllPlayerActivities();
+
+        expect('player1' in results).true;
+        expect(results.player1.riftsClosed).equals(riftsClosedScore);
+    })
+
     it('can add and remove tracked players', async () => {
         await pgStorageClient.deleteTrackedPlayer('12345', 'player1');
         await pgStorageClient.deleteTrackedPlayer('12345', 'player2');

@@ -2,7 +2,7 @@ import { ApplicationCommandOptionType, ChatInputCommandInteraction, Message, Sla
 import { MultiLoggerLevel } from 'evanw555.js';
 import { Boss, ClueType, SkillName } from 'osrs-json-hiscores';
 import { ClientConfig } from 'pg';
-import { TIMEOUTS_PROPERTY } from './constants';
+import { OTHER_ACTIVITIES_MAP, TIMEOUTS_PROPERTY } from './constants';
 
 export enum TimeoutType {
     DailyAudit = 'DAILY_AUDIT',
@@ -50,6 +50,7 @@ export interface ScapeBotConstants {
 
 export type IndividualSkillName = Exclude<SkillName, 'overall'>;
 export type IndividualClueType = Exclude<ClueType, 'all'>;
+export type IndividualActivityName = keyof typeof OTHER_ACTIVITIES_MAP;
 
 export interface SerializedGuildState {
     trackingChannelId?: Snowflake,
@@ -126,7 +127,9 @@ export interface PlayerHiScores {
     bosses: Partial<Record<Boss, number>>,
     bossesWithDefaults: Record<Boss, number>,
     clues: Partial<Record<IndividualClueType, number>>,
-    cluesWithDefaults: Record<IndividualClueType, number>
+    cluesWithDefaults: Record<IndividualClueType, number>,
+    activities: Partial<Record<IndividualActivityName, number>>,
+    activitiesWithDefaults: Record<IndividualActivityName, number>
 }
 
 /**

@@ -2,11 +2,11 @@ import { APIEmbed, ApplicationCommandOptionType, ChatInputCommandInteraction, Gu
 import { FORMATTED_BOSS_NAMES, Boss, BOSSES, INVALID_FORMAT_ERROR } from 'osrs-json-hiscores';
 import { exec } from 'child_process';
 import { MultiLoggerLevel, forEachMessage, getPreciseDurationString, naturalJoin, randChoice, randInt } from 'evanw555.js';
-import { PlayerHiScores, SlashCommandsType, HiddenCommandsType, CommandsType, SlashCommand, IndividualSkillName, IndividualClueType, DailyAnalyticsLabel } from './types';
+import { PlayerHiScores, SlashCommandsType, HiddenCommandsType, CommandsType, SlashCommand, IndividualSkillName, IndividualClueType, DailyAnalyticsLabel, IndividualActivityName } from './types';
 import { replyUpdateMessage, sendUpdateMessage, updatePlayer, getBossName, isValidBoss, generateDetailsContentString, sanitizeRSN, botHasRequiredPermissionsInChannel, validateRSN, getMissingRequiredChannelPermissionNames, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers, getHelpComponents, fetchDisplayName } from './util';
 import { fetchHiScores } from './hiscores';
 import CommandHandler from './command-handler';
-import { CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, BOSS_CHOICES, INVALID_TEXT_CHANNEL, SKILL_EMBED_COLOR, PLAYER_404_ERROR, GRAY_EMBED_COLOR } from './constants';
+import { CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, BOSS_CHOICES, INVALID_TEXT_CHANNEL, SKILL_EMBED_COLOR, PLAYER_404_ERROR, GRAY_EMBED_COLOR, OTHER_ACTIVITIES, OTHER_ACTIVITIES_MAP } from './constants';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -20,7 +20,7 @@ import loggerIndices from './instances/logger-indices';
 const validSkills = new Set<string>(CONSTANTS.skills);
 
 // Storing rollback-related data as volatile in-memory variables because it doesn't need to be persistent
-let rollbackStaging: { rsn: string, category: 'skill' | 'boss' | 'clue', name: string, score: number }[] = [];
+let rollbackStaging: { rsn: string, category: 'skill' | 'boss' | 'clue' | 'activity', name: string, score: number }[] = [];
 let rollbackLock = false;
 
 const getHelpText = (hidden: boolean, isAdmin = false, hasPrivilegedRole = false) => {
@@ -292,6 +292,9 @@ const slashCommands: SlashCommandsType = {
                 if (CLUES_NO_ALL.some(clue => data.clues[clue])) {
                     messageText += '\n\n' + CLUES_NO_ALL.filter(clue => data.clues[clue]).map(clue => `**${data.clues[clue]}** ${clue}`).join('\n');
                 }
+                if (OTHER_ACTIVITIES.some(activity => data.activities[activity])) {
+                    messageText += '\n\n' + OTHER_ACTIVITIES.filter(activity => data.activities[activity]).map(activity => `**${data.activities[activity]}** ${OTHER_ACTIVITIES_MAP[activity]}`).join('\n');
+                }
                 await replyUpdateMessage(interaction, messageText, 'overall', {
                     title: state.getDisplayName(rsn),
                     url: `${CONSTANTS.hiScoresUrlTemplate}${encodeURI(rsn)}`,
@@ -516,6 +519,7 @@ export const hiddenCommands: HiddenCommandsType = {
         fn: (msg, rawArgs, player) => {
             if (player) {
                 const possibleKeys = Object.keys(FORMATTED_BOSS_NAMES)
+                    .concat(OTHER_ACTIVITIES)
                     .concat(SKILLS_NO_OVERALL)
                     .concat(SKILLS_NO_OVERALL); // Add it again to make it more likely (there are too many bosses)
                 const numUpdates: number = randInt(1, 6);
@@ -738,6 +742,21 @@ export const hiddenCommands: HiddenCommandsType = {
                             }
                         }
                     }
+                    for (const activity of OTHER_ACTIVITIES) {
+                        if (state.hasActivity(rsn, activity)) {
+                            const before = state.getActivity(rsn, activity);
+                            const after = data.activitiesWithDefaults[activity];
+                            if (after - before < 0) {
+                                logs.push(`**${activity}** dropped from \`${before}\` to \`${after}\``);
+                                rollbackStaging.push({
+                                    rsn,
+                                    category: 'activity',
+                                    name: activity,
+                                    score: after
+                                });
+                            }
+                        }
+                    }
                     if (logs.length > 0) {
                         await msg.channel.send(`(Rollback) Detected negatives for **${rsn}**:\n` + logs.join('\n'));
                     }
@@ -762,6 +781,10 @@ export const hiddenCommands: HiddenCommandsType = {
                     case 'clue':
                         state.setClue(rsn, name as IndividualClueType, score);
                         await pgStorageClient.writePlayerClues(rsn, { [name]: score });
+                        break;
+                    case 'activity':
+                        state.setActivity(rsn, name as IndividualActivityName, score);
+                        await pgStorageClient.writePlayerActivities(rsn, { [name]: score });
                         break;
                     }
                 }

@@ -1,6 +1,6 @@
 import hiscores, { Activity, Boss, BOSSES, Skill, Stats } from 'osrs-json-hiscores';
-import { CLUES_NO_ALL, DEFAULT_AXIOS_CONFIG, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, SKILLS_NO_OVERALL } from './constants';
-import { IndividualClueType, IndividualSkillName, PlayerHiScores } from './types';
+import { CLUES_NO_ALL, DEFAULT_ACTIVITY_SCORE, DEFAULT_AXIOS_CONFIG, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, OTHER_ACTIVITIES, SKILLS_NO_OVERALL } from './constants';
+import { IndividualActivityName, IndividualClueType, IndividualSkillName, PlayerHiScores } from './types';
 
 import state from './instances/state';
 
@@ -92,6 +92,32 @@ export async function fetchHiScores(rsn: string): Promise<PlayerHiScores> {
         }
     }
 
+    const activities: Partial<Record<IndividualActivityName, number>> = {};
+    const activitiesWithDefaults: Partial<Record<IndividualActivityName, number>> = {};
+    for (const activity of OTHER_ACTIVITIES) {
+        if (activity in stats) {
+            const activityPayload: Activity = stats[activity];
+            if (activityPayload.rank === -1 || activityPayload.score === -1) {
+                // If this activity is for some reason omitted for the payload, then fill it in with existing data if possible
+                if (state.hasActivity(rsn, activity)) {
+                    activities[activity] = state.getActivity(rsn, activity);
+                    activitiesWithDefaults[activity] = state.getActivity(rsn, activity);
+                } else {
+                    // Can't fill in with existing data, so default to zero score and mark as missing
+                    activitiesWithDefaults[activity] = DEFAULT_ACTIVITY_SCORE;
+                }
+            } else {
+                // Otherwise, parse the number as normal...
+                const score: number = activityPayload.score;
+                if (typeof score !== 'number' || isNaN(score)) {
+                    throw new Error(`Invalid ${activity} score, '${score}' parsed to ${score}.\nPayload: ${JSON.stringify(stats)}`);
+                }
+                activities[activity] = score;
+                activitiesWithDefaults[activity] = score;
+            }
+        }
+    }
+
     const result: PlayerHiScores = {
         onHiScores: stats.skills.overall.rank !== -1,
         levels,
@@ -99,7 +125,9 @@ export async function fetchHiScores(rsn: string): Promise<PlayerHiScores> {
         bosses,
         bossesWithDefaults: bossesWithDefaults as Record<Boss, number>,
         clues,
-        cluesWithDefaults: cluesWithDefaults as Record<IndividualClueType, number>
+        cluesWithDefaults: cluesWithDefaults as Record<IndividualClueType, number>,
+        activities,
+        activitiesWithDefaults: activitiesWithDefaults as Record<IndividualActivityName, number>
     };
 
     // Total XP is excluded if the player is not on the overall hiscores
