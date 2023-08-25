@@ -1,9 +1,9 @@
-import { Boss, BOSSES, INVALID_FORMAT_ERROR, FORMATTED_BOSS_NAMES, getRSNFormat } from 'osrs-json-hiscores';
+import { Boss, BOSSES, INVALID_FORMAT_ERROR, FORMATTED_BOSS_NAMES, FORMATTED_LMS, FORMATTED_LEAGUE_POINTS, FORMATTED_RIFTS_CLOSED, FORMATTED_SOUL_WARS, getRSNFormat } from 'osrs-json-hiscores';
 import { APIEmbed, ActionRowData, ButtonStyle, ChatInputCommandInteraction, ComponentType, Guild, MessageActionRowComponentData, MessageCreateOptions, PermissionFlagsBits, PermissionsBitField, Snowflake, TextBasedChannel, TextChannel } from 'discord.js';
 import { addReactsSync, DiscordTimestampFormat, getPreciseDurationString, MultiLoggerLevel, naturalJoin, randChoice, toDiscordTimestamp } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName, IndividualActivityName, PlayerHiScores } from './types';
 import { fetchHiScores } from './hiscores';
-import { CONSTANTS, BOSS_EMBED_COLOR, CLUES_NO_ALL, CLUE_EMBED_COLOR, COMPLETE_VERB_BOSSES, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, DOPE_COMPLETE_VERBS, DOPE_KILL_VERBS, GRAY_EMBED_COLOR, PLAYER_404_ERROR, RED_EMBED_COLOR, SKILLS_NO_OVERALL, SKILL_EMBED_COLOR, YELLOW_EMBED_COLOR, REQUIRED_PERMISSIONS, REQUIRED_PERMISSION_NAMES, INACTIVE_THRESHOLD_MILLIES, CONFIG, DEFAULT_AXIOS_CONFIG, OTHER_ACTIVITIES, DEFAULT_ACTIVITY_SCORE, ACTIVITY_EMBED_COLOR } from './constants';
+import { CONSTANTS, BOSS_EMBED_COLOR, CLUES_NO_ALL, CLUE_EMBED_COLOR, COMPLETE_VERB_BOSSES, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, DOPE_COMPLETE_VERBS, DOPE_KILL_VERBS, GRAY_EMBED_COLOR, PLAYER_404_ERROR, RED_EMBED_COLOR, SKILLS_NO_OVERALL, SKILL_EMBED_COLOR, YELLOW_EMBED_COLOR, REQUIRED_PERMISSIONS, REQUIRED_PERMISSION_NAMES, INACTIVE_THRESHOLD_MILLIES, CONFIG, DEFAULT_AXIOS_CONFIG, OTHER_ACTIVITIES, DEFAULT_ACTIVITY_SCORE, ACTIVITY_EMBED_COLOR, OTHER_ACTIVITIES_MAP } from './constants';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -17,6 +17,10 @@ const validMiscThumbnails: Set<string> = new Set(CONSTANTS.miscThumbnails);
 
 export function getBossName(boss: Boss): string {
     return FORMATTED_BOSS_NAMES[boss] ?? 'Unknown';
+}
+
+export function getActivityName(activity: IndividualActivityName): string {
+    return OTHER_ACTIVITIES_MAP[activity] ?? 'Unknown';
 }
 
 export function isValidBoss(boss: string): boss is Boss {
@@ -643,7 +647,7 @@ export async function updateActivities(rsn: string, newScores: Record<Individual
         return false;
     }
     // Send a message showing the updated activities
-    const getActivityCompletionPhrase = (_activity: IndividualActivityName, _scoreGained: number, _newScore: number): string => {
+    const getActivityCompletionPhrase = (_activity: string, _scoreGained: number, _newScore: number): string => {
         let quantityText = '';
         if (_scoreGained === 1 && _newScore === 1) {
             quantityText = 'their first';
@@ -662,15 +666,17 @@ export async function updateActivities(rsn: string, newScores: Record<Individual
         break;
     case 1: {
         const activity = updatedActivities[0];
+        const activityName = getActivityName(activity);
         const scoreGained = diff[activity] ?? 0;
-        const text = `**${state.getDisplayName(rsn)}** has completed ${getActivityCompletionPhrase(activity, scoreGained, newScores[activity])}`;
+        const text = `**${state.getDisplayName(rsn)}** has completed ${getActivityCompletionPhrase(activityName, scoreGained, newScores[activity])}`;
         await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, activity, { color: ACTIVITY_EMBED_COLOR });
         break;
     }
     default: {
         const text = updatedActivities.map((activity) => {
             const scoreGained = diff[activity] ?? 0;
-            return getActivityCompletionPhrase(activity, scoreGained, newScores[activity]);
+            const activityName = getActivityName(activity);
+            return getActivityCompletionPhrase(activityName, scoreGained, newScores[activity]);
         }).join('\n');
         await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn),
             `**${state.getDisplayName(rsn)}** has completed...\n${text}`,

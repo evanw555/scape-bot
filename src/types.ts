@@ -2,7 +2,7 @@ import { ApplicationCommandOptionType, ChatInputCommandInteraction, Message, Sla
 import { MultiLoggerLevel } from 'evanw555.js';
 import { Boss, ClueType, SkillName } from 'osrs-json-hiscores';
 import { ClientConfig } from 'pg';
-import { TIMEOUTS_PROPERTY } from './constants';
+import { OTHER_ACTIVITIES_MAP, TIMEOUTS_PROPERTY } from './constants';
 
 export enum TimeoutType {
     DailyAudit = 'DAILY_AUDIT',
@@ -50,10 +50,7 @@ export interface ScapeBotConstants {
 
 export type IndividualSkillName = Exclude<SkillName, 'overall'>;
 export type IndividualClueType = Exclude<ClueType, 'all'>;
-
-// Miscellaneous activities, e.g. rifts, LMS, league points - because the definition of a 'miscellaneous' activity is
-// less predictable, it is better to be narrow with this type and add additional activities as it becomes necessary.
-export type IndividualActivityName = 'leaguePoints' | 'lastManStanding' | 'pvpArena' | 'soulWarsZeal' | 'riftsClosed' ;
+export type IndividualActivityName = keyof typeof OTHER_ACTIVITIES_MAP;
 
 export interface SerializedGuildState {
     trackingChannelId?: Snowflake,

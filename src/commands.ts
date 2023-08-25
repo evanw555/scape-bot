@@ -519,6 +519,7 @@ export const hiddenCommands: HiddenCommandsType = {
         fn: (msg, rawArgs, player) => {
             if (player) {
                 const possibleKeys = Object.keys(FORMATTED_BOSS_NAMES)
+                    .concat(OTHER_ACTIVITIES)
                     .concat(SKILLS_NO_OVERALL)
                     .concat(SKILLS_NO_OVERALL); // Add it again to make it more likely (there are too many bosses)
                 const numUpdates: number = randInt(1, 6);
