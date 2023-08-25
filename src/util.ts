@@ -714,8 +714,8 @@ export async function updateActivities(rsn: string, newScores: Record<Individual
 
     // If not spoofing the diff, update player's activities
     if (!spoofedDiff) {
-        // Write only updated clues to PG
-        await pgStorageClient.writePlayerClues(rsn, filterMap(newScores, updatedActivities));
+        // Write only updated activities to PG
+        await pgStorageClient.writePlayerActivities(rsn, filterMap(newScores, updatedActivities));
         state.setActivities(rsn, newScores);
         state.setLastUpdated(rsn, new Date());
         if (updatedActivities.length > 0) {
