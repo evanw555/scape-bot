@@ -2,7 +2,7 @@ import { Boss, BOSSES, INVALID_FORMAT_ERROR, FORMATTED_BOSS_NAMES, getRSNFormat 
 import fs from 'fs';
 import { APIEmbed, ActionRowData, ButtonStyle, ChatInputCommandInteraction, ComponentType, Guild, MessageActionRowComponentData, MessageCreateOptions, PermissionFlagsBits, PermissionsBitField, Snowflake, TextBasedChannel, TextChannel } from 'discord.js';
 import { addReactsSync, DiscordTimestampFormat, getPreciseDurationString, MultiLoggerLevel, naturalJoin, randChoice, toDiscordTimestamp } from 'evanw555.js';
-import { IndividualClueType, IndividualSkillName, IndividualActivityName, PlayerHiScores } from './types';
+import { IndividualClueType, IndividualSkillName, IndividualActivityName, PlayerHiScores, NegativeDiffError } from './types';
 import { fetchHiScores } from './hiscores';
 import { CONSTANTS, BOSS_EMBED_COLOR, CLUES_NO_ALL, CLUE_EMBED_COLOR, COMPLETE_VERB_BOSSES, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, DOPE_COMPLETE_VERBS, DOPE_KILL_VERBS, GRAY_EMBED_COLOR, PLAYER_404_ERROR, RED_EMBED_COLOR, SKILLS_NO_OVERALL, SKILL_EMBED_COLOR, YELLOW_EMBED_COLOR, REQUIRED_PERMISSIONS, REQUIRED_PERMISSION_NAMES, INACTIVE_THRESHOLD_MILLIES, CONFIG, DEFAULT_AXIOS_CONFIG, OTHER_ACTIVITIES, DEFAULT_ACTIVITY_SCORE, ACTIVITY_EMBED_COLOR, OTHER_ACTIVITIES_MAP } from './constants';
 
@@ -15,6 +15,9 @@ import timer from './instances/timer';
 const validSkills: Set<string> = new Set(CONSTANTS.skills);
 const validClues: Set<string> = new Set(CLUES_NO_ALL);
 const validMiscThumbnails: Set<string> = new Set(CONSTANTS.miscThumbnails);
+
+// Volatile structure to track negative diff strikes
+const negativeDiffStrikes: Record<string, number> = {};
 
 export function getBossName(boss: Boss): string {
     return FORMATTED_BOSS_NAMES[boss] ?? 'Unknown';
@@ -172,6 +175,10 @@ export function computeDiff<T extends string>(before: Partial<Record<T, number>>
             // Fail silently if the negative diff is because the user has fallen off the hi scores
             if (thisDiff < 0 && afterValue === 1) {
                 throw new Error('');
+            }
+            // If there's an otherwise negative diff, throw a special error (that should result in a rollback)
+            if (thisDiff < 0) {
+                throw new NegativeDiffError(`Negative **${kind}** diff: \`${afterValue} - ${beforeValue} = ${thisDiff}\``);
             }
             // For bizarre cases, fail loudly
             if (typeof thisDiff !== 'number' || isNaN(thisDiff) || thisDiff < 0) {
@@ -381,6 +388,17 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
         await pgStorageClient.updatePlayerActivityTimestamp(rsn);
     }
 
+    // If the player has enough negative diff strikes, run the rollback procedure on them
+    if (negativeDiffStrikes[rsn] >= 5) {
+        await rollBackPlayerStats(rsn, data);
+        delete negativeDiffStrikes[rsn];
+    }
+
+    // If the player saw any valid activity, clear their diff strikes
+    if (activity) {
+        delete negativeDiffStrikes[rsn];
+    }
+
     // TODO: Temp logic for time slot activity analysis
     if (activity) {
         timeSlotInstance.incrementPlayer(rsn);
@@ -408,7 +426,9 @@ export async function updateLevels(rsn: string, newLevels: Record<IndividualSkil
             diff = computeDiff(state.getLevels(rsn), newLevels, DEFAULT_SKILL_LEVEL);
         }
     } catch (err) {
-        if (err instanceof Error && err.message) {
+        if (err instanceof NegativeDiffError) {
+            negativeDiffStrikes[rsn] = (negativeDiffStrikes[rsn] ?? 0) + 1;
+        } else if (err instanceof Error && err.message) {
             await logger.log(`Failed to compute level diff for player ${rsn}: ${err.message}`, MultiLoggerLevel.Error);
         }
         return false;
@@ -491,7 +511,9 @@ export async function updateKillCounts(rsn: string, newScores: Record<Boss, numb
             diff = computeDiff(state.getBosses(rsn), newScores, DEFAULT_BOSS_SCORE);
         }
     } catch (err) {
-        if (err instanceof Error && err.message) {
+        if (err instanceof NegativeDiffError) {
+            negativeDiffStrikes[rsn] = (negativeDiffStrikes[rsn] ?? 0) + 1;
+        } else if (err instanceof Error && err.message) {
             await logger.log(`Failed to compute boss KC diff for player ${rsn}: ${err.message}`, MultiLoggerLevel.Error);
         }
         return false;
@@ -572,7 +594,9 @@ export async function updateClues(rsn: string, newScores: Record<IndividualClueT
             diff = computeDiff(state.getClues(rsn), newScores, DEFAULT_CLUE_SCORE);
         }
     } catch (err) {
-        if (err instanceof Error && err.message) {
+        if (err instanceof NegativeDiffError) {
+            negativeDiffStrikes[rsn] = (negativeDiffStrikes[rsn] ?? 0) + 1;
+        } else if (err instanceof Error && err.message) {
             await logger.log(`Failed to compute clue score diff for player ${rsn}: ${err.message}`, MultiLoggerLevel.Error);
         }
         return false;
@@ -654,7 +678,9 @@ export async function updateActivities(rsn: string, newScores: Record<Individual
             diff = computeDiff(state.getActivities(rsn), newScores, DEFAULT_ACTIVITY_SCORE);
         }
     } catch (err) {
-        if (err instanceof Error && err.message) {
+        if (err instanceof NegativeDiffError) {
+            negativeDiffStrikes[rsn] = (negativeDiffStrikes[rsn] ?? 0) + 1;
+        } else if (err instanceof Error && err.message) {
             await logger.log(`Failed to compute activity score diff for player ${rsn}: ${err.message}`, MultiLoggerLevel.Error);
         }
         return false;
@@ -729,6 +755,59 @@ export async function updateActivities(rsn: string, newScores: Record<Individual
         }
     }
     return false;
+}
+
+export async function rollBackPlayerStats(rsn: string, data: PlayerHiScores) {
+    const logs: string[] = [];
+    // For any negative diff that's detected, roll it back in the state and in PG
+    for (const skill of SKILLS_NO_OVERALL) {
+        if (state.hasLevel(rsn, skill)) {
+            const before = state.getLevel(rsn, skill);
+            const after = data.levelsWithDefaults[skill];
+            if (after - before < 0) {
+                state.setLevel(rsn, skill, after);
+                await pgStorageClient.writePlayerLevels(rsn, { [skill]: after });
+                logs.push(`**${skill}** ${before} → ${after}`);
+            }
+        }
+    }
+    for (const boss of BOSSES) {
+        if (state.hasBoss(rsn, boss)) {
+            const before = state.getBoss(rsn, boss);
+            const after = data.bossesWithDefaults[boss];
+            if (after - before < 0) {
+                state.setBoss(rsn, boss, after);
+                await pgStorageClient.writePlayerBosses(rsn, { [boss]: after });
+                logs.push(`**${getBossName(boss)}** ${before} → ${after}`);
+            }
+        }
+    }
+    for (const clue of CLUES_NO_ALL) {
+        if (state.hasClue(rsn, clue)) {
+            const before = state.getClue(rsn, clue);
+            const after = data.cluesWithDefaults[clue];
+            if (after - before < 0) {
+                state.setClue(rsn, clue, after);
+                await pgStorageClient.writePlayerClues(rsn, { [clue]: after });
+                logs.push(`**${clue}** ${before} → ${after}`);
+            }
+        }
+    }
+    for (const activity of OTHER_ACTIVITIES) {
+        if (state.hasActivity(rsn, activity)) {
+            const before = state.getActivity(rsn, activity);
+            const after = data.activitiesWithDefaults[activity];
+            if (after - before < 0) {
+                state.setActivity(rsn, activity, after);
+                await pgStorageClient.writePlayerActivities(rsn, { [activity]: after });
+                logs.push(`**${getActivityName(activity)}** ${before} → ${after}`);
+            }
+        }
+    }
+    // Send out a notification to all affected servers
+    const text = `Rollback detected on hi-scores for **${state.getDisplayName(rsn)}**:\n` + logs.join('\n');
+    await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, 'wrench', { color: RED_EMBED_COLOR });
+    await logger.log(text, MultiLoggerLevel.Error);
 }
 
 /**

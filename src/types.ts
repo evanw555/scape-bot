@@ -139,3 +139,5 @@ export enum DailyAnalyticsLabel {
     NumGuilds = 1,
     NumPlayers = 2
 }
+
+export class NegativeDiffError extends Error {}
