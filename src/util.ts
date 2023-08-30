@@ -161,6 +161,11 @@ export function computeDiff<T extends string>(before: Partial<Record<T, number>>
     for (const kind of kinds) {
         const beforeValue: number = before[kind] ?? baselineValue;
         const afterValue: number = after[kind];
+        // Validate value types (e.g. strange subtraction behavior if a string is passed in)
+        if (typeof beforeValue !== 'number' || typeof afterValue !== 'number') {
+            throw new Error(`Invalid types for **${kind}** diff, before \`${beforeValue}\` is type ${typeof beforeValue} and after \`${typeof afterValue}\` is type ${typeof afterValue}`);
+        }
+        // If there's been a change in this value, compute and add to diff map
         if (beforeValue !== afterValue) {
             // TODO: the default isn't necessarily 0, it could be 1 for skills (but does that really matter?)
             const thisDiff = afterValue - beforeValue;
