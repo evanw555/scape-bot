@@ -1,4 +1,4 @@
-import hiscores, { Activity, Boss, BOSSES, Skill, Stats } from 'osrs-json-hiscores';
+import hiscores, { Activity, Boss, BOSSES, PLAYER_NOT_FOUND_ERROR, Skill, Stats } from 'osrs-json-hiscores';
 import { CLUES_NO_ALL, DEFAULT_ACTIVITY_SCORE, DEFAULT_AXIOS_CONFIG, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, OTHER_ACTIVITIES, SKILLS_NO_OVERALL } from './constants';
 import { IndividualActivityName, IndividualClueType, IndividualSkillName, PlayerHiScores } from './types';
 
@@ -142,4 +142,16 @@ export async function fetchHiScores(rsn: string): Promise<PlayerHiScores> {
     }
 
     return result;
+}
+
+/**
+ * Utility function to check if a given error returned from the hiscores indicates that a player is not found.
+ *
+ * // TODO: This is problematic. Currently, the hiscores library we use catches EVERYTHING (even 5xx errors as "player not found")
+ *
+ * @param err The error returned from the hiscores
+ * @returns True if the error is a "player not found"
+ */
+export function isPlayerNotFoundError(err: unknown): boolean {
+    return (err instanceof Error) && err.message === PLAYER_NOT_FOUND_ERROR;
 }

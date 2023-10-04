@@ -4,9 +4,9 @@ import { exec } from 'child_process';
 import { MultiLoggerLevel, forEachMessage, getPreciseDurationString, naturalJoin, randChoice, randInt } from 'evanw555.js';
 import { PlayerHiScores, SlashCommandsType, HiddenCommandsType, CommandsType, SlashCommand, IndividualSkillName, IndividualClueType, DailyAnalyticsLabel, IndividualActivityName } from './types';
 import { replyUpdateMessage, sendUpdateMessage, updatePlayer, getBossName, isValidBoss, generateDetailsContentString, sanitizeRSN, botHasRequiredPermissionsInChannel, validateRSN, getMissingRequiredChannelPermissionNames, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers, getHelpComponents, fetchDisplayName } from './util';
-import { fetchHiScores } from './hiscores';
+import { fetchHiScores, isPlayerNotFoundError } from './hiscores';
 import CommandHandler from './command-handler';
-import { CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, BOSS_CHOICES, INVALID_TEXT_CHANNEL, SKILL_EMBED_COLOR, PLAYER_404_ERROR, GRAY_EMBED_COLOR, OTHER_ACTIVITIES, OTHER_ACTIVITIES_MAP } from './constants';
+import { CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, BOSS_CHOICES, INVALID_TEXT_CHANNEL, SKILL_EMBED_COLOR, GRAY_EMBED_COLOR, OTHER_ACTIVITIES, OTHER_ACTIVITIES_MAP } from './constants';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -168,7 +168,7 @@ const slashCommands: SlashCommandsType = {
                 // TODO: Reduce or remove this logging?
                 await logger.log(`\`${interaction.user.tag}\` has tracked player **${state.getDisplayName(rsn)}** (**${state.getNumTrackedPlayers(guildId)}** in guild)`, MultiLoggerLevel.Warn);
             } catch (err) {
-                if ((err instanceof Error) && err.message === PLAYER_404_ERROR) {
+                if (isPlayerNotFoundError(err)) {
                     // If the hiscores returns a 404, add a warning to the existing list of guild warnings and edit the reply
                     warningEmbeds.push(createWarningEmbed('This player was _not_ found on the hiscores, '
                     + 'meaning they either are temporarily missing or they don\'t exist at all. '
@@ -304,7 +304,7 @@ const slashCommands: SlashCommandsType = {
             } catch (err) {
                 // For error messages, we want the user to see the raw RSN they entered.
                 // Showing the sanitized RSN may lead them to believe that the error is related to sanitization (I think?)
-                if ((err instanceof Error) && err.message === PLAYER_404_ERROR) {
+                if (isPlayerNotFoundError(err)) {
                     await logger.log(`\`${interaction.user.tag}\` checked player **${rsn}** but got a 404`, MultiLoggerLevel.Warn);
                     await interaction.reply(`Couldn't find player **${rawRsn.trim()}** on the hiscores`);
                 } else {
@@ -691,7 +691,7 @@ export const hiddenCommands: HiddenCommandsType = {
                         data = await fetchHiScores(rsn);
                     } catch (err) {
                         // Ignore 404 errors
-                        if (!(err instanceof Error) || err.message !== PLAYER_404_ERROR) {
+                        if (!isPlayerNotFoundError(err)) {
                             await msg.channel.send(`(Rollback) Failed to fetch hiscores for player **${rsn}**: \`${err}\``);
                         }
                         continue;
