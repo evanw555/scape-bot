@@ -254,15 +254,16 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
                 await logger.log(`Silently removed **${state.getDisplayName(rsn)}** from the hiscores due to update 404`, MultiLoggerLevel.Debug);
             }
             // If the player was active/inactive then suddenly sees a 404 (banned?), adjust their timestamp to bump them down to the archive queue
-            if (options?.primer || state.getTimeSincePlayerLastActive(rsn) < INACTIVE_THRESHOLD_MILLIES) {
-                // TODO: Can we make this less hacky? We just want to archive them while also keeping a timestamp for them (so we can purge them later...)
-                const archiveTimestamp = new Date(new Date().getTime() - INACTIVE_THRESHOLD_MILLIES);
-                await pgStorageClient.updatePlayerActivityTimestamp(rsn, archiveTimestamp);
-                state.markPlayerAsActive(rsn, archiveTimestamp);
-                // TODO: Temp logging to see how this is playing out
-                await logger.log(`Archive player **${state.getDisplayName(rsn)}** due to update 404`, MultiLoggerLevel.Debug);
+            // TODO: Re-enable this logic once osrs-json-hiscores returns a more nuanced error message?
+            // if (options?.primer || state.getTimeSincePlayerLastActive(rsn) < INACTIVE_THRESHOLD_MILLIES) {
+            //     // TODO: Can we make this less hacky? We just want to archive them while also keeping a timestamp for them (so we can purge them later...)
+            //     const archiveTimestamp = new Date(new Date().getTime() - INACTIVE_THRESHOLD_MILLIES);
+            //     await pgStorageClient.updatePlayerActivityTimestamp(rsn, archiveTimestamp);
+            //     state.markPlayerAsActive(rsn, archiveTimestamp);
+            //     // TODO: Temp logging to see how this is playing out
+            //     await logger.log(`Archive player **${state.getDisplayName(rsn)}** due to update 404`, MultiLoggerLevel.Debug);
 
-            }
+            // }
             // TODO: Should we re-enable the logic to remove 404 players? We haven't confirmed what this means yet.
             // If the player doesn't exist (this should be prevented by the validation in /track), remove globally
             // const guildsToRemoveFrom = state.getGuildsTrackingPlayer(rsn);
