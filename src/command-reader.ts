@@ -1,7 +1,7 @@
 import { Message } from 'discord.js';
 import { MultiLoggerLevel } from 'evanw555.js';
 import { ParsedCommand, HiddenCommand, HiddenCommandName } from './types';
-import { hiddenCommands } from './commands';
+import { hiddenCommands } from './maintainer-commands';
 
 import state from './instances/state';
 import logger from './instances/logger';

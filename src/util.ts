@@ -2,9 +2,9 @@ import { Boss, BOSSES, INVALID_FORMAT_ERROR, FORMATTED_BOSS_NAMES, getRSNFormat 
 import fs from 'fs';
 import { APIEmbed, ActionRowData, ButtonStyle, ChatInputCommandInteraction, ComponentType, Guild, MessageActionRowComponentData, MessageCreateOptions, PermissionFlagsBits, PermissionsBitField, Snowflake, TextBasedChannel, TextChannel } from 'discord.js';
 import { addReactsSync, DiscordTimestampFormat, getPreciseDurationString, MultiLoggerLevel, naturalJoin, randChoice, toDiscordTimestamp } from 'evanw555.js';
-import { IndividualClueType, IndividualSkillName, IndividualActivityName, PlayerHiScores, NegativeDiffError } from './types';
+import { IndividualClueType, IndividualSkillName, IndividualActivityName, PlayerHiScores, NegativeDiffError, CommandsType, SlashCommand } from './types';
 import { fetchHiScores, isPlayerNotFoundError } from './hiscores';
-import { CONSTANTS, BOSS_EMBED_COLOR, CLUES_NO_ALL, CLUE_EMBED_COLOR, COMPLETE_VERB_BOSSES, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, DOPE_COMPLETE_VERBS, DOPE_KILL_VERBS, GRAY_EMBED_COLOR, RED_EMBED_COLOR, SKILLS_NO_OVERALL, SKILL_EMBED_COLOR, YELLOW_EMBED_COLOR, REQUIRED_PERMISSIONS, REQUIRED_PERMISSION_NAMES, INACTIVE_THRESHOLD_MILLIES, CONFIG, DEFAULT_AXIOS_CONFIG, OTHER_ACTIVITIES, DEFAULT_ACTIVITY_SCORE, ACTIVITY_EMBED_COLOR, OTHER_ACTIVITIES_MAP } from './constants';
+import { CONSTANTS, BOSS_EMBED_COLOR, CLUES_NO_ALL, CLUE_EMBED_COLOR, COMPLETE_VERB_BOSSES, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, DOPE_COMPLETE_VERBS, DOPE_KILL_VERBS, GRAY_EMBED_COLOR, RED_EMBED_COLOR, SKILLS_NO_OVERALL, SKILL_EMBED_COLOR, YELLOW_EMBED_COLOR, REQUIRED_PERMISSIONS, REQUIRED_PERMISSION_NAMES, CONFIG, DEFAULT_AXIOS_CONFIG, OTHER_ACTIVITIES, DEFAULT_ACTIVITY_SCORE, ACTIVITY_EMBED_COLOR, OTHER_ACTIVITIES_MAP } from './constants';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -1029,4 +1029,32 @@ export async function fetchDisplayName(rsn: string): Promise<string> {
 
 export function readDir(dir: string): string[] {
     return fs.readdirSync(dir);
+}
+
+/**
+ * Constructs the help table text for a given list of commands.
+ * @param commands List of commands (slash commands or hidden commands)
+ * @param isAdmin If true, the user we're generating help text for is an admin and thus should be able to see admin-privileged commands.
+ * @param hasPrivilegedRole If true, the user we're generating help text for has the privileged role in their server.
+ * @returns The help text table for this user.
+ */
+export function getHelpText(commands: CommandsType, isAdmin = false, hasPrivilegedRole = false): string {
+    const commandKeys = Object.keys(commands).filter((key) => {
+        if (isAdmin) {
+            return true;
+        }
+        const command = commands[key] as SlashCommand;
+        if (hasPrivilegedRole) {
+            return !command.admin;
+        }
+        return !command.admin && !command.privilegedRole;
+    });
+    commandKeys.sort();
+    const maxLengthKey = Math.max(...commandKeys.map((key) => {
+        return key.length;
+    }));
+    const innerText = commandKeys
+        .map(key => `/${key.padEnd(maxLengthKey)} :: ${commands[key].text}`)
+        .join('\n');
+    return `\`\`\`asciidoc\n${innerText}\`\`\``;
 }
