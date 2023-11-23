@@ -298,6 +298,12 @@ export default class State {
         this._lastUpdate[rsn] = date;
     }
 
+    getTimeSinceLastUpdated(rsn: string): number {
+        const now = new Date().getTime();
+        // Fall back to zero if this player hasn't been updated since last boot
+        return now - (this.getLastUpdated(rsn)?.getTime() ?? now);
+    }
+
     getDisplayName(rsn: string): string {
         return this._displayNames[rsn] ?? rsn;
     }
