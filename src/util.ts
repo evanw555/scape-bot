@@ -390,7 +390,7 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
     }
 
     // If the player has enough negative diff strikes, run the rollback procedure on them
-    if (negativeDiffStrikes[rsn] >= 5) {
+    if (negativeDiffStrikes[rsn] >= 20) {
         await rollBackPlayerStats(rsn, data);
         delete negativeDiffStrikes[rsn];
     }
@@ -806,7 +806,9 @@ export async function rollBackPlayerStats(rsn: string, data: PlayerHiScores) {
         }
     }
     // Send out a notification to all affected servers
-    const text = `Rollback detected on hi-scores for **${state.getDisplayName(rsn)}**:\n` + logs.join('\n');
+    const text = `Rollback detected on hi-scores for **${state.getDisplayName(rsn)}**:\n`
+        + logs.join('\n')
+        + '\n_(This may just be a temporary issue with the hi-scores)_';
     await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, 'wrench', { color: GRAY_EMBED_COLOR });
     await logger.log(text, MultiLoggerLevel.Warn);
 }
