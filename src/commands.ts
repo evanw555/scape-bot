@@ -389,7 +389,7 @@ const slashCommands: SlashCommandsType = {
             }
             return true;
         },
-        text: 'Shows details of when each tracked player was last updated',
+        text: 'Shows details of when each tracked player was last refreshed',
         admin: true
     },
     role: {
