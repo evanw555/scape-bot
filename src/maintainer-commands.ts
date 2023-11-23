@@ -381,11 +381,8 @@ export const hiddenCommands: HiddenCommandsType = {
                 return;
             }
             // Remove player from all guilds
-            // TODO: Can we refactor these utils to have bulk methods?
-            for (const guildId of guildIds) {
-                await pgStorageClient.deleteTrackedPlayer(guildId, rsn);
-                state.removeTrackedPlayer(guildId, rsn);
-            }
+            await pgStorageClient.deleteTrackedPlayerGlobally(rsn);
+            state.removeTrackedPlayerGlobally(rsn);
             await msg.reply(`Removed **${rsn}** from **${guildIds.length}** guild(s)`);
             // If no longer globally tracked (should be true), purge PG
             await purgeUntrackedPlayers([rsn], 'removeglobal');

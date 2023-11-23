@@ -203,7 +203,7 @@ export default class PGStorageClient {
         }
         return result;
     }
-    
+
     async fetchAllTrackedPlayers(): Promise<Record<Snowflake, string[]>> {
         const result: Record<Snowflake, string[]> = {};
         const queryResult = await this.client.query<{guild_id: Snowflake, rsn: string}>('SELECT * FROM tracked_players;');
@@ -215,15 +215,19 @@ export default class PGStorageClient {
         }
         return result;
     }
-    
+
     async insertTrackedPlayer(guildId: Snowflake, rsn: string): Promise<void> {
         await this.client.query('INSERT INTO tracked_players VALUES ($1, $2) ON CONFLICT (guild_id, rsn) DO NOTHING;', [guildId, rsn]);
     }
-    
+
     async deleteTrackedPlayer(guildId: Snowflake, rsn: string): Promise<void> {
         await this.client.query('DELETE FROM tracked_players WHERE guild_id = $1 AND rsn = $2;', [guildId, rsn]);
     }
-    
+
+    async deleteTrackedPlayerGlobally(rsn: string): Promise<void> {
+        await this.client.query('DELETE FROM tracked_players WHERE rsn = $2;', [rsn]);
+    }
+
     async fetchAllTrackingChannels(): Promise<Record<Snowflake, Snowflake>> {
         const result: Record<Snowflake, Snowflake> = {};
         const queryResult = await this.client.query<{guild_id: Snowflake, channel_id: Snowflake}>('SELECT * FROM tracking_channels;');
@@ -232,20 +236,20 @@ export default class PGStorageClient {
         }
         return result;
     }
-    
+
     async updateTrackingChannel(guildId: Snowflake, channelId: Snowflake): Promise<void> {
         await this.client.query('INSERT INTO tracking_channels VALUES ($1, $2) ON CONFLICT (guild_id) DO UPDATE SET channel_id = EXCLUDED.channel_id;', [guildId, channelId]);
     }
-    
+
     async deleteTrackingChannel(guildId: Snowflake): Promise<void> {
         await this.client.query('DELETE FROM tracking_channels WHERE guild_id = $1;', [guildId]);
     }
-    
+
     async fetchAllPlayersWithHiScoreStatus(onHiScores: boolean): Promise<string[]> {
         const queryResult = await this.client.query<{rsn: string, on_hiscores: boolean}>('SELECT * FROM player_hiscore_status WHERE on_hiscores = $1;', [onHiScores]);
         return queryResult.rows.map(row => row.rsn);
     }
-    
+
     async writePlayerHiScoreStatus(rsn: string, onHiScores: boolean): Promise<void> {
         await this.client.query('INSERT INTO player_hiscore_status VALUES ($1, $2) ON CONFLICT (rsn) DO UPDATE SET on_hiscores = EXCLUDED.on_hiscores;', [rsn, onHiScores]);
     }

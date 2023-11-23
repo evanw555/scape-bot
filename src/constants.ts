@@ -30,9 +30,9 @@ export const SKILL_EMBED_COLOR = 6316287; // Lavender/blue-ish
 export const BOSS_EMBED_COLOR = 10363483; // Magenta-ish
 export const CLUE_EMBED_COLOR = 16551994; // Orange
 export const ACTIVITY_EMBED_COLOR = 16569404; // Yellow for now
-export const RED_EMBED_COLOR = 12919812;
-export const YELLOW_EMBED_COLOR = 16569404;
-export const GRAY_EMBED_COLOR = 7303023;
+export const RED_EMBED_COLOR = 12919812; // Red (used for overall hiscore removals, warning embeds, and inactivity purges)
+export const YELLOW_EMBED_COLOR = 16569404; // Yellow (used for overall hiscore additions)
+export const GRAY_EMBED_COLOR = 7303023; // Gray (used for API incompatibilities, rollbacks, and system messages)
 
 // 3 days in millis
 export const ACTIVE_THRESHOLD_MILLIS = 1000 * 60 * 60 * 24 * 3;

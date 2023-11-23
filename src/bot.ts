@@ -8,7 +8,7 @@ import CommandHandler from './command-handler';
 import commands from './commands';
 import TimeoutStorage from './timeout-storage';
 
-import { AUTH, CONFIG, INACTIVE_THRESHOLD_MILLIES, OTHER_ACTIVITIES, SKILLS_NO_OVERALL, TIMEOUTS_PROPERTY } from './constants';
+import { AUTH, CONFIG, INACTIVE_THRESHOLD_MILLIES, OTHER_ACTIVITIES, RED_EMBED_COLOR, SKILLS_NO_OVERALL, TIMEOUTS_PROPERTY } from './constants';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -101,13 +101,11 @@ const timeoutCallbacks = {
         if (timestampsFilledIn > 0) {
             await logger.log(`Filled in **${timestampsFilledIn}** missing activity timestamps to state/PG (using _${archiveTimestamp.toLocaleString()}_)`, MultiLoggerLevel.Warn);
         }
-        // Audit very inactive players
-        // TODO: Actually remove these players and notify the respective guilds
-        const sixMonths = 1000 * 60 * 60 * 24 * 30 * 6;
-        const numPlayersVeryInactive = state.getAllGloballyTrackedPlayers().filter(rsn => state.getTimeSincePlayerLastActive(rsn) > sixMonths).length;
-        if (numPlayersVeryInactive > 0) {
-            // TODO: Purge these players and notify the guild's tracking channel
-            await logger.log(`There are **${numPlayersVeryInactive}** player(s) who haven't been active for over six months`, MultiLoggerLevel.Warn);
+        // Purge very inactive players
+        try {
+            await purgeVeryInactivePlayers();
+        } catch (err) {
+            await logger.log(`Unhandled error during purge of very inactive players: \`${err}\``, MultiLoggerLevel.Error);
         }
         // Reset the interval measurement data
         await logger.log(timer.getIntervalMeasurementDebugString(), MultiLoggerLevel.Warn);
@@ -288,6 +286,29 @@ const auditGuilds = async () => {
         await pgStorageClient.writeMiscProperty('auditCounters', JSON.stringify(newAuditCounters));
         // TODO: Temp logging to see how this works
         await logger.log(`Dumped audit counters as \`${JSON.stringify(newAuditCounters).slice(0, 1600)}\``, MultiLoggerLevel.Warn);
+    }
+};
+
+const purgeVeryInactivePlayers = async () => {
+    // Determine the set of players who haven't had any activity for over 9 months
+    const numMonths = 9;
+    const thresholdMillis = 1000 * 60 * 60 * 24 * 30 * numMonths;
+    const veryInactivePlayers = state.getAllGloballyTrackedPlayers().filter(rsn => state.getTimeSincePlayerLastActive(rsn) > thresholdMillis);
+    // For each player, purge from PG and notify the guilds tracking them
+    for (const rsn of veryInactivePlayers) {
+        const trackingChannels = state.getTrackingChannelsForPlayer(rsn);
+        const displayName = state.getDisplayName(rsn);
+        // Remove the player globally
+        await pgStorageClient.deleteTrackedPlayerGlobally(rsn);
+        state.removeTrackedPlayerGlobally(rsn);
+        // Notify the guilds tracking this player
+        await sendUpdateMessage(trackingChannels, `**${displayName}** has been automatically removed due to **${numMonths}** months of inactivity`, 'logout', { color: RED_EMBED_COLOR });
+    }
+    if (veryInactivePlayers.length > 0) {
+        // Purge all related player data from PG
+        await purgeUntrackedPlayers(veryInactivePlayers, 'inactivitypurge');
+        // TODO: Probably wanna reduce this to Warn after we see it working a few times
+        await logger.log(`Globally removed **${veryInactivePlayers.length}** player(s) who haven't been active for over **${numMonths}** months`, MultiLoggerLevel.Error);
     }
 };
 

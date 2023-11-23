@@ -807,7 +807,7 @@ export async function rollBackPlayerStats(rsn: string, data: PlayerHiScores) {
     }
     // Send out a notification to all affected servers
     const text = `Rollback detected on hi-scores for **${state.getDisplayName(rsn)}**:\n` + logs.join('\n');
-    await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, 'wrench', { color: RED_EMBED_COLOR });
+    await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, 'wrench', { color: GRAY_EMBED_COLOR });
     await logger.log(text, MultiLoggerLevel.Warn);
 }
 

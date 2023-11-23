@@ -171,6 +171,12 @@ export default class State {
         }
     }
 
+    removeTrackedPlayerGlobally(rsn: Snowflake) {
+        for (const guildId of this.getGuildsTrackingPlayer(rsn)) {
+            this.removeTrackedPlayer(guildId, rsn);
+        }
+    }
+
     getAllTrackedPlayers(guildId: Snowflake): string[] {
         if (this.isTrackingAnyPlayers(guildId)) {
             return Array.from(this._playersByGuild[guildId]).sort();
