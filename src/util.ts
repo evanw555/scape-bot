@@ -922,10 +922,35 @@ export function validateRSN(rsn: string): void {
     }
 }
 
-export async function sendDMToGuildOwner(guild: Guild, data: string | MessageCreateOptions) {
-    const owner = await guild.fetchOwner();
-    // Implicitly creates a DM channel with the owner
-    await owner.send(data);
+/**
+ * Attempts to send a message to the guild's system channel, falls back to the guild owner's DMs if not possible.
+ * This function is safe, so it doesn't need to be wrapped with try-catches.
+ * @param guild The target guild
+ * @param data The message payload
+ * @param options.preferDM If true, will use the guild owner's DM even if the system channel is available
+ * @returns A label indicating where it was sent
+ */
+export async function sendGuildNotification(guild: Guild, data: string | MessageCreateOptions, options?: { preferDM?: boolean }): Promise<string> {
+    // First, attempt to send to the guild's system channel
+    if (guild.systemChannel && !options?.preferDM) {
+        try {
+            await guild.systemChannel.send(data);
+            // If successful, return now
+            return 'system channel';
+        } catch (err) {
+            // Failed, so fall back...
+        }
+    }
+
+    // Attempt sending to the guild owner's DMs
+    try {
+        const owner = await guild.fetchOwner();
+        // Implicitly creates a DM channel with the owner
+        await owner.send(data);
+        return 'owner DM';
+    } catch (err) {
+        return `nowhere (\`${err})\``;
+    }
 }
 
 export function getBotPermissionsInChannel(channel: TextChannel): PermissionsBitField {

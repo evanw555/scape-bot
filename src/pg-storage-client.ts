@@ -237,8 +237,8 @@ export default class PGStorageClient {
         await this.client.query('INSERT INTO tracking_channels VALUES ($1, $2) ON CONFLICT (guild_id) DO UPDATE SET channel_id = EXCLUDED.channel_id;', [guildId, channelId]);
     }
     
-    async deleteTrackingChannel(guildId: Snowflake, channelId: Snowflake): Promise<void> {
-        await this.client.query('DELETE FROM tracking_channels WHERE guild_id = $1 AND channel_id = $2;', [guildId, channelId]);
+    async deleteTrackingChannel(guildId: Snowflake): Promise<void> {
+        await this.client.query('DELETE FROM tracking_channels WHERE guild_id = $1;', [guildId]);
     }
     
     async fetchAllPlayersWithHiScoreStatus(onHiScores: boolean): Promise<string[]> {

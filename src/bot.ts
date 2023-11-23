@@ -1,7 +1,7 @@
 import { BOSSES, CLUES } from 'osrs-json-hiscores';
 import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel, ActivityType, Snowflake, PermissionFlagsBits, MessageCreateOptions } from 'discord.js';
 import { DailyAnalyticsLabel, TimeoutType } from './types';
-import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer, sendDMToGuildOwner, getNextEvening, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers, getHelpComponents, readDir } from './util';
+import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer, sendGuildNotification, getNextEvening, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers, getHelpComponents, readDir } from './util';
 import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel, naturalJoin, getPreciseDurationString, toDiscordTimestamp } from 'evanw555.js';
 import CommandReader from './command-reader';
 import CommandHandler from './command-handler';
@@ -123,6 +123,7 @@ const loadState = async (): Promise<void> => {
     for (const [ guildId, trackingChannelId ] of Object.entries(trackingChannels)) {
         try {
             const trackingChannel = await client.channels.fetch(trackingChannelId);
+            // TODO: Delete the tracking channel from PG and notify the guild if it fails to fetch
             if (trackingChannel instanceof TextChannel) {
                 state.setTrackingChannel(guildId, trackingChannel);
             } else {
@@ -225,22 +226,12 @@ const auditGuilds = async () => {
                         logStatement += ` (cleared all **${playersToRemove.length}** player${playersToRemove.length === 1 ? '' : 's'})`;
                     }
                     // Send notification
-                    const sendToSystemChannel = clearPlayers || (days % 5 === 0);
-                    if (sendToSystemChannel && guild.systemChannel) {
-                        await guild.systemChannel.send({
-                            content: 'Hello - I\'m tracking OSRS players for you, yet I\'m unable to function properly due to the following problems:',
-                            embeds,
-                            components: getHelpComponents('Questions? Join the Official Server')
-                        });
-                        logStatement += ', sent to system channel';
-                    } else {
-                        await sendDMToGuildOwner(guild, {
-                            content: `Hello - I'm tracking OSRS players in your guild _${guild}_, yet I'm unable to function properly due to the following problems:`,
-                            embeds,
-                            components: getHelpComponents('Questions? Join the Official Server')
-                        });
-                        logStatement += ', sent to owner DM';
-                    }
+                    const warningDestination = await sendGuildNotification(guild, {
+                        content: `Hello - I'm tracking OSRS players in your guild _${guild}_, yet I'm unable to function properly due to the following problems:`,
+                        embeds,
+                        components: getHelpComponents('Questions? Join the Official Server')
+                    }, { preferDM: !clearPlayers && (days % 5 !== 0) });
+                    logStatement += `, sent to ${warningDestination}`;
                     // Add log statement
                     logStatements.push(logStatement);
                 }
@@ -574,19 +565,13 @@ client.on('guildCreate', async (guild) => {
             throw new Error('Missing basic permissions in system channel');
         }
         // If it has permissions, send to the system channel
-        await systemChannel.send(welcomeMessageOptions);
-        welcomeLog = `welcome message sent to \`#${systemChannel.name}\``;
+        const warningDestination = await sendGuildNotification(guild, welcomeMessageOptions);
+        welcomeLog = `welcome message sent to ${warningDestination}`;
     } catch (err) {
-        // Failed to send to the system channel, so fall back to guild owner DM
-        try {
-            await sendDMToGuildOwner(guild, welcomeMessageOptions);
-            welcomeLog = `sent welcome message DM to owner due to error: \`${err}\``;
-        } catch (err2) {
-            welcomeLog = `unable to send any welcome message at all: \`${err}\`, then \`${err2}\``;
-        }
+        welcomeLog = `unable to send any welcome message at all: \`${err}\``;
     }
     // TODO: Reduce this back down to debug once we see how this plays out
-    // await logger.log(`Bot has been added to guild _${guild.name}_, now in **${client.guilds.cache.size}** guilds (${welcomeLog})`, MultiLoggerLevel.Error);
+    await logger.log(`Bot has been added to guild _${guild.name}_, now in **${client.guilds.cache.size}** guilds (${welcomeLog})`, MultiLoggerLevel.Warn);
 });
 
 client.on('guildDelete', async (guild) => {

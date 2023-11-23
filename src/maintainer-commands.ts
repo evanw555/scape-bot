@@ -460,13 +460,16 @@ export const hiddenCommands: HiddenCommandsType = {
                     description: 'Timing Information',
                     fields: [{
                         name: 'Last Refresh',
-                        value: getPreciseDurationString(timeSinceLastRefresh)
+                        value: getPreciseDurationString(timeSinceLastRefresh),
+                        inline: true
                     }, {
                         name: 'Last Active',
-                        value: getPreciseDurationString(timeSinceLastActive)
+                        value: getPreciseDurationString(timeSinceLastActive),
+                        inline: true
                     }, {
                         name: 'Containing Queue',
-                        value: state.getContainingQueueLabel(rsn)
+                        value: state.getContainingQueueLabel(rsn),
+                        inline: true
                     }]
                 });
             }
