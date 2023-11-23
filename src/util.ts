@@ -824,8 +824,10 @@ export async function purgeUntrackedPlayers(rsns: string[], label: string) {
     if (globallyUntrackedPlayers.length > 0) {
         const purgeResults = await pgStorageClient.purgeUntrackedPlayerData();
         // If any rows were deleted, log this
-        if (Object.keys(purgeResults).length > 0) {
-            await logger.log(`(\`${label}\`) ${naturalJoin(globallyUntrackedPlayers, { bold: true })} now globally untracked, purged rows: \`${JSON.stringify(purgeResults)}\``, MultiLoggerLevel.Warn);
+        const n = Object.keys(purgeResults).length;
+        if (n > 0) {
+            await logger.log(`(\`${label}\`) ${n > 10 ? `**${n}** players` : naturalJoin(globallyUntrackedPlayers, { bold: true })} now globally untracked, `
+                + `purged rows: \`${JSON.stringify(purgeResults)}\``, MultiLoggerLevel.Warn);
         }
     }
 }
