@@ -145,6 +145,18 @@ export default class PlayerQueue {
         return new Date().getTime() - this.getLastActive(rsn);
     }
 
+    /**
+     * For a given player, return the label of the queue they're currently on (or "N/A" if on none).
+     */
+    getContainingQueueLabel(rsn: string): string {
+        for (const queue of this.queues) {
+            if (queue.queue.contains(rsn)) {
+                return queue.config.label;
+            }
+        }
+        return 'N/A';
+    }
+
     getNumPlayersByQueue(): number[] {
         return this.queues.map(queue => queue.queue.size());
     }

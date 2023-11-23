@@ -457,13 +457,16 @@ export const hiddenCommands: HiddenCommandsType = {
                 const timeSinceLastRefresh: number = new Date().getTime() - lastRefresh.getTime();
                 const timeSinceLastActive: number = state.getTimeSincePlayerLastActive(rsn);
                 embeds.push({
-                    description: 'Time since...',
+                    description: 'Timing Information',
                     fields: [{
                         name: 'Last Refresh',
                         value: getPreciseDurationString(timeSinceLastRefresh)
                     }, {
                         name: 'Last Active',
                         value: getPreciseDurationString(timeSinceLastActive)
+                    }, {
+                        name: 'Containing Queue',
+                        value: state.getContainingQueueLabel(rsn)
                     }]
                 });
             }

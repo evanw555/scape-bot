@@ -109,6 +109,13 @@ export default class State {
         return this._masterPlayerQueue.next();
     }
 
+    /**
+     * For a given player, return the label of the queue they're currently on (or "N/A" if on none).
+     */
+    getContainingQueueLabel(rsn: string): string {
+        return this._masterPlayerQueue.getContainingQueueLabel(rsn);
+    }
+
     isTrackingPlayer(guildId: Snowflake, rsn: string): boolean {
         return guildId in this._playersByGuild && this._playersByGuild[guildId].has(rsn);
     }
