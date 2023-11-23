@@ -1,6 +1,6 @@
 import { Boss, BOSSES, INVALID_FORMAT_ERROR, FORMATTED_BOSS_NAMES, getRSNFormat } from 'osrs-json-hiscores';
 import fs from 'fs';
-import { APIEmbed, ActionRowData, ButtonStyle, ChatInputCommandInteraction, ComponentType, Guild, MessageActionRowComponentData, MessageCreateOptions, PermissionFlagsBits, PermissionsBitField, Snowflake, TextBasedChannel, TextChannel } from 'discord.js';
+import { APIEmbed, ActionRowData, ButtonStyle, ChatInputCommandInteraction, ComponentType, MessageActionRowComponentData, PermissionFlagsBits, PermissionsBitField, Snowflake, TextBasedChannel, TextChannel } from 'discord.js';
 import { addReactsSync, DiscordTimestampFormat, getPreciseDurationString, MultiLoggerLevel, naturalJoin, randChoice, toDiscordTimestamp } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName, IndividualActivityName, PlayerHiScores, NegativeDiffError, CommandsType, SlashCommand } from './types';
 import { fetchHiScores, isPlayerNotFoundError } from './hiscores';
@@ -919,37 +919,6 @@ export function validateRSN(rsn: string): void {
         throw new Error('RSN contains invalid character');
     } else if (rsn.length > 12 || rsn.length < 1) {
         throw new Error('RSN must be between 1 and 12 characters');
-    }
-}
-
-/**
- * Attempts to send a message to the guild's system channel, falls back to the guild owner's DMs if not possible.
- * This function is safe, so it doesn't need to be wrapped with try-catches.
- * @param guild The target guild
- * @param data The message payload
- * @param options.preferDM If true, will use the guild owner's DM even if the system channel is available
- * @returns A label indicating where it was sent
- */
-export async function sendGuildNotification(guild: Guild, data: string | MessageCreateOptions, options?: { preferDM?: boolean }): Promise<string> {
-    // First, attempt to send to the guild's system channel
-    if (guild.systemChannel && !options?.preferDM) {
-        try {
-            await guild.systemChannel.send(data);
-            // If successful, return now
-            return 'system channel';
-        } catch (err) {
-            // Failed, so fall back...
-        }
-    }
-
-    // Attempt sending to the guild owner's DMs
-    try {
-        const owner = await guild.fetchOwner();
-        // Implicitly creates a DM channel with the owner
-        await owner.send(data);
-        return 'owner DM';
-    } catch (err) {
-        return `nowhere (\`${err})\``;
     }
 }
 

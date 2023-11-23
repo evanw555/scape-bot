@@ -1,7 +1,7 @@
 import { BOSSES, CLUES } from 'osrs-json-hiscores';
-import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel, ActivityType, Snowflake, PermissionFlagsBits, MessageCreateOptions } from 'discord.js';
+import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel, ActivityType, Snowflake, PermissionFlagsBits, MessageCreateOptions, GuildResolvable } from 'discord.js';
 import { DailyAnalyticsLabel, TimeoutType } from './types';
-import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer, sendGuildNotification, getNextEvening, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers, getHelpComponents, readDir } from './util';
+import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer, getNextEvening, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers, getHelpComponents, readDir } from './util';
 import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel, naturalJoin, getPreciseDurationString, toDiscordTimestamp } from 'evanw555.js';
 import CommandReader from './command-reader';
 import CommandHandler from './command-handler';
@@ -42,6 +42,43 @@ export async function sendRestartMessage(downtimeMillis: number): Promise<void> 
     // await logger.log(state.toDebugString());
 }
 
+/**
+ * Attempts to send a message to the guild's system channel, falls back to the guild owner's DMs if not possible.
+ * This function is safe, so it doesn't need to be wrapped with try-catches.
+ * @param guild The target guild
+ * @param data The message payload
+ * @param options.preferDM If true, will use the guild owner's DM even if the system channel is available
+ * @returns A label indicating where it was sent
+ */
+export async function sendGuildNotification(guild: GuildResolvable, data: string | MessageCreateOptions, options?: { preferDM?: boolean }): Promise<string> {
+    // Resolve the guild
+    const resolvedGuild = await client.guilds.resolve(guild);
+    if (!resolvedGuild) {
+        return `nowhere (couldn't resolve \`${guild}\` to a guild)`;
+    }
+
+    // First, attempt to send to the guild's system channel
+    if (resolvedGuild.systemChannel && !options?.preferDM) {
+        try {
+            await resolvedGuild.systemChannel.send(data);
+            // If successful, return now
+            return 'system channel';
+        } catch (err) {
+            // Failed, so fall back...
+        }
+    }
+
+    // Attempt sending to the guild owner's DMs
+    try {
+        const owner = await resolvedGuild.fetchOwner();
+        // Implicitly creates a DM channel with the owner
+        await owner.send(data);
+        return 'owner DM';
+    } catch (err) {
+        return `nowhere (\`${err})\``;
+    }
+}
+
 const timeoutCallbacks = {
     [TimeoutType.DailyAudit]: async (): Promise<void> => {
         await timeoutManager.registerTimeout(TimeoutType.DailyAudit, getNextEvening(), { pastStrategy: PastTimeoutStrategy.Invoke });
@@ -69,6 +106,7 @@ const timeoutCallbacks = {
         const sixMonths = 1000 * 60 * 60 * 24 * 30 * 6;
         const numPlayersVeryInactive = state.getAllGloballyTrackedPlayers().filter(rsn => state.getTimeSincePlayerLastActive(rsn) > sixMonths).length;
         if (numPlayersVeryInactive > 0) {
+            // TODO: Purge these players and notify the guild's tracking channel
             await logger.log(`There are **${numPlayersVeryInactive}** player(s) who haven't been active for over six months`, MultiLoggerLevel.Warn);
         }
         // Reset the interval measurement data
@@ -123,19 +161,18 @@ const loadState = async (): Promise<void> => {
     for (const [ guildId, trackingChannelId ] of Object.entries(trackingChannels)) {
         try {
             const trackingChannel = await client.channels.fetch(trackingChannelId);
-            // TODO: Delete the tracking channel from PG and notify the guild if it fails to fetch
             if (trackingChannel instanceof TextChannel) {
                 state.setTrackingChannel(guildId, trackingChannel);
             } else {
+                // TODO: We should delete the tracking channel in this case as well
                 await logger.log(`Could not fetch tracking channel \`${trackingChannelId}\` for guild \`${guildId}\`: expected _TextChannel_ but found \`${trackingChannel}\``, MultiLoggerLevel.Error);
             }
         } catch (err) {
-            if (err instanceof Error) {
-                // TODO: Handle cleanup if DiscordApiError[50001]: Missing Access; once 'guildDelete'
-                // event handler is set up, this should only happen if the bot is kicked while the
-                // bot client is down.
-                await logger.log(`Failed to set tracking channel for guild ${guildId} due to: ${err.toString()}`, MultiLoggerLevel.Error);
-            }
+            // Tracking channel couldn't be fetched, so delete it from PG
+            await pgStorageClient.deleteTrackingChannel(guildId);
+            // Notify the guild and instruct them to set a new tracking channel
+            const warningDestination = await sendGuildNotification(guildId, 'It looks like the OSRS tracking channel for this guild doesn\'t exist anymore. Please set a new one with **/channel**!');
+            await logger.log(`Deleted missing tracking channel for guild \`${guildId}\` (sent warning to ${warningDestination})`, MultiLoggerLevel.Error);
         }
     }
     const playersOffHiScores: string[] = await pgStorageClient.fetchAllPlayersWithHiScoreStatus(false);
