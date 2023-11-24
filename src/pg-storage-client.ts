@@ -225,7 +225,7 @@ export default class PGStorageClient {
     }
 
     async deleteTrackedPlayerGlobally(rsn: string): Promise<void> {
-        await this.client.query('DELETE FROM tracked_players WHERE rsn = $2;', [rsn]);
+        await this.client.query('DELETE FROM tracked_players WHERE rsn = $1;', [rsn]);
     }
 
     async fetchAllTrackingChannels(): Promise<Record<Snowflake, Snowflake>> {
