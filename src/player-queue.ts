@@ -37,6 +37,12 @@ export default class PlayerQueue {
         this.counterMax = config.counterMax;
     }
 
+    /**
+     * Adds the given player to the composite player queue.
+     * By default, the player is added at the end of the lowest queue.
+     * @param rsn RSN of the player to add
+     * @returns True if the player was added (false implies the player was already in the queue)
+     */
     add(rsn: string): boolean {
         // If this player exists in no queue, add to the last queue
         if (this.queues.every(queue => !queue.queue.contains(rsn))) {
@@ -125,6 +131,13 @@ export default class PlayerQueue {
         void logger.log(`Went through all queues without returning anything: \`${JSON.stringify(queuesMetadata)}\``, MultiLoggerLevel.Error);
     }
 
+    /**
+     * Updates the player's activity timestamp, which may result in them being shifted to a higher queue.
+     * When shifted to a new queue, the player is added to the end of that queue.
+     * Note that this method will _never_ shift a player to a lower queue (this only happens in the `#next()` method).
+     * @param rsn Player whose activity timestamp is being updated
+     * @param timestamp The player's new activity timestamp (or right now if none is provided)
+     */
     markAsActive(rsn: string, timestamp?: Date): void {
         const newTimestamp = (timestamp ?? new Date()).getTime();
         const prevTimestamp = this.lastActive[rsn];

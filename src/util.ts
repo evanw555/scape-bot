@@ -1,7 +1,7 @@
 import { Boss, BOSSES, INVALID_FORMAT_ERROR, FORMATTED_BOSS_NAMES, getRSNFormat } from 'osrs-json-hiscores';
 import fs from 'fs';
 import { APIEmbed, ActionRowData, ButtonStyle, ChatInputCommandInteraction, ComponentType, MessageActionRowComponentData, PermissionFlagsBits, PermissionsBitField, Snowflake, TextBasedChannel, TextChannel } from 'discord.js';
-import { addReactsSync, DiscordTimestampFormat, getPreciseDurationString, MultiLoggerLevel, naturalJoin, randChoice, toDiscordTimestamp } from 'evanw555.js';
+import { addReactsSync, DiscordTimestampFormat, MultiLoggerLevel, naturalJoin, randChoice, toDiscordTimestamp } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName, IndividualActivityName, PlayerHiScores, NegativeDiffError, CommandsType, SlashCommand } from './types';
 import { fetchHiScores, isPlayerNotFoundError } from './hiscores';
 import { CONSTANTS, BOSS_EMBED_COLOR, CLUES_NO_ALL, CLUE_EMBED_COLOR, COMPLETE_VERB_BOSSES, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, DOPE_COMPLETE_VERBS, DOPE_KILL_VERBS, GRAY_EMBED_COLOR, RED_EMBED_COLOR, SKILLS_NO_OVERALL, SKILL_EMBED_COLOR, YELLOW_EMBED_COLOR, REQUIRED_PERMISSIONS, REQUIRED_PERMISSION_NAMES, CONFIG, DEFAULT_AXIOS_CONFIG, OTHER_ACTIVITIES, DEFAULT_ACTIVITY_SCORE, ACTIVITY_EMBED_COLOR, OTHER_ACTIVITIES_MAP } from './constants';
@@ -10,7 +10,6 @@ import state from './instances/state';
 import logger from './instances/logger';
 import pgStorageClient from './instances/pg-storage-client';
 import timeSlotInstance from './instances/timeslot';
-import timer from './instances/timer';
 
 const validSkills: Set<string> = new Set(CONSTANTS.skills);
 const validClues: Set<string> = new Set(CLUES_NO_ALL);
@@ -325,8 +324,9 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
     } else {
         // If this player has no levels in the state, prime with initial data (NOT including assumed defaults)
         state.setLevels(rsn, data.levels);
-        state.setLastUpdated(rsn, new Date());
         await pgStorageClient.writePlayerLevels(rsn, data.levels);
+        state.setLastRefresh(rsn, new Date());
+        await pgStorageClient.updatePlayerRefreshTimestamp(rsn, new Date());
     }
 
     // Check if bosses have changes and send notifications
@@ -336,8 +336,9 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
     } else {
         // If this player has no bosses in the state, prime with initial data (NOT including assumed defaults)
         state.setBosses(rsn, data.bosses);
-        state.setLastUpdated(rsn, new Date());
         await pgStorageClient.writePlayerBosses(rsn, data.bosses);
+        state.setLastRefresh(rsn, new Date());
+        await pgStorageClient.updatePlayerRefreshTimestamp(rsn, new Date());
     }
 
     // Check if clues have changes and send notifications
@@ -347,8 +348,9 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
     } else {
         // If this player has no clues in the state, prime with initial data (NOT including assumed defaults)
         state.setClues(rsn, data.clues);
-        state.setLastUpdated(rsn, new Date());
         await pgStorageClient.writePlayerClues(rsn, data.clues);
+        state.setLastRefresh(rsn, new Date());
+        await pgStorageClient.updatePlayerRefreshTimestamp(rsn, new Date());
     }
 
     // Check if other activities have changes and send notifications
@@ -358,8 +360,9 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
     } else {
         // If this player has no activities in the state, prime with initial date (NOT including assumed defaults)
         state.setActivities(rsn, data.activities);
-        state.setLastUpdated(rsn, new Date());
         await pgStorageClient.writePlayerActivities(rsn, data.activities);
+        state.setLastRefresh(rsn, new Date());
+        await pgStorageClient.updatePlayerRefreshTimestamp(rsn, new Date());
     }
 
     // If the user is on the overall hiscores, process their total XP
@@ -482,7 +485,8 @@ export async function updateLevels(rsn: string, newLevels: Record<IndividualSkil
         // Write only updated skills to PG
         await pgStorageClient.writePlayerLevels(rsn, filterMap(newLevels, updatedSkills));
         state.setLevels(rsn, newLevels);
-        state.setLastUpdated(rsn, new Date());
+        state.setLastRefresh(rsn, new Date());
+        await pgStorageClient.updatePlayerRefreshTimestamp(rsn, new Date());
         if (updatedSkills.length > 0) {
             await logger.log(`**${rsn}** update: \`${JSON.stringify(diff)}\``, MultiLoggerLevel.Debug);
             return true;
@@ -565,7 +569,8 @@ export async function updateKillCounts(rsn: string, newScores: Record<Boss, numb
         // Write only updated bosses to PG
         await pgStorageClient.writePlayerBosses(rsn, filterMap(newScores, updatedBosses));
         state.setBosses(rsn, newScores);
-        state.setLastUpdated(rsn, new Date());
+        state.setLastRefresh(rsn, new Date());
+        await pgStorageClient.updatePlayerRefreshTimestamp(rsn, new Date());
         if (updatedBosses.length > 0) {
             await logger.log(`**${rsn}** update: \`${JSON.stringify(diff)}\``, MultiLoggerLevel.Debug);
             return true;
@@ -649,7 +654,8 @@ export async function updateClues(rsn: string, newScores: Record<IndividualClueT
         // Write only updated clues to PG
         await pgStorageClient.writePlayerClues(rsn, filterMap(newScores, updatedClues));
         state.setClues(rsn, newScores);
-        state.setLastUpdated(rsn, new Date());
+        state.setLastRefresh(rsn, new Date());
+        await pgStorageClient.updatePlayerRefreshTimestamp(rsn, new Date());
         if (updatedClues.length > 0) {
             await logger.log(`**${rsn}** update: \`${JSON.stringify(diff)}\``, MultiLoggerLevel.Debug);
             return true;
@@ -749,7 +755,8 @@ export async function updateActivities(rsn: string, newScores: Record<Individual
         // Write only updated activities to PG
         await pgStorageClient.writePlayerActivities(rsn, filterMap(newScores, updatedActivities));
         state.setActivities(rsn, newScores);
-        state.setLastUpdated(rsn, new Date());
+        state.setLastRefresh(rsn, new Date());
+        await pgStorageClient.updatePlayerRefreshTimestamp(rsn, new Date());
         if (updatedActivities.length > 0) {
             await logger.log(`**${rsn}** update: \`${JSON.stringify(diff)}\``, MultiLoggerLevel.Debug);
             return true;
@@ -874,15 +881,15 @@ export function getNextEvening(): Date {
 export function generateDetailsContentString(players: string[]): string {
     const CONTENT_MAX_LENGTH = 2000;
     let contentString = 'When each tracked player was last refreshed:\n';
-    const orderedPlayers: string[] = players.filter(rsn => state.getLastUpdated(rsn) !== undefined)
-        .sort((x, y) => (state.getLastUpdated(y)?.getTime() ?? 0) - (state.getLastUpdated(x)?.getTime() ?? 0));
+    const orderedPlayers: string[] = players.filter(rsn => state.getLastRefresh(rsn) !== undefined)
+        .sort((x, y) => (state.getLastRefresh(y)?.getTime() ?? 0) - (state.getLastRefresh(x)?.getTime() ?? 0));
     const datelessPlayers: string[] = players.filter(rsn => !orderedPlayers.includes(rsn));
     if (datelessPlayers.length > 0) {
-        contentString += `- (**${datelessPlayers.length}** ${datelessPlayers.length === 1 ? 'player hasn\'t' : 'players haven\'t'} been refreshed since the last reboot **${getPreciseDurationString(timer.getTimeSinceBoot())}** ago)\n`;
+        contentString += `- (**${datelessPlayers.length}** ${datelessPlayers.length === 1 ? 'player hasn\'t' : 'players haven\'t'} been refreshed yet)\n`;
     }
     for (let i = 0; i < orderedPlayers.length; i++) {
         const rsn = orderedPlayers[i];
-        const date = state.getLastUpdated(rsn);
+        const date = state.getLastRefresh(rsn);
         if (date) {
             const over24HoursAgo = (new Date().getTime() - date.getTime()) > 1000 * 60 * 60 * 24;
             const format: DiscordTimestampFormat = over24HoursAgo ? DiscordTimestampFormat.ShortDateTime : DiscordTimestampFormat.LongTime;

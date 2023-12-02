@@ -7,7 +7,7 @@ import { IndividualSkillName, IndividualClueType, IndividualActivityName, MiscPr
 
 import logger from './instances/logger';
 
-type TableName = 'weekly_xp_snapshots' | 'player_total_xp' | 'player_levels' | 'player_bosses' | 'player_clues' | 'player_activities' | 'tracked_players' | 'tracking_channels' | 'player_hiscore_status' | 'player_display_names' | 'player_activity_timestamps' | 'bot_counters' | 'privileged_roles' | 'daily_analytics' | 'misc_properties';
+type TableName = 'weekly_xp_snapshots' | 'player_total_xp' | 'player_levels' | 'player_bosses' | 'player_clues' | 'player_activities' | 'tracked_players' | 'tracking_channels' | 'player_hiscore_status' | 'player_display_names' | 'player_activity_timestamps' | 'player_refresh_timestamps' | 'bot_counters' | 'privileged_roles' | 'daily_analytics' | 'misc_properties';
 
 export default class PGStorageClient {
     private static readonly TABLES: Record<TableName, string> = {
@@ -22,6 +22,7 @@ export default class PGStorageClient {
         'player_hiscore_status': 'CREATE TABLE player_hiscore_status (rsn VARCHAR(12) PRIMARY KEY, on_hiscores BOOLEAN);',
         'player_display_names': 'CREATE TABLE player_display_names (rsn VARCHAR(12) PRIMARY KEY, display_name VARCHAR(12));',
         'player_activity_timestamps': 'CREATE TABLE player_activity_timestamps (rsn VARCHAR(12) PRIMARY KEY, timestamp TIMESTAMPTZ);',
+        'player_refresh_timestamps': 'CREATE TABLE player_refresh_timestamps (rsn VARCHAR(12) PRIMARY KEY, timestamp TIMESTAMPTZ);',
         'bot_counters': 'CREATE TABLE bot_counters (user_id BIGINT PRIMARY KEY, counter INTEGER);',
         'privileged_roles': 'CREATE TABLE privileged_roles (guild_id BIGINT PRIMARY KEY, role_id BIGINT);',
         'daily_analytics': 'CREATE TABLE daily_analytics (date DATE, label SMALLINT, value INTEGER, PRIMARY KEY (date, label));',
@@ -38,7 +39,8 @@ export default class PGStorageClient {
         'player_activities',
         'player_hiscore_status',
         'player_display_names',
-        'player_activity_timestamps'
+        'player_activity_timestamps',
+        'player_refresh_timestamps'
     ];
 
     // List of tables that should be purged when a guild removes this bot
@@ -204,7 +206,11 @@ export default class PGStorageClient {
         return result;
     }
 
-    async fetchAllTrackedPlayers(): Promise<Record<Snowflake, string[]>> {
+    /**
+     * Fetches all guild IDs tracking players and the players they're tracking.
+     * @returns Mapping from guild ID to list of players tracked therein
+     */
+    async fetchAllTrackedPlayersByGuild(): Promise<Record<Snowflake, string[]>> {
         const result: Record<Snowflake, string[]> = {};
         const queryResult = await this.client.query<{guild_id: Snowflake, rsn: string}>('SELECT * FROM tracked_players;');
         for (const row of queryResult.rows) {
@@ -212,6 +218,22 @@ export default class PGStorageClient {
                 result[row.guild_id] = [];
             }
             result[row.guild_id].push(row.rsn);
+        }
+        return result;
+    }
+
+    /**
+     * Fetches all tracked players and which guilds are tracking them.
+     * @returns Mapping from RSN to list of guild IDs tracking that player
+     */
+    async fetchAllTrackedPlayersByPlayer(): Promise<Record<string, Snowflake[]>> {
+        const result: Record<Snowflake, string[]> = {};
+        const queryResult = await this.client.query<{guild_id: Snowflake, rsn: string}>('SELECT * FROM tracked_players;');
+        for (const row of queryResult.rows) {
+            if (!result[row.rsn]) {
+                result[row.rsn] = [];
+            }
+            result[row.rsn].push(row.guild_id);
         }
         return result;
     }
@@ -278,6 +300,19 @@ export default class PGStorageClient {
 
     async updatePlayerActivityTimestamp(rsn: string, date: Date = new Date()): Promise<void> {
         await this.client.query('INSERT INTO player_activity_timestamps VALUES ($1, $2) ON CONFLICT (rsn) DO UPDATE SET timestamp = EXCLUDED.timestamp;', [rsn, date]);
+    }
+
+    async fetchAllPlayerRefreshTimestamps(): Promise<Record<string, Date>> {
+        const result: Record<string, Date> = {};
+        const queryResult = await this.client.query<{rsn: string, timestamp: Date}>('SELECT * FROM player_refresh_timestamps;');
+        for (const row of queryResult.rows) {
+            result[row.rsn] = row.timestamp;
+        }
+        return result;
+    }
+
+    async updatePlayerRefreshTimestamp(rsn: string, date: Date = new Date()): Promise<void> {
+        await this.client.query('INSERT INTO player_refresh_timestamps VALUES ($1, $2) ON CONFLICT (rsn) DO UPDATE SET timestamp = EXCLUDED.timestamp;', [rsn, date]);
     }
     
     async fetchBotCounters(): Promise<Record<Snowflake, number>> {

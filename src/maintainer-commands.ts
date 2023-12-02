@@ -457,7 +457,7 @@ export const hiddenCommands: HiddenCommandsType = {
             }
 
             // Show time-related info about this player
-            const lastRefresh = state.getLastUpdated(rsn);
+            const lastRefresh = state.getLastRefresh(rsn);
             if (lastRefresh) {
                 const timeSinceLastRefresh: number = new Date().getTime() - lastRefresh.getTime();
                 const timeSinceLastActive: number = state.getTimeSincePlayerLastActive(rsn);

@@ -17,7 +17,7 @@ export default class State {
     private readonly _clues: Record<string, Partial<Record<IndividualClueType, number>>>;
     private readonly _activities: Record<string, Partial<Record<IndividualActivityName, number>>>;
     private readonly _botCounters: Record<Snowflake, number>;
-    private readonly _lastUpdate: Record<string, Date>;
+    private readonly _lastRefresh: Record<string, Date>;
     private readonly _displayNames: Record<string, string>;
     private readonly _totalXp: Record<string, number>;
     private readonly _maintainerIds: Set<Snowflake>;
@@ -39,7 +39,7 @@ export default class State {
         this._activities = {};
 
         this._botCounters = {};
-        this._lastUpdate = {};
+        this._lastRefresh = {};
         this._displayNames = {};
         this._totalXp = {};
         this._maintainerIds = new Set();
@@ -166,7 +166,7 @@ export default class State {
             delete this._bosses[rsn];
             delete this._clues[rsn];
             delete this._activities[rsn];
-            delete this._lastUpdate[rsn];
+            delete this._lastRefresh[rsn];
             delete this._displayNames[rsn];
             delete this._totalXp[rsn];
             this._playersOffHiScores.delete(rsn);
@@ -293,18 +293,30 @@ export default class State {
         return guildId in this._privilegedRolesByGuild;
     }
 
-    getLastUpdated(rsn: string): Date | undefined {
-        return this._lastUpdate[rsn];
+    /**
+     * @returns When the provided player was last refreshed.
+     */
+    getLastRefresh(rsn: string): Date | undefined {
+        return this._lastRefresh[rsn];
     }
 
-    setLastUpdated(rsn: string, date: Date): void {
-        this._lastUpdate[rsn] = date;
+    /**
+     * @param date When the provided player was last refreshed.
+     */
+    setLastRefresh(rsn: string, date: Date): void {
+        this._lastRefresh[rsn] = date;
     }
 
-    getTimeSinceLastUpdated(rsn: string): number {
+    /**
+     * For a given player, return the time (in milliseconds) since the last refresh.
+     * If there's no refresh timestamp for this player, return a "max" time value.
+     * @param rsn The player we're checking for
+     * @returns Milliseconds since the last refresh if such a timestamp exists, else a very large value
+     */
+    getTimeSinceLastRefresh(rsn: string): number {
         const now = new Date().getTime();
-        // Fall back to zero if this player hasn't been updated since last boot
-        return now - (this.getLastUpdated(rsn)?.getTime() ?? now);
+        // Fall back to the largest possible time if this player hasn't been refreshed
+        return now - (this.getLastRefresh(rsn)?.getTime() ?? 0);
     }
 
     getDisplayName(rsn: string): string {

@@ -15,7 +15,8 @@ describe('PGStorageClient Tests', () => {
         host: 'localhost',
         port: 5432,
         database: 'scape_bot_test',
-        user: 'tester'
+        user: 'tester',
+        password: 'tester'
     });
 
     before(async () => {
@@ -95,19 +96,19 @@ describe('PGStorageClient Tests', () => {
         await pgStorageClient.deleteTrackedPlayer('12345', 'player1');
         await pgStorageClient.deleteTrackedPlayer('12345', 'player2');
 
-        const results = await pgStorageClient.fetchAllTrackedPlayers();
+        const results = await pgStorageClient.fetchAllTrackedPlayersByGuild();
         expect(Object.keys(results).length).equals(0);
 
         await pgStorageClient.insertTrackedPlayer('12345', 'player1');
         await pgStorageClient.insertTrackedPlayer('12345', 'player2');
 
-        const results2 = await pgStorageClient.fetchAllTrackedPlayers();
+        const results2 = await pgStorageClient.fetchAllTrackedPlayersByGuild();
         expect(Object.keys(results2).length).equals(1);
         expect('12345' in results2).true;
         expect(results2['12345'].length).equals(2);
 
         await pgStorageClient.deleteTrackedPlayer('12345', 'player2');
-        const results3 = await pgStorageClient.fetchAllTrackedPlayers();
+        const results3 = await pgStorageClient.fetchAllTrackedPlayersByGuild();
         expect(Object.keys(results3).length).equals(1);
         expect('12345' in results3).true;
         expect(results3['12345'].length).equals(1);

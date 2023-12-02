@@ -133,21 +133,32 @@ const timeoutManager = new TimeoutManager<TimeoutType>(new TimeoutStorage(), tim
 });
 
 const loadState = async (): Promise<void> => {
-    const trackedPlayers = await pgStorageClient.fetchAllTrackedPlayers();
-    for (const [ guildId, players ] of Object.entries(trackedPlayers)) {
-        for (const rsn of players) {
+    // Player refresh timestamps must be loaded into the state first so they can be used to sort players by time-since-refresh
+    const playerRefreshTimestamps = await pgStorageClient.fetchAllPlayerRefreshTimestamps();
+    for (const [ rsn, timestamp ] of Object.entries(playerRefreshTimestamps)) {
+        state.setLastRefresh(rsn, timestamp);
+    }
+
+    const trackedPlayers = await pgStorageClient.fetchAllTrackedPlayersByPlayer();
+    const playerActivityTimestamps = await pgStorageClient.fetchAllPlayerActivityTimestamps();
+    // Sort all players such that less-recently-refreshed (LRR) players are first
+    const sortedPlayers = Object.keys(trackedPlayers).sort((x, y) => state.getTimeSinceLastRefresh(y) - state.getTimeSinceLastRefresh(x));
+    for (const rsn of sortedPlayers) {
+        // Add tracked players such that LRR players are at the front of the queue
+        const guildIds = trackedPlayers[rsn] ?? [];
+        for (const guildId of guildIds) {
             state.addTrackedPlayer(guildId, rsn);
+        }
+        // Mark LRR as active first so that they remain at the front of the queue if shifted
+        const timestamp = playerActivityTimestamps[rsn];
+        if (timestamp) {
+            state.markPlayerAsActive(rsn, timestamp);
         }
     }
 
     const totalXpForAllPlayers = await pgStorageClient.fetchTotalXpForAllPlayers();
     for (const [ rsn, xp ] of Object.entries(totalXpForAllPlayers)) {
         state.setTotalXp(rsn, xp);
-    }
-
-    const playerActivityTimestamps = await pgStorageClient.fetchAllPlayerActivityTimestamps();
-    for (const [ rsn, timestamp ] of Object.entries(playerActivityTimestamps)) {
-        state.markPlayerAsActive(rsn, timestamp);
     }
 
     const playerDisplayNames = await pgStorageClient.fetchAllPlayerDisplayNames();
@@ -577,7 +588,7 @@ client.on('ready', async () => {
             // Update the next player
             const nextPlayer = state.nextTrackedPlayer();
             if (nextPlayer) {
-                await logger.log(`Refresh **${state.getDisplayName(nextPlayer)}** (on _${state.getContainingQueueLabel(nextPlayer)}_, last **${getPreciseDurationString(state.getTimeSinceLastUpdated(nextPlayer))}** ago)`, MultiLoggerLevel.Trace);
+                await logger.log(`Refresh **${state.getDisplayName(nextPlayer)}** (on _${state.getContainingQueueLabel(nextPlayer)}_, last **${getPreciseDurationString(state.getTimeSinceLastRefresh(nextPlayer))}** ago)`, MultiLoggerLevel.Trace);
                 try {
                     await updatePlayer(nextPlayer);
                     await pgStorageClient.writeMiscProperty('timestamp', new Date().toJSON());
