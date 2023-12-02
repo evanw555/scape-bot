@@ -66,7 +66,7 @@ const slashCommands: SlashCommandsType = {
                     color: SKILL_EMBED_COLOR,
                     title: 'Information'
                 }, {
-                    description: state.getLabeledRefreshDurationStrings().map(x => `**${x.label}:** ${x.duration}`).join('\n'),
+                    description: state.getPlayerQueue().getLabeledDurationStrings().map(x => `**${x.label} (${x.thresholdLabel}):** ${x.duration}`).join('\n'),
                     color: SKILL_EMBED_COLOR,
                     title: 'Refresh Durations'
                 }],

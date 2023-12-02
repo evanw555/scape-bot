@@ -885,7 +885,7 @@ export function generateDetailsContentString(players: string[]): string {
         const date = state.getLastUpdated(rsn);
         if (date) {
             const over24HoursAgo = (new Date().getTime() - date.getTime()) > 1000 * 60 * 60 * 24;
-            const format: DiscordTimestampFormat = over24HoursAgo ? DiscordTimestampFormat.LongDateTime : DiscordTimestampFormat.LongTime;
+            const format: DiscordTimestampFormat = over24HoursAgo ? DiscordTimestampFormat.ShortDateTime : DiscordTimestampFormat.LongTime;
             const line = `- **${state.getDisplayName(rsn)}**: ${toDiscordTimestamp(date, format)}\n`;
             // The cutoff text is based on the remaining players from the previous iteration,
             // so we can just use the index (instead i + 1 to indicate count)

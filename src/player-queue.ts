@@ -5,7 +5,8 @@ import timer from './instances/timer';
 
 interface QueueConfig {
     label: string,
-    threshold: number
+    threshold: number,
+    thresholdLabel: string
 }
 
 interface QueueData {
@@ -27,7 +28,8 @@ export default class PlayerQueue {
                 counter: 0,
                 config: {
                     label: queueConfig.label,
-                    threshold: queueConfig.threshold
+                    threshold: queueConfig.threshold,
+                    thresholdLabel: queueConfig.thresholdLabel
                 }
             });
         }
@@ -58,6 +60,29 @@ export default class PlayerQueue {
      */
     private getQueueCounterMax(index: number): number {
         return Math.min(this.counterMax, this.queues[index].queue.size());
+    }
+
+    /**
+     * Get the size of a particular queue.
+     */
+    getQueueSize(index: number): number {
+        return this.queues[index].queue.size();
+    }
+
+    /**
+     * Get the number of queues that the composite player queue uses.
+     */
+    getNumQueues(): number {
+        return this.queues.length;
+    }
+
+    /**
+     * Determines if the provided queue index represents the lowest queue.
+     * @param index Index of the queue we're checking for
+     * @returns True if the index represents the lowest queue
+     */
+    private isLowestQueue(index: number): boolean {
+        return index === this.getNumQueues() - 1;
     }
 
     next(): string | undefined {
@@ -157,19 +182,41 @@ export default class PlayerQueue {
         return 'N/A';
     }
 
+    /**
+     * @returns Number of players in each queue
+     */
     getNumPlayersByQueue(): number[] {
         return this.queues.map(queue => queue.queue.size());
     }
 
-    getQueueDuration(index: number): number {
+    /**
+     * For a given queue, determine how many times we'll need to poll from the composite queue before this particular queue is fully traversed.
+     * @param index Index of the queue we're checking for
+     * @returns Number of iterations of the composite player queue
+     */
+    getNumIterationsForQueue(index: number): number {
+        const queueSize = this.queues[index].queue.size();
         // For the current queue, we will need to go through the entire thing to reach a particular player
-        let result = this.queues[index].queue.size();
-        // For each higher queue, we will only need to loop up to the counter max to come back
-        for (let i = 0; i < index; i++) {
-            result *= this.getQueueCounterMax(i);
+        let numIterations = queueSize;
+        // If this isn't the lowest queue, we'll also have to dedicate ocassional visits to lower queues
+        if (!this.isLowestQueue(index)) {
+            numIterations += Math.floor(queueSize / this.getQueueCounterMax(index));
         }
-        // Add 1 to account for the fact that there might be a lower queue we'll have to visit once per loop
-        return (result + 1) * timer.getEffectiveRefreshInterval();
+        // For each higher queue, we will need to loop up to the counter max before we can return to this queue
+        for (let i = 0; i < index; i++) {
+            numIterations *= this.getQueueCounterMax(i) + 1;
+        }
+        return numIterations;
+    }
+
+    /**
+     * For a given queue, determine how long it'll take to fully traverse it once.
+     * @param index Index of the queue we're checking for
+     * @returns Duration (in milliseconds) to fully traverse the queue
+     */
+    getQueueDuration(index: number): number {
+        // Given the total number of iterations to fully traverse this queue once, multiply by the refresh interval to compute total time
+        return this.getNumIterationsForQueue(index) * timer.getEffectiveRefreshInterval();
     }
 
     getDurationString(): string {
@@ -196,10 +243,11 @@ export default class PlayerQueue {
         }));
     }
 
-    getLabeledDurationStrings(): { label: string, duration: string }[] {
+    getLabeledDurationStrings(): { label: string, thresholdLabel: string, duration: string }[] {
         return this.queues.map((queue, index) => {
             return {
                 label: queue.config.label,
+                thresholdLabel: queue.config.thresholdLabel,
                 duration: getPreciseDurationString(this.getQueueDuration(index))
             };
         });

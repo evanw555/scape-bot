@@ -46,14 +46,17 @@ export default class State {
 
         this._masterPlayerQueue = new PlayerQueue({
             queues: [{
-                label: 'Active (<3d)',
-                threshold: ACTIVE_THRESHOLD_MILLIS
+                label: 'Active',
+                threshold: ACTIVE_THRESHOLD_MILLIS,
+                thresholdLabel: '<3d'
             }, {
-                label: 'Inactive (<4w)',
-                threshold: INACTIVE_THRESHOLD_MILLIES
+                label: 'Inactive',
+                threshold: INACTIVE_THRESHOLD_MILLIES,
+                thresholdLabel: '<4w'
             }, {
-                label: 'Archive (4w+)',
-                threshold: Number.POSITIVE_INFINITY
+                label: 'Archive',
+                threshold: Number.POSITIVE_INFINITY,
+                thresholdLabel: '4w+'
             }],
             counterMax: 10
         });
@@ -596,13 +599,10 @@ export default class State {
     }
 
     /**
-     * @returns String representing the duration between each refresh for any active player, inactive, and archived player
+     * Gets the master player queue. This should only be used for getting queue information or debugging/testing.
+     * **DO NOT** directly modify the queue when using this method.
      */
-    getRefreshDurationString(): string {
-        return this._masterPlayerQueue.getDurationString();
-    }
-
-    getLabeledRefreshDurationStrings(): { label: string, duration: string }[] {
-        return this._masterPlayerQueue.getLabeledDurationStrings();
+    getPlayerQueue(): PlayerQueue {
+        return this._masterPlayerQueue;
     }
 }

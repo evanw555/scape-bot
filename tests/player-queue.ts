@@ -5,13 +5,16 @@ describe('PlayerQueue Tests', () => {
     const config = {
         queues: [{
             label: 'active',
-            threshold: 9999
+            threshold: 9999,
+            thresholdLabel: '<10s'
         }, {
             label: 'inactive',
-            threshold: 99999
+            threshold: 99999,
+            thresholdLabel: '<100s'
         }, {
             label: 'archive',
-            threshold: Number.POSITIVE_INFINITY
+            threshold: Number.POSITIVE_INFINITY,
+            thresholdLabel: 'a long time...'
         }],
         counterMax: 5
     };

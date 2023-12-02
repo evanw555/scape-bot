@@ -123,6 +123,7 @@ export const hiddenCommands: HiddenCommandsType = {
                 });
             });
             // Send admin info back to user
+            const playerQueue = state.getPlayerQueue();
             await msg.channel.send({
                 content: 'Admin Information:',
                 embeds: [{
@@ -132,14 +133,21 @@ export const hiddenCommands: HiddenCommandsType = {
                     title: 'Timer Info',
                     description: `\`${timer.getIntervalMeasurementDebugString()}\``
                 }, {
-                    title: 'Total XP',
-                    description: `Populated for **${state.getNumPlayerTotalXp()}** of **${state.getNumGloballyTrackedPlayers()}** players`
+                    title: 'Queue Info',
+                    description: playerQueue.getLabeledDurationStrings()
+                        .map((x, i) => `**${i + 1}.** _${x.label}_: `
+                            + `**${playerQueue.getQueueSize(i)}** players (${Math.floor(100 * playerQueue.getQueueSize(i) / playerQueue.size())}%), `
+                            + `**${playerQueue.getNumIterationsForQueue(i)}** iterations, `
+                            + `_${getPreciseDurationString(playerQueue.getQueueDuration(i))}_ est. duration`).join('\n')
                 }, {
                     title: 'Largest Guilds',
                     description: state.getGuildsByPlayerCount()
                         .slice(0, 10)
                         .map((id, i) => `**${i + 1}.** _${msg.client.guilds.cache.get(id)?.name ?? '???'}_: **${state.getNumTrackedPlayers(id)}**`)
                         .join('\n')
+                }, {
+                    title: 'Misc. Information',
+                    description: `- **Total XP:** Populated for **${state.getNumPlayerTotalXp()}** of **${state.getNumGloballyTrackedPlayers()}** players`
                 }]
             });
             // TODO: Temp logic for subcommands can live here
