@@ -147,7 +147,8 @@ export const hiddenCommands: HiddenCommandsType = {
                         .join('\n')
                 }, {
                     title: 'Misc. Information',
-                    description: `- **Total XP:** Populated for **${state.getNumPlayerTotalXp()}** of **${state.getNumGloballyTrackedPlayers()}** players`
+                    description: `- **Total XP** populated for **${state.getNumPlayerTotalXp()}** of **${state.getNumGloballyTrackedPlayers()}** players`
+                        + `\n- **${state.getNumPlayersOffHiScores()}** players are off the hiscores (**${Math.floor(100 * state.getNumPlayersOffHiScores() / state.getNumGloballyTrackedPlayers())}%**)`
                 }]
             });
             // TODO: Temp logic for subcommands can live here

@@ -24,20 +24,11 @@ const commandHandler: CommandHandler = new CommandHandler(commands);
 export async function sendRestartMessage(downtimeMillis: number): Promise<void> {
     let text = `ScapeBot online after **${getDurationString(downtimeMillis)}** of downtime. `
         + `In **${client.guilds.cache.size}** guild(s) tracking **${state.getNumGloballyTrackedPlayers()}** player(s).`;
-    // TODO: Temp logic to log how many players are off the hiscores
-    text += `\nℹ️ **${state.getNumPlayersOffHiScores()}** players are off the hiscores (**${Math.floor(100 * state.getNumPlayersOffHiScores() / state.getNumGloballyTrackedPlayers())}%**)`;
     // Add timeout manager info
     if (timeoutManager.toStrings().length > 0) {
         text += '\nℹ️ **Timeouts scheduled:**\n' + timeoutManager.toStrings().join('\n');
     }
     await logger.log(text, MultiLoggerLevel.Fatal);
-    // Log all guilds with basic info (sorted by num players tracked)
-    const sortedGuilds = client.guilds.cache.toJSON().sort((x, y) => state.getNumTrackedPlayers(y.id) - state.getNumTrackedPlayers(x.id));
-    await logger.log(sortedGuilds.map((guild, i) => {
-        return `**${i + 1}.** _${guild.name}_ with **${state.getNumTrackedPlayers(guild.id)}**`
-            + (state.hasTrackingChannel(guild.id) ? ` in \`#${state.getTrackingChannel(guild.id).name}\`` : '')
-            + (state.hasPrivilegedRole(guild.id) ? ` with role \`${state.getPrivilegedRole(guild.id).name}\`` : '');
-    }).join('\n'), MultiLoggerLevel.Info);
     // TODO: Use this if you need to troubleshoot...
     // await logger.log(state.toDebugString());
 }
