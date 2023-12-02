@@ -579,7 +579,8 @@ client.on('ready', async () => {
             // Update the next player
             const nextPlayer = state.nextTrackedPlayer();
             if (nextPlayer) {
-                await logger.log(`Refresh **${state.getDisplayName(nextPlayer)}** (on _${state.getContainingQueueLabel(nextPlayer)}_, last **${getPreciseDurationString(state.getTimeSinceLastRefresh(nextPlayer))}** ago)`, MultiLoggerLevel.Trace);
+                await logger.log(`Refresh **${state.getDisplayName(nextPlayer)}** (_${state.getContainingQueueLabel(nextPlayer)}_)`
+                    + (state.hasLastRefresh(nextPlayer) ? `, last **${getPreciseDurationString(state.getTimeSinceLastRefresh(nextPlayer))}** ago` : ''), MultiLoggerLevel.Trace);
                 try {
                     await updatePlayer(nextPlayer);
                     await pgStorageClient.writeMiscProperty('timestamp', new Date().toJSON());

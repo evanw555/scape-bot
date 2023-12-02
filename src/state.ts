@@ -301,6 +301,15 @@ export default class State {
     }
 
     /**
+     * For a given player, determine if a "last refresh" timestamp exists in the state.
+     * @param rsn Player we're checking
+     * @returns True if a "last refresh" timestamp exists for this player
+     */
+    hasLastRefresh(rsn: string): boolean {
+        return rsn in this._lastRefresh;
+    }
+
+    /**
      * @param date When the provided player was last refreshed.
      */
     setLastRefresh(rsn: string, date: Date): void {
