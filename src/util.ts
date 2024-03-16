@@ -311,8 +311,7 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
             await pgStorageClient.writePlayerHiScoreStatus(rsn, true);
             await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), `**${state.getDisplayName(rsn)}** has made it onto the overall hiscores`, 'happy', { color: YELLOW_EMBED_COLOR });
             // TODO: Temp logging to see how often this is being triggered
-            // TODO: Temp logging to see if going on the hiscores is a good heuristic for filling in weekly XP snapshot
-            await logger.log(`**${state.getDisplayName(rsn)}** has made it onto the overall hiscores (hiscores total XP = \`${data.totalXp}\`, in-memory total XP = \`${state.getTotalXp(rsn)}\`, weekly XP snapshot in PG = \`${await pgStorageClient.fetchWeeklyXpSnapshotForPlayer(rsn)}\`)`, MultiLoggerLevel.Warn);
+            await logger.log(`**${state.getDisplayName(rsn)}** has made it onto the overall hiscores`, MultiLoggerLevel.Warn);
         }
     }
 
@@ -366,7 +365,7 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
         await pgStorageClient.updatePlayerRefreshTimestamp(rsn, new Date());
     }
 
-    // If the user is on the overall hiscores, process their total XP
+    // If the player has a valid total XP value, process it
     if (data.totalXp) {
         // If there's no total XP for this player, fill it in now
         // TODO: This is temp logic to avoid every player being marked as active while total XP values are being filled in. Delete this later...
@@ -383,6 +382,11 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
         if (gainedXp || !state.hasTotalXp(rsn)) {
             state.setTotalXp(rsn, data.totalXp);
             await pgStorageClient.updatePlayerTotalXp(rsn, data.totalXp);
+        }
+        // Populate this player's weekly XP snapshot in PG in case it's missing (e.g. for new players)
+        const wasSnapshotMissing = await pgStorageClient.writeWeeklyXpSnapshotIfMissing(rsn, data.totalXp);
+        if (wasSnapshotMissing) {
+            await logger.log(`Populated missing weekly XP snapshot (**${getQuantityWithUnits(data.totalXp)}**) for **${state.getDisplayName(rsn)}**`, MultiLoggerLevel.Warn);
         }
     }
 

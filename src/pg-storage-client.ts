@@ -98,6 +98,15 @@ export default class PGStorageClient {
     async writeWeeklyXpSnapshots(snapshots: Record<string, number>): Promise<void> {
         await this.client.query(format('INSERT INTO weekly_xp_snapshots VALUES %L ON CONFLICT (rsn) DO UPDATE SET xp = EXCLUDED.xp;', Object.entries(snapshots)));
     }
+
+    /**
+     * Writes a player's weekly XP snapshot only if there are no existing rows for the player.
+     * @returns True if any rows were inserted
+     */
+    async writeWeeklyXpSnapshotIfMissing(rsn: string, xp: number): Promise<boolean> {
+        const result = await this.client.query('INSERT INTO weekly_xp_snapshots VALUES ($1, $2) ON CONFLICT DO NOTHING;', [rsn, xp]);
+        return result.rowCount > 0;
+    }
     
     async fetchWeeklyXpSnapshots(): Promise<Record<string, number>> {
         const result: Record<string, number> = {};
@@ -107,16 +116,6 @@ export default class PGStorageClient {
             result[row.rsn] = parseInt(row.xp.toString());
         }
         return result;
-    }
-
-    // TODO: Temp method to test hiscores heuristic for populating weekly XP snapshots
-    async fetchWeeklyXpSnapshotForPlayer(rsn: string): Promise<number | undefined> {
-        const result = await this.client.query<{rsn: string, xp: number}>('SELECT * FROM weekly_xp_snapshots WHERE rsn = $1;', [rsn]);
-        if (result.rowCount === 1) {
-            // Big ints are returned as strings in node-postgres
-            return parseInt(result.rows[0].xp.toString());
-        }
-        return undefined;
     }
 
     async updatePlayerTotalXp(rsn: string, xp: number): Promise<void> {

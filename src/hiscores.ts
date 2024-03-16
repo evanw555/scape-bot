@@ -130,7 +130,7 @@ export async function fetchHiScores(rsn: string): Promise<PlayerHiScores> {
         activitiesWithDefaults: activitiesWithDefaults as Record<IndividualActivityName, number>
     };
 
-    // Total XP is excluded if the player is not on the overall hiscores
+    // Total XP is considered "missing" if it has a value of zero
     if (stats.skills.overall.xp > 0) {
         result.totalXp = stats.skills.overall.xp;
     }
