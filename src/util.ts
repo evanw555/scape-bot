@@ -311,7 +311,8 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
             await pgStorageClient.writePlayerHiScoreStatus(rsn, true);
             await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), `**${state.getDisplayName(rsn)}** has made it onto the overall hiscores`, 'happy', { color: YELLOW_EMBED_COLOR });
             // TODO: Temp logging to see how often this is being triggered
-            await logger.log(`**${state.getDisplayName(rsn)}** has made it onto the overall hiscores`, MultiLoggerLevel.Warn);
+            // TODO: Temp logging to see if going on the hiscores is a good heuristic for filling in weekly XP snapshot
+            await logger.log(`**${state.getDisplayName(rsn)}** has made it onto the overall hiscores (hiscores total XP = \`${data.totalXp}\`, in-memory total XP = \`${state.getTotalXp(rsn)}\`, weekly XP snapshot in PG = \`${await pgStorageClient.fetchWeeklyXpSnapshotForPlayer(rsn)}\`)`, MultiLoggerLevel.Warn);
         }
     }
 

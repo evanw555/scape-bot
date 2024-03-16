@@ -109,6 +109,16 @@ export default class PGStorageClient {
         return result;
     }
 
+    // TODO: Temp method to test hiscores heuristic for populating weekly XP snapshots
+    async fetchWeeklyXpSnapshotForPlayer(rsn: string): Promise<number | undefined> {
+        const result = await this.client.query<{rsn: string, xp: number}>('SELECT * FROM weekly_xp_snapshots WHERE rsn = $1;', [rsn]);
+        if (result.rowCount === 1) {
+            // Big ints are returned as strings in node-postgres
+            return parseInt(result.rows[0].xp.toString());
+        }
+        return undefined;
+    }
+
     async updatePlayerTotalXp(rsn: string, xp: number): Promise<void> {
         await this.client.query('INSERT INTO player_total_xp VALUES ($1, $2) ON CONFLICT (rsn) DO UPDATE SET xp = EXCLUDED.xp;', [rsn, xp]);
     }

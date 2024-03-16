@@ -500,6 +500,23 @@ export const hiddenCommands: HiddenCommandsType = {
         },
         text: 'Shows information about a given player'
     },
+    refresh: {
+        fn: async (msg: Message, rawArgs, rawRsn) => {
+            if (!rawRsn || !rawRsn.trim()) {
+                await msg.reply('Invalid username');
+                return;
+            }
+            const rsn = sanitizeRSN(rawRsn);
+
+            try {
+                await updatePlayer(rsn);
+                await msg.reply(`Refreshed **${state.getDisplayName(rsn)}**!`);
+            } catch (err) {
+                await msg.reply(`Error while updating **${state.getDisplayName(rsn)}**: \`${err}\``);
+            }
+        },
+        text: 'Refreshes a player instantly'
+    },
     guildnotify: {
         fn: async (msg: Message, rawArgs: string, guildId: Snowflake, text: string) => {
             // Validate the input
