@@ -400,7 +400,7 @@ export default class PGStorageClient {
 
     async fetchDailyAnalyticsRows(date: Date): Promise<{label: DailyAnalyticsLabel, value: number}[]> {
         const result = await this.client.query<{date: Date, label: DailyAnalyticsLabel, value: number}>('SELECT * FROM daily_analytics WHERE date = $1', [date]);
-        return result.rows.map(row => ({ label: row.label, value: row.label }));
+        return result.rows.map(row => ({ label: row.label, value: row.value }));
     }
     
     async fetchMiscProperty(name: MiscPropertyName): Promise<string | null> {
