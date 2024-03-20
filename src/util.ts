@@ -726,6 +726,8 @@ export async function updateActivities(rsn: string, newScores: Record<Individual
             return `has earned ${getActivityCompletionPhrase(getActivityName(_activity), _scoreGained, _newScore)}`;
         case 'riftsClosed':
             return `closed another ${_scoreGained === 1 ? '' : `**${_scoreGained}** `}**${_scoreGained === 1 ? 'rift' : 'rifts'}** for a total of **${_newScore}**`;
+        case 'colosseumGlory':
+            return `has earned ${getActivityCompletionPhrase(getActivityName(_activity), _scoreGained, _newScore)}`;
         default:
             return 'N/A';
         }
