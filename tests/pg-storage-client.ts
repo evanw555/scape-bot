@@ -90,6 +90,13 @@ describe('PGStorageClient Tests', () => {
 
         expect('player1' in results).true;
         expect(results.player1.riftsClosed).equals(riftsClosedScore);
+
+        const colosseumGloryScore = randInt(1, 99);
+        await pgStorageClient.writePlayerActivities('player1', { colosseumGlory: colosseumGloryScore });
+
+        const results1 = await pgStorageClient.fetchAllPlayerActivities();
+        expect('player1' in results1).true;
+        expect(results1.player1.colosseumGlory).equals(colosseumGloryScore);
     })
 
     it('can add and remove tracked players', async () => {
