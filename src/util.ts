@@ -846,14 +846,37 @@ export async function purgeUntrackedPlayers(rsns: string[], label: string) {
     }
 }
 
-export function getQuantityWithUnits(quantity: number): string {
+// TODO: Move to common library
+export function getQuantityWithUnits(quantity: number, fractionDigits = 1): string {
     if (quantity < 1000) {
         return quantity.toString();
     } else if (quantity < 1000000) {
-        return (quantity / 1000).toFixed(1) + 'k';
+        return (quantity / 1000).toFixed(fractionDigits) + 'k';
     } else {
-        return (quantity / 1000000).toFixed(1) + 'm';
+        return (quantity / 1000000).toFixed(fractionDigits) + 'm';
     }
+}
+
+// TODO: Move to common library
+export function getUnambiguousQuantitiesWithUnits(quantities: number[]): string[] {
+    const n = quantities.length;
+    const result: string[] = new Array(n).fill('');
+    const complete: boolean[] = new Array(n).fill(false);
+    for (let digits = 1; digits <= 3; digits++) {
+        // One pass to regenerate each incomplete string with a certain number of digits
+        for (let i = 0; i < n; i++) {
+            if (!complete[i]) {
+                result[i] = getQuantityWithUnits(quantities[i], digits);
+            }
+        }
+        // Second pass to mark all the unique ones as complete
+        for (let i = 0; i < n; i++) {
+            const formatted = result[i];
+            const unique = result.filter(x => x === formatted).length === 1;
+            complete[i] = unique;
+        }
+    }
+    return result;
 }
 
 export function getNextFridayEvening(): Date {

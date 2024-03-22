@@ -5,7 +5,7 @@ import { FORMATTED_BOSS_NAMES, BOSSES, Boss, INVALID_FORMAT_ERROR } from 'osrs-j
 import { OTHER_ACTIVITIES, SKILLS_NO_OVERALL, CLUES_NO_ALL, GRAY_EMBED_COLOR, CONSTANTS } from './constants';
 import { fetchHiScores, isPlayerNotFoundError } from './hiscores';
 import { HiddenCommandsType, DailyAnalyticsLabel, PlayerHiScores, IndividualSkillName, IndividualClueType, IndividualActivityName } from './types';
-import { sendUpdateMessage, isValidBoss, updatePlayer, sanitizeRSN, purgeUntrackedPlayers, fetchDisplayName, createWarningEmbed, getHelpText, getAnalyticsTrendsEmbeds, getQuantityWithUnits } from './util';
+import { sendUpdateMessage, isValidBoss, updatePlayer, sanitizeRSN, purgeUntrackedPlayers, fetchDisplayName, createWarningEmbed, getHelpText, getAnalyticsTrendsEmbeds, getUnambiguousQuantitiesWithUnits } from './util';
 
 import state from './instances/state';
 import timer from './instances/timer';
@@ -152,7 +152,9 @@ export const hiddenCommands: HiddenCommandsType = {
                     diffs[rsn] = state.getTotalXp(rsn) - (previousTotalXp[rsn] ?? 0);
                 }
                 players.sort((x, y) => diffs[y] - diffs[x]);
-                await msg.reply('__Current weekly XP standings__:\n' + players.filter(rsn => diffs[rsn]).map((rsn, i) => `${i + 1}. **${state.getDisplayName(rsn)}** _${getQuantityWithUnits(diffs[rsn])}_`).join('\n'));
+                // Format all the XP quantities first to ensure they're mutually unambiguous
+                const formattedValues = getUnambiguousQuantitiesWithUnits(players.map(rsn => diffs[rsn] ?? 0));
+                await msg.reply('__Current weekly XP standings__:\n' + players.filter(rsn => diffs[rsn]).map((rsn, i) => `${i + 1}. **${state.getDisplayName(rsn)}** _${formattedValues[i]}_`).join('\n'));
                 return;
             }
             // Get host uptime info

@@ -1,7 +1,7 @@
 import { BOSSES, CLUES } from 'osrs-json-hiscores';
 import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel, ActivityType, Snowflake, PermissionFlagsBits, MessageCreateOptions, GuildResolvable } from 'discord.js';
 import { DailyAnalyticsLabel, TimeoutType } from './types';
-import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer, getNextEvening, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers, getHelpComponents, readDir, getAnalyticsTrendsString } from './util';
+import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer, getNextEvening, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers, getHelpComponents, readDir, getAnalyticsTrendsString, getUnambiguousQuantitiesWithUnits } from './util';
 import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel, naturalJoin, getPreciseDurationString, toDiscordTimestamp } from 'evanw555.js';
 import CommandReader from './command-reader';
 import CommandHandler from './command-handler';
@@ -364,13 +364,15 @@ const weeklyTotalXpUpdate = async () => {
 
                 // Only send out a message if there are any XP earners
                 if (winners.length !== 0) {
+                    // Format all the XP quantities first to ensure they're mutually unambiguous
+                    const formattedValues = getUnambiguousQuantitiesWithUnits(winners.map(rsn => totalXpDiffs[rsn]));
                     // Send the message to the tracking channel
                     const medalNames = ['gold', 'silver', 'bronze'];
                     await state.getTrackingChannel(guildId).send({
                         content: '**Biggest XP earners over the last week:**',
                         embeds: winners.map((rsn, i) => {
                             return {
-                                description: `**${state.getDisplayName(rsn)}** with **${getQuantityWithUnits(totalXpDiffs[rsn])} XP**`,
+                                description: `**${state.getDisplayName(rsn)}** with **${formattedValues[i]} XP**`,
                                 thumbnail: getThumbnail(medalNames[i])
                             };
                         })
