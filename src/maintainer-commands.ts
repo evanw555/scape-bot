@@ -5,7 +5,7 @@ import { FORMATTED_BOSS_NAMES, BOSSES, Boss, INVALID_FORMAT_ERROR } from 'osrs-j
 import { OTHER_ACTIVITIES, SKILLS_NO_OVERALL, CLUES_NO_ALL, GRAY_EMBED_COLOR, CONSTANTS } from './constants';
 import { fetchHiScores, isPlayerNotFoundError } from './hiscores';
 import { HiddenCommandsType, DailyAnalyticsLabel, PlayerHiScores, IndividualSkillName, IndividualClueType, IndividualActivityName } from './types';
-import { sendUpdateMessage, isValidBoss, updatePlayer, sanitizeRSN, purgeUntrackedPlayers, fetchDisplayName, createWarningEmbed, getHelpText } from './util';
+import { sendUpdateMessage, isValidBoss, updatePlayer, sanitizeRSN, purgeUntrackedPlayers, fetchDisplayName, createWarningEmbed, getHelpText, getAnalyticsTrendsEmbeds } from './util';
 
 import state from './instances/state';
 import timer from './instances/timer';
@@ -124,15 +124,6 @@ export const hiddenCommands: HiddenCommandsType = {
             });
             // Send admin info back to user
             const playerQueue = state.getPlayerQueue();
-            // TODO: Refactor the analytics computations and send them out weekly
-            const analyticsToday = await pgStorageClient.fetchDailyAnalyticsRows(new Date());
-            const numPlayersToday = analyticsToday.filter(row => row.label === DailyAnalyticsLabel.NumPlayers)[0]?.value ?? 0;
-            const numGuildsToday = analyticsToday.filter(row => row.label === DailyAnalyticsLabel.NumGuilds)[0]?.value ?? 0;
-            const lastWeek = new Date();
-            lastWeek.setDate(lastWeek.getDate() - 7);
-            const analyticsLastWeek = await pgStorageClient.fetchDailyAnalyticsRows(lastWeek);
-            const numPlayersLastWeek = analyticsLastWeek.filter(row => row.label === DailyAnalyticsLabel.NumPlayers)[0]?.value ?? 0;
-            const numGuildsLastWeek = analyticsLastWeek.filter(row => row.label === DailyAnalyticsLabel.NumGuilds)[0]?.value ?? 0;
             await msg.channel.send({
                 content: 'Admin Information:',
                 embeds: [{
@@ -158,11 +149,9 @@ export const hiddenCommands: HiddenCommandsType = {
                     title: 'Misc. Information',
                     description: `- **Total XP** populated for **${state.getNumPlayerTotalXp()}** of **${state.getNumGloballyTrackedPlayers()}** players`
                         + `\n- **${state.getNumPlayersOffHiScores()}** players are off the hiscores (**${Math.floor(100 * state.getNumPlayersOffHiScores() / state.getNumGloballyTrackedPlayers())}%**)`
-                }, {
-                    title: 'Weekly Analytics',
-                    description: `**__Guilds__:** **${numGuildsToday}** today, **${numGuildsLastWeek}** last week, (**Δ${(100 * (numGuildsToday - numGuildsLastWeek) / numGuildsLastWeek).toFixed(1)}%**)\n`
-                        + `**__Players__:** **${numPlayersToday}** today, **${numPlayersLastWeek}** last week, (**Δ${(100 * (numPlayersToday - numPlayersLastWeek) / numPlayersLastWeek).toFixed(1)}%**)\n`
-                }]
+                },
+                // TODO: This maybe can be removed since we send these out weekly
+                ...await getAnalyticsTrendsEmbeds()]
             });
             // TODO: Temp logic for subcommands can live here
             if (subcommand === 'populate_daily_analytics') {

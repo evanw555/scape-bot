@@ -2,7 +2,7 @@ import { Boss, BOSSES, INVALID_FORMAT_ERROR, FORMATTED_BOSS_NAMES, getRSNFormat 
 import fs from 'fs';
 import { APIEmbed, ActionRowData, ButtonStyle, ChatInputCommandInteraction, ComponentType, MessageActionRowComponentData, PermissionFlagsBits, PermissionsBitField, Snowflake, TextBasedChannel, TextChannel } from 'discord.js';
 import { addReactsSync, DiscordTimestampFormat, MultiLoggerLevel, naturalJoin, randChoice, toDiscordTimestamp } from 'evanw555.js';
-import { IndividualClueType, IndividualSkillName, IndividualActivityName, PlayerHiScores, NegativeDiffError, CommandsType, SlashCommand } from './types';
+import { IndividualClueType, IndividualSkillName, IndividualActivityName, PlayerHiScores, NegativeDiffError, CommandsType, SlashCommand, DailyAnalyticsLabel } from './types';
 import { fetchHiScores, isPlayerNotFoundError } from './hiscores';
 import { CONSTANTS, BOSS_EMBED_COLOR, CLUES_NO_ALL, CLUE_EMBED_COLOR, COMPLETE_VERB_BOSSES, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, DOPE_COMPLETE_VERBS, DOPE_KILL_VERBS, GRAY_EMBED_COLOR, RED_EMBED_COLOR, SKILLS_NO_OVERALL, SKILL_EMBED_COLOR, YELLOW_EMBED_COLOR, REQUIRED_PERMISSIONS, REQUIRED_PERMISSION_NAMES, CONFIG, DEFAULT_AXIOS_CONFIG, OTHER_ACTIVITIES, DEFAULT_ACTIVITY_SCORE, ACTIVITY_EMBED_COLOR, OTHER_ACTIVITIES_MAP } from './constants';
 
@@ -857,9 +857,9 @@ export function getQuantityWithUnits(quantity: number): string {
 }
 
 export function getNextFridayEvening(): Date {
-    // Get next Friday at 5:10pm
+    // Get next Friday at 5:20pm (must be after the daily job)
     const nextFriday: Date = new Date();
-    nextFriday.setHours(17, 10, 0, 0);
+    nextFriday.setHours(17, 20, 0, 0);
     nextFriday.setHours(nextFriday.getHours() + 24 * ((12 - nextFriday.getDay()) % 7));
     // If this time is in the past, fast-forward to following week
     if (nextFriday.getTime() <= new Date().getTime()) {
@@ -869,9 +869,9 @@ export function getNextFridayEvening(): Date {
 }
 
 export function getNextEvening(): Date {
-    // Get today at 5:20pm
+    // Get today at 5:10pm (must be before the weekly job)
     const nextEvening: Date = new Date();
-    nextEvening.setHours(17, 20, 0, 0);
+    nextEvening.setHours(17, 10, 0, 0);
     // If this time is in the past, fast-forward to tomorrow
     if (nextEvening.getTime() <= new Date().getTime()) {
         nextEvening.setDate(nextEvening.getDate() + 1);
@@ -1071,4 +1071,78 @@ export function getHelpText(commands: CommandsType, isAdmin = false, hasPrivileg
         .map(key => `/${key.padEnd(maxLengthKey)} :: ${commands[key].text}`)
         .join('\n');
     return `\`\`\`asciidoc\n${innerText}\`\`\``;
+}
+
+// TODO: Move to common library?
+export function getPercentChangeString(before: number, after: number): string {
+    const diff = after - before;
+    return `${diff < 0 ? '' : '+'}${(100 * diff / before).toFixed(1)}`;
+}
+
+export async function getAnalyticsTrends() {
+    const lastWeek = new Date();
+    lastWeek.setDate(lastWeek.getDate() - 7);
+    const lastMonth = new Date();
+    lastMonth.setMonth(lastMonth.getMonth() - 1);
+
+    const analyticsToday = await pgStorageClient.fetchDailyAnalyticsRows(new Date());
+    const numPlayersToday = analyticsToday.filter(row => row.label === DailyAnalyticsLabel.NumPlayers)[0]?.value ?? 0;
+    const numGuildsToday = analyticsToday.filter(row => row.label === DailyAnalyticsLabel.NumGuilds)[0]?.value ?? 0;
+
+    const analyticsLastWeek = await pgStorageClient.fetchDailyAnalyticsRows(lastWeek);
+    const numPlayersLastWeek = analyticsLastWeek.filter(row => row.label === DailyAnalyticsLabel.NumPlayers)[0]?.value ?? 0;
+    const numGuildsLastWeek = analyticsLastWeek.filter(row => row.label === DailyAnalyticsLabel.NumGuilds)[0]?.value ?? 0;
+
+    const analyticsLastMonth = await pgStorageClient.fetchDailyAnalyticsRows(lastMonth);
+    const numPlayersLastMonth = analyticsLastMonth.filter(row => row.label === DailyAnalyticsLabel.NumPlayers)[0]?.value ?? 0;
+    const numGuildsLastMonth = analyticsLastMonth.filter(row => row.label === DailyAnalyticsLabel.NumGuilds)[0]?.value ?? 0;
+
+    return {
+        players: {
+            today: numPlayersToday,
+            lastWeek: numPlayersLastWeek,
+            weeklyDiff: numPlayersToday - numPlayersLastWeek,
+            weeklyChange: getPercentChangeString(numPlayersLastWeek, numPlayersToday),
+            lastMonth: numPlayersLastMonth,
+            monthlyDiff: numPlayersToday - numPlayersLastMonth,
+            monthlyChange: getPercentChangeString(numPlayersLastMonth, numPlayersToday)
+        },
+        guilds: {
+            today: numGuildsToday,
+            lastWeek: numGuildsLastWeek,
+            weeklyDiff: numGuildsToday - numGuildsLastWeek,
+            weeklyChange: getPercentChangeString(numGuildsLastWeek, numGuildsToday),
+            lastMonth: numGuildsLastMonth,
+            monthlyDiff: numGuildsToday - numGuildsLastMonth,
+            monthlyChange: getPercentChangeString(numGuildsLastMonth, numGuildsToday)
+        }
+    };
+}
+
+export async function getAnalyticsTrendsEmbeds(): Promise<APIEmbed[]> {
+    const trends = await getAnalyticsTrends();
+    return [{
+        title: 'Num Players',
+        description: `__Today__: **${trends.players.today}**\n`
+            + `__Last Week__: **${trends.players.lastWeek}** (${trends.players.weeklyChange}%)\n`
+            + `__Last Month__: **${trends.players.lastMonth}** (${trends.players.monthlyChange}%)`
+    }, {
+        title: 'Num Guilds',
+        description: `__Today__: **${trends.guilds.today}**\n`
+        + `__Last Week__: **${trends.guilds.lastWeek}** (${trends.guilds.weeklyChange}%)\n`
+        + `__Last Month__: **${trends.guilds.lastMonth}** (${trends.guilds.monthlyChange}%)`
+    }];
+}
+
+// TODO: Delete this and use the function above when we figure out how to send directly to a test channel and not rely on text loggers
+export async function getAnalyticsTrendsString(): Promise<string> {
+    const trends = await getAnalyticsTrends();
+    return '__Num Players__\n'
+        + `Today: **${trends.players.today}**\n`
+        + `Last Week: **${trends.players.lastWeek}** (${trends.players.weeklyChange}%)\n`
+        + `Last Month: **${trends.players.lastMonth}** (${trends.players.monthlyChange}%)\n`
+        + '__Num Guilds__\n'
+        + `Today: **${trends.guilds.today}**\n`
+        + `Last Week: **${trends.guilds.lastWeek}** (${trends.guilds.weeklyChange}%)\n`
+        + `Last Month: **${trends.guilds.lastMonth}** (${trends.guilds.monthlyChange}%)`;
 }
