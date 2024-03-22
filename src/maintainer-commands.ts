@@ -146,6 +146,12 @@ export const hiddenCommands: HiddenCommandsType = {
                         .map((id, i) => `**${i + 1}.** _${msg.client.guilds.cache.get(id)?.name ?? '???'}_: **${state.getNumTrackedPlayers(id)}**`)
                         .join('\n')
                 }, {
+                    title: 'Most Tracked Players',
+                    description: state.getPlayersByGuildCount()
+                        .slice(0, 10)
+                        .map((rsn, i) => `**${i + 1}.** _${state.getDisplayName(rsn)}_: **${state.getNumGuildsTrackingPlayer(rsn)}**`)
+                        .join('\n')
+                }, {
                     title: 'Misc. Information',
                     description: `- **Total XP** populated for **${state.getNumPlayerTotalXp()}** of **${state.getNumGloballyTrackedPlayers()}** players`
                         + `\n- **${state.getNumPlayersOffHiScores()}** players are off the hiscores (**${Math.floor(100 * state.getNumPlayersOffHiScores() / state.getNumGloballyTrackedPlayers())}%**)`

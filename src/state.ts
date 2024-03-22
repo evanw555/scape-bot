@@ -189,7 +189,7 @@ export default class State {
     }
 
     getNumTrackedPlayers(guildId: Snowflake): number {
-        return this.getAllTrackedPlayers(guildId).length;
+        return this._playersByGuild[guildId]?.size ?? 0;
     }
 
     getAllGloballyTrackedPlayers(): string[] {
@@ -216,6 +216,10 @@ export default class State {
         } else {
             return [];
         }
+    }
+
+    getNumGuildsTrackingPlayer(rsn: string): number {
+        return this._guildsByPlayer[rsn]?.size ?? 0;
     }
 
     // TODO: Delete this method in favor of setPlayerHiScoreStatus
@@ -610,6 +614,12 @@ export default class State {
         const allGuildIds: Snowflake[] = this.getAllRelevantGuilds();
         allGuildIds.sort((x, y) => this.getNumTrackedPlayers(y) - this.getNumTrackedPlayers(x));
         return allGuildIds;
+    }
+
+    getPlayersByGuildCount(): string[] {
+        const allPlayers: string[] = this.getAllGloballyTrackedPlayers();
+        allPlayers.sort((x, y) => this.getNumGuildsTrackingPlayer(y) - this.getNumGuildsTrackingPlayer(x));
+        return allPlayers;
     }
 
     /**
