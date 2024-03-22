@@ -5,7 +5,7 @@ import { FORMATTED_BOSS_NAMES, BOSSES, Boss, INVALID_FORMAT_ERROR } from 'osrs-j
 import { OTHER_ACTIVITIES, SKILLS_NO_OVERALL, CLUES_NO_ALL, GRAY_EMBED_COLOR, CONSTANTS } from './constants';
 import { fetchHiScores, isPlayerNotFoundError } from './hiscores';
 import { HiddenCommandsType, DailyAnalyticsLabel, PlayerHiScores, IndividualSkillName, IndividualClueType, IndividualActivityName } from './types';
-import { sendUpdateMessage, isValidBoss, updatePlayer, sanitizeRSN, purgeUntrackedPlayers, fetchDisplayName, createWarningEmbed, getHelpText, getAnalyticsTrendsEmbeds } from './util';
+import { sendUpdateMessage, isValidBoss, updatePlayer, sanitizeRSN, purgeUntrackedPlayers, fetchDisplayName, createWarningEmbed, getHelpText, getAnalyticsTrendsEmbeds, getQuantityWithUnits } from './util';
 
 import state from './instances/state';
 import timer from './instances/timer';
@@ -110,6 +110,51 @@ export const hiddenCommands: HiddenCommandsType = {
     },
     admin: {
         fn: async (msg, rawArgs, subcommand) => {
+            // TODO: Temp logic for subcommands can live here
+            if (subcommand === 'populate_daily_analytics') {
+                const messageBase = 'Populating daily analytics using log messages from this channel...';
+                const replyMessage = await msg.reply(messageBase);
+                const p = /now in \*?\*?(\d+)\*?\*? guilds/;
+                const result: Record<string, number> = {};
+                let lastReplyEdit = new Date().getTime();
+                await forEachMessage(msg.channel, async (message) => {
+                    if (message.author.bot) {
+                        const m = message.content.match(p);
+                        if (m && m[1]) {
+                            const n = parseInt(m[1]);
+                            const dateString = message.createdAt.toDateString();
+                            result[dateString] = Math.max(result[dateString] ?? 0, n);
+                            const currentTime = new Date().getTime();
+                            if (currentTime - lastReplyEdit > 5000) {
+                                lastReplyEdit = currentTime;
+                                await replyMessage.edit(messageBase + ` (extracted from **${Object.keys(result).length}** dates, latest **${dateString}**)`);
+                            }
+                        }
+                    }
+                });
+                await replyMessage.edit(`Done. Extracted **${Object.keys(result).length}** data points. Writing values to PG...`);
+                // Now, write all the values
+                for (const [dateString, value] of Object.entries(result)) {
+                    await pgStorageClient.writeDailyAnalyticsRow(new Date(dateString), DailyAnalyticsLabel.NumGuilds, value);
+                }
+                await replyMessage.edit('Done. Operation complete!');
+                return;
+            } else if (subcommand === 'weekly_xp') {
+                const guildId = msg.guildId;
+                if (!guildId) {
+                    await msg.reply('Send this from a valid guild!');
+                    return;
+                }
+                const players = state.getAllTrackedPlayers(guildId);
+                const previousTotalXp = await pgStorageClient.fetchWeeklyXpSnapshots();
+                const diffs: Record<string, number> = {};
+                for (const rsn of players) {
+                    diffs[rsn] = state.getTotalXp(rsn) - (previousTotalXp[rsn] ?? 0);
+                }
+                players.sort((x, y) => diffs[y] - diffs[x]);
+                await msg.reply('__Current weekly XP standings__:\n' + players.filter(rsn => diffs[rsn]).map((rsn, i) => `${i + 1}. **${state.getDisplayName(rsn)}** _${getQuantityWithUnits(diffs[rsn])}_`).join('\n'));
+                return;
+            }
             // Get host uptime info
             const uptimeString = await new Promise<string>((resolve) => {
                 exec('uptime --pretty', (error, stdout, stderr) => {
@@ -159,35 +204,6 @@ export const hiddenCommands: HiddenCommandsType = {
                 // TODO: This maybe can be removed since we send these out weekly
                 ...await getAnalyticsTrendsEmbeds()]
             });
-            // TODO: Temp logic for subcommands can live here
-            if (subcommand === 'populate_daily_analytics') {
-                const messageBase = 'Populating daily analytics using log messages from this channel...';
-                const replyMessage = await msg.reply(messageBase);
-                const p = /now in \*?\*?(\d+)\*?\*? guilds/;
-                const result: Record<string, number> = {};
-                let lastReplyEdit = new Date().getTime();
-                await forEachMessage(msg.channel, async (message) => {
-                    if (message.author.bot) {
-                        const m = message.content.match(p);
-                        if (m && m[1]) {
-                            const n = parseInt(m[1]);
-                            const dateString = message.createdAt.toDateString();
-                            result[dateString] = Math.max(result[dateString] ?? 0, n);
-                            const currentTime = new Date().getTime();
-                            if (currentTime - lastReplyEdit > 5000) {
-                                lastReplyEdit = currentTime;
-                                await replyMessage.edit(messageBase + ` (extracted from **${Object.keys(result).length}** dates, latest **${dateString}**)`);
-                            }
-                        }
-                    }
-                });
-                await replyMessage.edit(`Done. Extracted **${Object.keys(result).length}** data points. Writing values to PG...`);
-                // Now, write all the values
-                for (const [dateString, value] of Object.entries(result)) {
-                    await pgStorageClient.writeDailyAnalyticsRow(new Date(dateString), DailyAnalyticsLabel.NumGuilds, value);
-                }
-                await replyMessage.edit('Done. Operation complete!');
-            }
         },
         text: 'Show various debug data for admins'
     },
