@@ -107,9 +107,19 @@ export async function sendUpdateMessage(channels: TextBasedChannel[], text: stri
             const message = await channel.send(updateMessage);
             // If any reacts are specified, add them
             if (options?.reacts) {
-                await addReactsSync(message, options.reacts);
+                try {
+                    await addReactsSync(message, options.reacts);
+                } catch (err) {
+                    // Reacts aren't as important, so treat them as a minor failure
+                    await logger.log(`Unable to add reacts to message: \`${err}\``, MultiLoggerLevel.Debug);
+                }
             }
         } catch (err) {
+            // Mark this channel as problematic for later auditing
+            if (channel instanceof TextChannel) {
+                state.addProblematicTrackingChannel(channel);
+            }
+            // Log info about this failure
             let errorMessage = `Unable to send update message \`${text.slice(0, 100)}\` to channel`;
             if (channel instanceof TextChannel) {
                 const textChannel: TextChannel = channel as TextChannel;

@@ -29,6 +29,9 @@ export default class State {
     private readonly _trackingChannelsByGuild: Record<Snowflake, TextChannel>;
     private readonly _privilegedRolesByGuild: Record<Snowflake, Role | APIRole>;
 
+    // This property is volatile and not saved to PG
+    private readonly _problematicTrackingChannels: Set<TextChannel>;
+
     constructor() {
         this._isValid = false;
         this._playersOffHiScores = new Set<string>();
@@ -64,6 +67,7 @@ export default class State {
         this._playersByGuild = {};
         this._trackingChannelsByGuild = {};
         this._privilegedRolesByGuild = {};
+        this._problematicTrackingChannels = new Set();
     }
 
     isValid(): boolean {
@@ -620,6 +624,18 @@ export default class State {
         const allPlayers: string[] = this.getAllGloballyTrackedPlayers();
         allPlayers.sort((x, y) => this.getNumGuildsTrackingPlayer(y) - this.getNumGuildsTrackingPlayer(x));
         return allPlayers;
+    }
+
+    getProblematicTrackingChannels(): TextChannel[] {
+        return Array.from(this._problematicTrackingChannels);
+    }
+
+    addProblematicTrackingChannel(channel: TextChannel) {
+        this._problematicTrackingChannels.add(channel);
+    }
+
+    clearProblematicTrackingChannels() {
+        this._problematicTrackingChannels.clear();
     }
 
     /**

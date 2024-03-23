@@ -98,7 +98,10 @@ export async function sendGuildNotification(guild: GuildResolvable, data: string
 const timeoutCallbacks = {
     [TimeoutType.DailyAudit]: async (): Promise<void> => {
         await timeoutManager.registerTimeout(TimeoutType.DailyAudit, getNextEvening(), { pastStrategy: PastTimeoutStrategy.Invoke });
+        // Audit all guilds
         await auditGuilds();
+        // Audit all problematic tracking channels
+        await auditProblematicTrackingChannels();
         // TODO: Temp logic to do time slot analysis
         timeSlotInstance.incrementDay();
         await logger.log(timeSlotInstance.getOverallDebugString(), MultiLoggerLevel.Info);
@@ -316,6 +319,34 @@ const auditGuilds = async () => {
         await pgStorageClient.writeMiscProperty('auditCounters', JSON.stringify(newAuditCounters));
         // TODO: Temp logging to see how this works
         await logger.log(`Dumped audit counters as \`${JSON.stringify(newAuditCounters).slice(0, 1600)}\``, MultiLoggerLevel.Warn);
+    }
+};
+
+const auditProblematicTrackingChannels = async () => {
+    // Collect the past day's problematic channels and clear the set in the state
+    const problematicChannels = state.getProblematicTrackingChannels();
+    state.clearProblematicTrackingChannels();
+
+    // For each problematic channel, check if it can be fetched...
+    const logStatements: string[] = [];
+    for (const channel of problematicChannels) {
+        const guildId = channel.guildId;
+        // First, check if the channel still exists
+        try {
+            await channel.fetch();
+        } catch (err) {
+            // Failed to fetch, so delete the channel
+            await pgStorageClient.deleteTrackingChannel(guildId);
+            state.clearTrackingChannel(guildId);
+            // Notify the guild and instruct them to set a new tracking channel
+            const warningDestination = await sendGuildNotification(guildId, 'It looks like the OSRS tracking channel for this guild doesn\'t exist anymore. Please set a new one with **/channel**!');
+            logStatements.push(`_${channel.guild.name}_: \`${err}\`, sent to ${warningDestination}`);
+        }
+    }
+
+    // Log the findings
+    if (logStatements.length > 0) {
+        await logger.log(`**Cleared ${logStatements.length}/${problematicChannels.length} problematic tracking channels:**\n` + logStatements.map((x, i) => `**${i + 1}.** ${x}`).join('\n'), MultiLoggerLevel.Error);
     }
 };
 
