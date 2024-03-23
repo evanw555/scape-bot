@@ -48,26 +48,51 @@ export async function sendGuildNotification(guild: GuildResolvable, data: string
         return `nowhere (couldn't resolve \`${guild}\` to a guild)`;
     }
 
-    // First, attempt to send to the guild's system channel
-    if (resolvedGuild.systemChannel && !options?.preferDM) {
+    // Come up with a list of possible places to send this to
+    const outputs: (() => Promise<string>)[] = [
+        // First option is the guild's system channel (if it exists)
+        async () => {
+            if (resolvedGuild.systemChannel) {
+                await resolvedGuild.systemChannel.send(data);
+                return 'system channel';
+            }
+            throw new Error('No system channel');
+        },
+        // Second option is the guild owner DM channel
+        async () => {
+            const owner = await resolvedGuild.fetchOwner();
+            // Implicitly creates a DM channel with the owner
+            await owner.send(data);
+            return 'owner DM';
+        }
+    ];
+
+    // If DMs are preferred, reverse the list
+    if (options?.preferDM) {
+        outputs.reverse();
+    }
+
+    // Track errors so that they can be logged afterward
+    const errors: string[] = [];
+    const getErrorsString = (): string => {
+        if (errors.length === 0) {
+            return '';
+        }
+        return ' (' + errors.map(e => `\`${e}\``).join(', ') + ')';
+    };
+
+    // Attempt sending to these outputs in order, stop after the first success
+    for (const output of outputs) {
         try {
-            await resolvedGuild.systemChannel.send(data);
-            // If successful, return now
-            return 'system channel';
+            const label = await output();
+            return label + getErrorsString();
         } catch (err) {
-            // Failed, so fall back...
+            // Failed, try next
+            errors.push((err as Error).toString());
         }
     }
 
-    // Attempt sending to the guild owner's DMs
-    try {
-        const owner = await resolvedGuild.fetchOwner();
-        // Implicitly creates a DM channel with the owner
-        await owner.send(data);
-        return 'owner DM';
-    } catch (err) {
-        return `nowhere (\`${err})\``;
-    }
+    return 'nowhere' + getErrorsString();
 }
 
 const timeoutCallbacks = {
@@ -631,7 +656,7 @@ client.on('guildCreate', async (guild) => {
         if (!hasPermissions) {
             throw new Error('Missing basic permissions in system channel');
         }
-        // If it has permissions, send to the system channel
+        // Send welcome message to the system channel or owner DMs
         const warningDestination = await sendGuildNotification(guild, welcomeMessageOptions);
         welcomeLog = `welcome message sent to ${warningDestination}`;
     } catch (err) {
@@ -643,7 +668,7 @@ client.on('guildCreate', async (guild) => {
 
 client.on('guildDelete', async (guild) => {
     // TODO: Reduce this back down to debug once we see how this plays out
-    // await logger.log(`Bot has been removed from guild _${guild.name}_, now in **${client.guilds.cache.size}** guilds`, MultiLoggerLevel.Error);
+    await logger.log(`Bot has been removed from guild _${guild.name}_, now in **${client.guilds.cache.size}** guilds`, MultiLoggerLevel.Warn);
     try {
         // Purge all data related to this guild from PG and from the state
         const purgeGuildResult = await pgStorageClient.purgeGuildData(guild.id);
