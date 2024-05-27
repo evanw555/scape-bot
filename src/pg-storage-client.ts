@@ -384,6 +384,10 @@ export default class PGStorageClient {
         await this.client.query('INSERT INTO privileged_roles VALUES ($1, $2) ON CONFLICT (guild_id) DO UPDATE SET role_id = EXCLUDED.role_id;', [guildId, roleId]);
     }
 
+    async deletePrivilegedRole(guildId: Snowflake): Promise<void> {
+        await this.client.query('DELETE FROM privileged_roles WHERE guild_id = $1;', [guildId]);
+    }
+
     // TODO: Update this to make the return type better. Idk what it should actually be... Maybe a list?
     async fetchDailyAnalyticsForLabel(label: DailyAnalyticsLabel): Promise<Record<string, number>> {
         const result: Record<string, number> = {};

@@ -413,6 +413,30 @@ const slashCommands: SlashCommandsType = {
         },
         text: 'Sets a non-admin server role that can use commands like /track, /remove, and more',
         admin: true
+    },
+    removerole: {
+        execute: async (interaction) => {
+            const guild = getInteractionGuild(interaction);
+            if (state.hasPrivilegedRole(guild.id)) {
+                const role = state.getPrivilegedRole(guild.id);
+                await pgStorageClient.deletePrivilegedRole(guild.id);
+                state.clearPrivilegedRole(guild.id);
+                await interaction.reply({
+                    content: `${role} can no longer use admin commands.`,
+                    ephemeral: true
+                });
+                return true;
+            } else {
+                await interaction.reply({
+                    content: 'No privileged role has been set.',
+                    ephemeral: true
+                });
+                return false;
+            }
+
+        },
+        text: 'Removes permission from server role to use admin commands like /track, /remove, and more',
+        admin: true
     }
 };
 
