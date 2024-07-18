@@ -1,4 +1,4 @@
-import { ApplicationCommandOptionType, ChatInputCommandInteraction, Guild, PermissionFlagsBits, TextChannel } from 'discord.js';
+import { ApplicationCommandOptionType, AttachmentBuilder, ChatInputCommandInteraction, Guild, PermissionFlagsBits, TextChannel } from 'discord.js';
 import { Boss, BOSSES } from 'osrs-json-hiscores';
 import { MultiLoggerLevel, naturalJoin } from 'evanw555.js';
 import { PlayerHiScores, SlashCommandsType } from './types';
@@ -210,6 +210,7 @@ const slashCommands: SlashCommandsType = {
         execute: async (interaction) => {
             const guildId = getInteractionGuildId(interaction);
             if (state.isTrackingAnyPlayers(guildId)) {
+                // TODO: Should we sort these in both cases?
                 const displayNames = state.getAllTrackedPlayers(guildId).map(rsn => state.getDisplayName(rsn));
                 const textReply = `Currently tracking players ${naturalJoin(displayNames, { bold: true })}.\nUse **/track** to track more players!`;
                 if (textReply.length < 1990) {
@@ -219,7 +220,8 @@ const slashCommands: SlashCommandsType = {
                     });
                 } else {
                     await interaction.reply({
-                        content: `Currently tracking **${displayNames.length}** players (too many to show in one message)`,
+                        content: `Currently tracking **${displayNames.length}** players (list attached due to large size)`,
+                        files: [new AttachmentBuilder(Buffer.from(displayNames.sort().join('\n'))).setName('players.txt')],
                         ephemeral: true
                     });
                 }
