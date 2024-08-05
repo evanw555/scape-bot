@@ -552,8 +552,9 @@ export async function updateKillCounts(rsn: string, newScores: Record<Boss, numb
         const boss: Boss = updatedBosses[0];
         const scoreIncrease = diff[boss];
         const bossName = getBossName(boss);
-        const text = newScores[boss] === 1
-            ? `**${state.getDisplayName(rsn)}** ${verb} **${bossName}** for the first time!`
+        // Note that this will be funky if the KC is 1, but currently the hiscores don't report KCs until >1
+        const text = newScores[boss] === scoreIncrease
+            ? `**${state.getDisplayName(rsn)}** ${verb} **${bossName}** for the first **${scoreIncrease}** times!`
             : `**${state.getDisplayName(rsn)}** ${verb} **${bossName}** `
                     + (scoreIncrease === 1 ? 'again' : `**${scoreIncrease}** more times`)
                     + ` for a total of **${newScores[boss]}**`;
@@ -564,8 +565,9 @@ export async function updateKillCounts(rsn: string, newScores: Record<Boss, numb
         const text = updatedBosses.map((boss) => {
             const scoreIncrease = diff[boss];
             const bossName = getBossName(boss);
-            return newScores[boss] === 1
-                ? `**${bossName}** for the first time!`
+            // Note that this will be funky if the KC is 1, but currently the hiscores don't report KCs until >1
+            return newScores[boss] === scoreIncrease
+                ? `**${bossName}** for the first **${scoreIncrease}** times!`
                 : `**${bossName}** ${scoreIncrease === 1 ? 'again' : `**${scoreIncrease}** more times`} for a total of **${newScores[boss]}**`;
         }).join('\n');
         await sendUpdateMessage(
