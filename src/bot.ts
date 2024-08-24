@@ -718,7 +718,9 @@ client.on('messageCreate', async (msg) => {
     // Only process messages from other users mentions
     if (msg.mentions.has(client.user as ClientUser) && msg.author.id !== client.user?.id) {
         // If the message was sent by another bot, troll epic style 😈
-        if (msg.author.bot) {
+        // TODO: Make this configurable
+        const ENABLE_BOTTING_LEVEL = false;
+        if (ENABLE_BOTTING_LEVEL && msg.author.bot) {
             state.incrementBotCounter(msg.author.id);
             await pgStorageClient.writeBotCounter(msg.author.id, state.getBotCounter(msg.author.id));
             // Wait up to 1.5 seconds before sending the message to make it feel more organic
