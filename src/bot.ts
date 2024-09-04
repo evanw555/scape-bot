@@ -23,7 +23,8 @@ const commandHandler: CommandHandler = new CommandHandler(commands);
 
 export async function sendRestartMessage(downtimeMillis: number): Promise<void> {
     let text = `ScapeBot online after **${getDurationString(downtimeMillis)}** of downtime. `
-        + `In **${client.guilds.cache.size}** guild(s) tracking **${state.getNumGloballyTrackedPlayers()}** player(s).`;
+        + `In **${client.guilds.cache.size}** guild(s) tracking **${state.getNumGloballyTrackedPlayers()}** player(s). `
+        + `Using Node **${process.version}**`;
     // Add timeout manager info
     if (timeoutManager.toStrings().length > 0) {
         text += '\nℹ️ **Timeouts scheduled:**\n' + timeoutManager.toStrings().join('\n');
