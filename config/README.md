@@ -27,4 +27,4 @@ where `<YOUR_TOKEN>` is the bot's token,
 
 `<MAINTAINER_USER_ID>` is a Discord user ID which should be given maintainer access (optional),
 
-`CHANNEL_LOGGER_ID>` is a channel where the bot can send admin logs at a particular `<LOGGER_LEVEL>` (optional)
+`<CHANNEL_LOGGER_ID>` is a channel where the bot can send admin logs at a particular `<LOGGER_LEVEL>` (optional)
