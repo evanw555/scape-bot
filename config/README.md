@@ -9,7 +9,7 @@ Create a file in this directory called `auth.json`, which looks something like t
     "pg": { <PG_CONFIG> },
     "clientId": "<CLIENT_ID>",
     "maintainerUserIds": ["<MAINTAINER_USER_ID>"],
-    "channelLoggers: [
+    "channelLoggers": [
         "id": "<CHANNEL_LOGGER_ID>",
         "level": "<LOGGER_LEVEL>",
         "dm": <IS_CHANNEL_DM>
