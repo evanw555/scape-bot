@@ -2,9 +2,9 @@ import { Boss, BOSSES, INVALID_FORMAT_ERROR, FORMATTED_BOSS_NAMES, getRSNFormat 
 import fs from 'fs';
 import { APIEmbed, ActionRowData, ButtonStyle, ChatInputCommandInteraction, ComponentType, MessageActionRowComponentData, PermissionFlagsBits, PermissionsBitField, Snowflake, TextBasedChannel, TextChannel } from 'discord.js';
 import { addReactsSync, DiscordTimestampFormat, MultiLoggerLevel, naturalJoin, randChoice, toDiscordTimestamp } from 'evanw555.js';
-import { IndividualClueType, IndividualSkillName, IndividualActivityName, PlayerHiScores, NegativeDiffError, CommandsType, SlashCommand, DailyAnalyticsLabel } from './types';
+import { IndividualClueType, IndividualSkillName, IndividualActivityName, PlayerHiScores, NegativeDiffError, CommandsType, SlashCommand, DailyAnalyticsLabel, GuildSetting } from './types';
 import { fetchHiScores, isPlayerNotFoundError } from './hiscores';
-import { AUTH, CONSTANTS, BOSS_EMBED_COLOR, CLUES_NO_ALL, CLUE_EMBED_COLOR, COMPLETE_VERB_BOSSES, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, DOPE_COMPLETE_VERBS, DOPE_KILL_VERBS, GRAY_EMBED_COLOR, RED_EMBED_COLOR, SKILLS_NO_OVERALL, SKILL_EMBED_COLOR, YELLOW_EMBED_COLOR, REQUIRED_PERMISSIONS, REQUIRED_PERMISSION_NAMES, CONFIG, DEFAULT_AXIOS_CONFIG, OTHER_ACTIVITIES, DEFAULT_ACTIVITY_SCORE, ACTIVITY_EMBED_COLOR, OTHER_ACTIVITIES_MAP } from './constants';
+import { AUTH, CONSTANTS, BOSS_EMBED_COLOR, CLUES_NO_ALL, CLUE_EMBED_COLOR, COMPLETE_VERB_BOSSES, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, DOPE_COMPLETE_VERBS, DOPE_KILL_VERBS, GRAY_EMBED_COLOR, RED_EMBED_COLOR, SKILLS_NO_OVERALL, SKILL_EMBED_COLOR, YELLOW_EMBED_COLOR, REQUIRED_PERMISSIONS, REQUIRED_PERMISSION_NAMES, CONFIG, DEFAULT_AXIOS_CONFIG, OTHER_ACTIVITIES, DEFAULT_ACTIVITY_SCORE, ACTIVITY_EMBED_COLOR, OTHER_ACTIVITIES_MAP, GUILD_SETTINGS, FORMATTED_GUILD_SETTINGS, GUILD_SETTINGS_MAP, DEFAULT_GUILD_SETTINGS } from './constants';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -28,6 +28,10 @@ export function getActivityName(activity: IndividualActivityName): string {
 
 export function isValidBoss(boss: string): boss is Boss {
     return BOSSES.indexOf(boss as Boss) > -1;
+}
+
+export function isValidGuildSetting(setting: string): setting is GuildSetting {
+    return GUILD_SETTINGS.has(setting as GuildSetting);
 }
 
 export function isValidActivity(activity: string): activity is IndividualActivityName {
@@ -951,6 +955,59 @@ export function generateDetailsContentString(players: string[]): string {
         }
     }
     return contentString;
+}
+
+/**
+ * Given a guild setting name and value, it returns a human-readable string representation of the value.
+ */
+export function getReadableSettingValue(setting: GuildSetting, value: number, isDefault = false): string {
+    let valueStr;
+    if (value === 0) {
+        valueStr = 'Disabled';
+    } else {
+        switch (setting) {
+        case GUILD_SETTINGS_MAP.SKILLS_BROADCAST_EVERY_10:
+        case GUILD_SETTINGS_MAP.SKILLS_BROADCAST_EVERY_5:
+        case GUILD_SETTINGS_MAP.SKILLS_BROADCAST_EVERY_1: {
+            valueStr = `Level ${value}`;
+            break;
+        }
+        case GUILD_SETTINGS_MAP.BOSSES_BROADCAST_INTERVAL:
+            valueStr = `Every${value !== 1 ? ` ${value}` : ''} kill${value !== 1 ? 's' : ''}`;
+            break;
+        case GUILD_SETTINGS_MAP.CLUES_BROADCAST_INTERVAL:
+            valueStr = `Every${value !== 1 ? ` ${value}` : ''} clue${value !== 1 ? 's' : ''}`;
+            break;
+        case GUILD_SETTINGS_MAP.MINIGAMES_BROADCAST_INTERVAL:
+            valueStr = `Every${value !== 1 ? ` ${value}` : ''} point${value !== 1 ? 's' : ''}/completion${value !== 1 ? 's' : ''}`;
+            break;
+        case GUILD_SETTINGS_MAP.WEEKLY_RANKING_MAX_COUNT:
+            valueStr = `Top ${value} players`;
+            break;
+        default:
+            valueStr = value.toString();
+            break;
+        }
+    }
+    return isDefault ? `${valueStr} (default)` : valueStr;
+}
+
+/**
+ * Checks that the guild setting value is the default value.
+ */
+export function isDefaultSetting(setting: GuildSetting, value: number): boolean {
+    return value === DEFAULT_GUILD_SETTINGS[setting];
+}
+
+/**
+ * Builds an array of embed fields from a guild settings map.
+ */
+export function buildGuildSettingsFields(guildSettings: Record<GuildSetting, number>) {
+    return Object.entries(guildSettings).map(([key, value]) => {
+        const setting = key as GuildSetting;
+        const readableValue = getReadableSettingValue(setting, value, isDefaultSetting(setting, value));
+        return ({ name: FORMATTED_GUILD_SETTINGS[setting], value: readableValue });
+    });
 }
 
 /**

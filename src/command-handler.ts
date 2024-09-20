@@ -232,6 +232,19 @@ class CommandHandler {
             return;
         }
         const command = this.commands[interaction.commandName];
+        let subcommand = null;
+        let subcommandExecute;
+        try {
+            // Throws an error if a subcommand does not exist
+            const subcommandName = interaction.options.getSubcommand();
+            subcommand = command.subcommands?.find(s => s.name === subcommandName);
+            // Only assign to subcommandExecute if there is a valid subcommand and subcommand execute function
+            if (subcommand && typeof subcommand.execute === 'function') {
+                subcommandExecute = subcommand.execute;
+            }
+        } catch (err) {
+            // No subcommand found, ignore
+        }
         const debugString = `\`${interaction.user.tag}\` executed command \`${interaction.toString()}\` in _${interaction.guild?.name ?? '???'}_ \`#${interaction.channel ?? '???'}\``;
         try {
             if (command.failIfDisabled) {
@@ -246,8 +259,10 @@ class CommandHandler {
                     CommandHandler.assertHasPrivilegedRole(interaction);
                 }
             }
-            if (typeof command.execute === 'function') {
-                const success = await command.execute(interaction);
+            // Will always fall back on base command execute if subcommand execute does not exist
+            const executeFn = subcommandExecute || command.execute;
+            if (typeof executeFn === 'function') {
+                const success = await executeFn(interaction);
                 await logger.log(debugString + ` ${success ? '✅' : '❌'}`, MultiLoggerLevel.Info);
             } else {
                 await interaction.reply(`Warning: slash command does not exist yet for command: ${interaction.commandName}`);

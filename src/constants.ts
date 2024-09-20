@@ -89,32 +89,34 @@ export const DEFAULT_AXIOS_CONFIG: { timeout: number } = {
     timeout: 30000
 };
 
-export const GUILD_SETTINGS: Set<GuildSetting> = new Set([
-    'skills_broadcast_every_10',
-    'skills_broadcast_every_5',
-    'skills_broadcast_every_1',
-    'bosses_broadcast_interval',
-    'clues_broadcast_interval',
-    'minigames_broadcast_interval',
-    'weekly_ranking_max_count'
-]);
+export const GUILD_SETTINGS_MAP = {
+    SKILLS_BROADCAST_EVERY_10: 'skills_broadcast_every_10',
+    SKILLS_BROADCAST_EVERY_5: 'skills_broadcast_every_5',
+    SKILLS_BROADCAST_EVERY_1: 'skills_broadcast_every_1',
+    BOSSES_BROADCAST_INTERVAL: 'bosses_broadcast_interval',
+    CLUES_BROADCAST_INTERVAL: 'clues_broadcast_interval',
+    MINIGAMES_BROADCAST_INTERVAL: 'minigames_broadcast_interval',
+    WEEKLY_RANKING_MAX_COUNT: 'weekly_ranking_max_count'
+} as const;
 
-export const FORMATTED_GUILD_SETTINGS: Record<GuildSetting, string> = {
-    'skills_broadcast_every_10': 'Broadcast skills every 10 levels up to this level',
-    'skills_broadcast_every_5': 'Broadcast skills every 5 levels up to this level',
-    'skills_broadcast_every_1': 'Broadcast skills every level up to this level',
-    'bosses_broadcast_interval': 'Broadcast boss kills at this interval',
-    'clues_broadcast_interval': 'Broadcast clue completions at this interval',
-    'minigames_broadcast_interval': 'Broadcast minigame completions at this interval',
-    'weekly_ranking_max_count': 'Number of players included in the weekly ranking'
-};
+export const GUILD_SETTINGS: Set<GuildSetting> = new Set(Object.values(GUILD_SETTINGS_MAP) as GuildSetting[]);
 
-export const DEFAULT_GUILD_SETTINGS: Record<GuildSetting, number> = {
-    'skills_broadcast_every_10': 0,
-    'skills_broadcast_every_5': 0,
-    'skills_broadcast_every_1': 99,     // Broadcast every level-up
-    'bosses_broadcast_interval': 1,     // Broadcast every boss kill
-    'clues_broadcast_interval': 1,      // Broadcast every clue completion
-    'minigames_broadcast_interval': 1,  // Broadcast every minigame completion
-    'weekly_ranking_max_count': 3       // Show the top 3 players in the weekly ranking
-};
+export const FORMATTED_GUILD_SETTINGS = {
+    [GUILD_SETTINGS_MAP.SKILLS_BROADCAST_EVERY_10]: 'Every 10th level-up starting level',
+    [GUILD_SETTINGS_MAP.SKILLS_BROADCAST_EVERY_5]: 'Every 5th level-up starting level',
+    [GUILD_SETTINGS_MAP.SKILLS_BROADCAST_EVERY_1]: 'Every level-up starting level',
+    [GUILD_SETTINGS_MAP.BOSSES_BROADCAST_INTERVAL]: 'Boss kills broadcast interval',
+    [GUILD_SETTINGS_MAP.CLUES_BROADCAST_INTERVAL]: 'Clue completions broadcast interval',
+    [GUILD_SETTINGS_MAP.MINIGAMES_BROADCAST_INTERVAL]: 'Minigame completions broadcast interval',
+    [GUILD_SETTINGS_MAP.WEEKLY_RANKING_MAX_COUNT]: 'Number of players in the weekly ranking'
+} as const;
+
+export const DEFAULT_GUILD_SETTINGS = {
+    [GUILD_SETTINGS_MAP.SKILLS_BROADCAST_EVERY_10]: 0,
+    [GUILD_SETTINGS_MAP.SKILLS_BROADCAST_EVERY_5]: 0,
+    [GUILD_SETTINGS_MAP.SKILLS_BROADCAST_EVERY_1]: 1,
+    [GUILD_SETTINGS_MAP.BOSSES_BROADCAST_INTERVAL]: 1,
+    [GUILD_SETTINGS_MAP.CLUES_BROADCAST_INTERVAL]: 1,
+    [GUILD_SETTINGS_MAP.MINIGAMES_BROADCAST_INTERVAL]: 1,
+    [GUILD_SETTINGS_MAP.WEEKLY_RANKING_MAX_COUNT]: 3
+} as const;

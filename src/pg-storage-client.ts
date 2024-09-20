@@ -3,7 +3,7 @@ import { MultiLoggerLevel } from 'evanw555.js';
 import { Boss } from 'osrs-json-hiscores';
 import { Client, ClientConfig } from 'pg';
 import format from 'pg-format';
-import { IndividualSkillName, IndividualClueType, IndividualActivityName, MiscPropertyName, DailyAnalyticsLabel } from './types';
+import { IndividualSkillName, IndividualClueType, IndividualActivityName, MiscPropertyName, DailyAnalyticsLabel, GuildSetting } from './types';
 
 import logger from './instances/logger';
 
@@ -443,5 +443,21 @@ export default class PGStorageClient {
     
     async writeMiscProperty(name: MiscPropertyName, value: string): Promise<void> {
         await this.client.query('INSERT INTO misc_properties VALUES ($1, $2) ON CONFLICT (name) DO UPDATE SET value = EXCLUDED.value;', [name, value]);
+    }
+
+    async fetchAllGuildSettings(): Promise<Record<string, Partial<Record<GuildSetting, number>>>> {
+        const result: Record<string, Partial<Record<GuildSetting, number>>> = {};
+        const queryResult = await this.client.query<{guild_id: string, setting: GuildSetting, value: number}>('SELECT * FROM guild_settings');
+        for (const row of queryResult.rows) {
+            if (!result[row.guild_id]) {
+                result[row.guild_id] = {};
+            }
+            result[row.guild_id][row.setting] = parseInt(row.value.toString());
+        }
+        return result;
+    }
+
+    async writeGuildSetting(guildId: Snowflake, setting: GuildSetting, value: number): Promise<void> {
+        await this.client.query('INSERT INTO guild_settings VALUES ($1, $2, $3) ON CONFLICT (guild_id, setting) DO UPDATE SET value = EXCLUDED.value;', [guildId, setting, value]);
     }
 }

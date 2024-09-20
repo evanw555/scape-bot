@@ -1,7 +1,7 @@
 import { APIRole, Role, Snowflake, TextChannel } from 'discord.js';
 import { Boss } from 'osrs-json-hiscores';
 import { MultiLoggerLevel } from 'evanw555.js';
-import { IndividualClueType, IndividualSkillName, IndividualActivityName } from './types';
+import { IndividualClueType, IndividualSkillName, IndividualActivityName, GuildSetting } from './types';
 import { ACTIVE_THRESHOLD_MILLIS, INACTIVE_THRESHOLD_MILLIES } from './constants';
 import PlayerQueue from './player-queue';
 
@@ -28,6 +28,7 @@ export default class State {
 
     private readonly _trackingChannelsByGuild: Record<Snowflake, TextChannel>;
     private readonly _privilegedRolesByGuild: Record<Snowflake, Role | APIRole>;
+    private readonly _settingsByGuild: Record<Snowflake, Partial<Record<GuildSetting, number>>>;
 
     // This property is volatile and not saved to PG
     private readonly _problematicTrackingChannels: Set<TextChannel>;
@@ -67,6 +68,7 @@ export default class State {
         this._playersByGuild = {};
         this._trackingChannelsByGuild = {};
         this._privilegedRolesByGuild = {};
+        this._settingsByGuild = {};
         this._problematicTrackingChannels = new Set();
     }
 
@@ -568,6 +570,28 @@ export default class State {
             throw new Error(`Trying to set ${activity} score for ${rsn} without there being pre-existing activities`);
         }
         this._activities[rsn][activity] = score;
+    }
+
+    hasGuildSettings(guildId: string): boolean {
+        return guildId in this._settingsByGuild;
+    }
+
+    getGuildSettings(guildId: Snowflake): Partial<Record<GuildSetting, number>> {
+        if (!this.hasGuildSettings(guildId)) {
+            throw new Error('Settings do not exist for this guild');
+        }
+        return this._settingsByGuild[guildId];
+    }
+
+    setGuildSetting(guildId: string, setting: GuildSetting, value: number): void {
+        if (!this.hasGuildSettings(guildId)) {
+            throw new Error(`Trying to set guild setting for ${guildId} without there being pre-existing settings`);
+        }
+        this._settingsByGuild[guildId][setting] = value;
+    }
+
+    setGuildSettings(guildId: string, settings: Partial<Record<GuildSetting, number>>): void {
+        this._settingsByGuild[guildId] = settings;
     }
 
     getBotCounter(botId: Snowflake): number {

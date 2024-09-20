@@ -1,11 +1,11 @@
-import { ApplicationCommandOptionType, AttachmentBuilder, ChatInputCommandInteraction, Guild, PermissionFlagsBits, TextChannel } from 'discord.js';
+import { ApplicationCommandOptionType, AttachmentBuilder, ChatInputCommandInteraction, EmbedBuilder, Guild, PermissionFlagsBits, TextChannel } from 'discord.js';
 import { Boss, BOSSES } from 'osrs-json-hiscores';
 import { MultiLoggerLevel, naturalJoin } from 'evanw555.js';
 import { PlayerHiScores, SlashCommandsType } from './types';
-import { replyUpdateMessage, updatePlayer, getBossName, generateDetailsContentString, sanitizeRSN, botHasRequiredPermissionsInChannel, validateRSN, getMissingRequiredChannelPermissionNames, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers, getHelpComponents, getHelpText, resolveHiScoresUrlTemplate } from './util';
+import { replyUpdateMessage, updatePlayer, getBossName, generateDetailsContentString, sanitizeRSN, botHasRequiredPermissionsInChannel, validateRSN, getMissingRequiredChannelPermissionNames, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers, getHelpComponents, getHelpText, isValidGuildSetting, buildGuildSettingsFields, resolveHiScoresUrlTemplate } from './util';
 import { fetchHiScores, isPlayerNotFoundError } from './hiscores';
 import CommandHandler from './command-handler';
-import { AUTH, CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, BOSS_CHOICES, INVALID_TEXT_CHANNEL, SKILL_EMBED_COLOR, OTHER_ACTIVITIES, OTHER_ACTIVITIES_MAP } from './constants';
+import { AUTH, CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, BOSS_CHOICES, INVALID_TEXT_CHANNEL, SKILL_EMBED_COLOR, OTHER_ACTIVITIES, OTHER_ACTIVITIES_MAP, DEFAULT_GUILD_SETTINGS } from './constants';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -344,8 +344,36 @@ const slashCommands: SlashCommandsType = {
     settings: {
         subcommands: [
             {
+                name: 'info',
+                description: 'Displays current settings for this server',
+                execute: async (interaction) => {
+                    const guildId = getInteractionGuildId(interaction);
+                    try {                            
+                        const savedSettings = state.getGuildSettings(guildId);
+                        // Merge the saved settings with the default settings
+                        const guildSettings = { ...DEFAULT_GUILD_SETTINGS, ...savedSettings };
+                        const settingsFields = buildGuildSettingsFields(guildSettings);
+                        const embed = new EmbedBuilder()
+                            .setColor(0x0099FF)
+                            .setTitle('ScapeBot Settings')
+                            .addFields(...settingsFields);
+                        await interaction.reply({
+                            embeds: [embed],
+                            ephemeral: true
+                        });
+                        return true;
+                    } catch (err) {
+                        if (err instanceof Error) {
+                            await logger.log(`Error while getting settings for guild ${interaction.guildId}: ${err.toString()}`, MultiLoggerLevel.Error);
+                            await interaction.reply(`Couldn't get settings: ${err.toString()}`);
+                        }
+                        return false;
+                    }
+                }
+            },
+            {
                 name: 'skills_broadcast_every_10',
-                description: 'Broadcast skill updates every 10 levels up to this level',
+                description: 'Broadcast skill updates for every 10th level-up, starting from this value',
                 options: [
                     {
                         type: ApplicationCommandOptionType.Integer,
@@ -357,7 +385,7 @@ const slashCommands: SlashCommandsType = {
             },
             {
                 name: 'skills_broadcast_every_5',
-                description: 'Broadcast skill updates every 5 levels up to this level',
+                description: 'Broadcast skill updates for every 5th level-up, starting from this value',
                 options: [
                     {
                         type: ApplicationCommandOptionType.Integer,
@@ -369,7 +397,7 @@ const slashCommands: SlashCommandsType = {
             },
             {
                 name: 'skills_broadcast_every_1',
-                description: 'Broadcast skill updates every level up to this level',
+                description: 'Broadcast skill updates for every level-up, starting from this value',
                 options: [
                     {
                         type: ApplicationCommandOptionType.Integer,
@@ -381,7 +409,7 @@ const slashCommands: SlashCommandsType = {
             },
             {
                 name: 'bosses_broadcast_interval',
-                description: 'Broadcast boss kills at this interval (e.g. every 1, 5, 10)',
+                description: 'Broadcast boss kills at every multiple of this value (e.g. every 1, 5, 10)',
                 options: [
                     {
                         type: ApplicationCommandOptionType.Integer,
@@ -393,7 +421,7 @@ const slashCommands: SlashCommandsType = {
             },
             {
                 name: 'clues_broadcast_interval',
-                description: 'Broadcast clue completions at this interval (e.g. every 1, 5, 10)',
+                description: 'Broadcast clue completions at every multiple of this value (e.g. every 1, 5, 10)',
                 options: [
                     {
                         type: ApplicationCommandOptionType.Integer,
@@ -405,7 +433,7 @@ const slashCommands: SlashCommandsType = {
             },
             {
                 name: 'minigames_broadcast_interval',
-                description: 'Broadcast minigame completions at this interval (e.g. every 1, 5, 10)',
+                description: 'Broadcast minigame completions at every multiple of this value (e.g. every 1, 5, 10)',
                 options: [
                     {
                         type: ApplicationCommandOptionType.Integer,
@@ -429,10 +457,21 @@ const slashCommands: SlashCommandsType = {
             }
         ],
         execute: async (interaction) => {
+            const guildId = getInteractionGuildId(interaction);
             try {
                 const value = interaction.options.getInteger('value', true);
+                const setting = interaction.options.getSubcommand(true);
+                if (!isValidGuildSetting(setting)) {
+                    await interaction.reply({
+                        content: `Invalid setting: **${setting}**`,
+                        ephemeral: true
+                    });
+                    return false;
+                }
+                await pgStorageClient.writeGuildSetting(guildId, setting, value);
+                state.setGuildSetting(guildId, setting, value);
                 await interaction.reply({
-                    content: `${interaction.options.getSubcommand()}: ${value}`,
+                    content: `Setting **${interaction.options.getSubcommand()}** set to **${value}**`,
                     ephemeral: true
                 });
                 return true;
@@ -445,6 +484,7 @@ const slashCommands: SlashCommandsType = {
             }
         },
         text: 'Configure ScapeBot settings for this server',
+        admin: true,
         failIfDisabled: true
     },
     channel: {

@@ -67,6 +67,8 @@ export type CommandsType = Record<string, Command>;
 export type SlashCommandsType = Record<SlashCommandName, SlashCommand>;
 export type HiddenCommandsType = Record<HiddenCommandName, HiddenCommand>;
 
+type CommandExecute = (interaction: ChatInputCommandInteraction) => Promise<boolean>;
+
 export interface CommandOptionChoice {
     name: string,
     value: string
@@ -83,7 +85,8 @@ export interface CommandOption {
 export interface Subcommand {
     name: string,
     description: string,
-    options?: CommandOption[]
+    options?: CommandOption[],
+    execute?: CommandExecute
 }
 
 export interface Command {
@@ -94,7 +97,7 @@ export interface Command {
 export interface SlashCommand extends Command {
     options?: CommandOption[],
     subcommands?: Subcommand[],
-    execute: (interaction: ChatInputCommandInteraction) => Promise<boolean>,
+    execute: CommandExecute,
     /**
      * If true, this command can only be invoked (and seen in help text) by guild admins (or bot maintainers).
      * Mutually exclusive with 'privilegedRole'.
