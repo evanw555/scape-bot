@@ -230,6 +230,16 @@ const loadState = async (): Promise<void> => {
             }
         }
     }
+    const guildSettings = await pgStorageClient.fetchAllGuildSettings();
+    for (const [ guildId, settings ] of Object.entries(guildSettings)) {
+        try {
+            state.setGuildSettings(guildId, settings);
+        } catch (err) {
+            if (err instanceof Error) {
+                await logger.log(`Failed to set settings for guild ${guildId} due to ${err.toString()}`, MultiLoggerLevel.Error);
+            }
+        }
+    }
     for (const rsn of playersOffHiScores) {
         state.removePlayerFromHiScores(rsn);
     }
