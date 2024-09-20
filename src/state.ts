@@ -583,6 +583,13 @@ export default class State {
         return this._settingsByGuild[guildId];
     }
 
+    getGuildSetting(guildId: string, setting: GuildSetting): number {
+        if (!this.hasGuildSettings(guildId)) {
+            throw new Error(`Trying to get guild setting for ${guildId} without there being pre-existing settings`);
+        }
+        return this._settingsByGuild[guildId][setting] as number;
+    }
+
     setGuildSetting(guildId: string, setting: GuildSetting, value: number): void {
         if (!this.hasGuildSettings(guildId)) {
             throw new Error(`Trying to set guild setting for ${guildId} without there being pre-existing settings`);

@@ -8,7 +8,7 @@ import CommandHandler from './command-handler';
 import commands from './commands';
 import TimeoutStorage from './timeout-storage';
 
-import { AUTH, CONFIG, INACTIVE_THRESHOLD_MILLIES, OTHER_ACTIVITIES, RED_EMBED_COLOR, SKILLS_NO_OVERALL, TIMEOUTS_PROPERTY } from './constants';
+import { AUTH, CONFIG, DEFAULT_GUILD_SETTINGS, GUILD_SETTINGS_MAP, INACTIVE_THRESHOLD_MILLIES, OTHER_ACTIVITIES, RED_EMBED_COLOR, SKILLS_NO_OVERALL, TIMEOUTS_PROPERTY } from './constants';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -437,21 +437,24 @@ const weeklyTotalXpUpdate = async () => {
     for (const guildId of state.getAllRelevantGuilds()) {
         if (state.hasTrackingChannel(guildId)) {
             try {
-                // Get the top 3 XP earners for this guild
-                const winners: string[] = sortedPlayers.filter(rsn => state.isTrackingPlayer(guildId, rsn)).slice(0, 3);
+                // Get the top XP earners for this guild
+                const weeklyRankingSetting = GUILD_SETTINGS_MAP.WEEKLY_RANKING_MAX_COUNT;
+                const weeklyRankingMaxCount = state.getGuildSetting(guildId, weeklyRankingSetting) ?? DEFAULT_GUILD_SETTINGS[weeklyRankingSetting];
+                const winners: string[] = sortedPlayers.filter(rsn => state.isTrackingPlayer(guildId, rsn)).slice(0, weeklyRankingMaxCount);
 
                 // Only send out a message if there are any XP earners
                 if (winners.length !== 0) {
                     // Format all the XP quantities first to ensure they're mutually unambiguous
                     const formattedValues = getUnambiguousQuantitiesWithUnits(winners.map(rsn => totalXpDiffs[rsn]));
                     // Send the message to the tracking channel
+                    // TODO: Add more RuneScape metal bar thumbnails and expand this array
                     const medalNames = ['gold', 'silver', 'bronze'];
                     await state.getTrackingChannel(guildId).send({
                         content: '**Biggest XP earners over the last week:**',
                         embeds: winners.map((rsn, i) => {
                             return {
                                 description: `**${state.getDisplayName(rsn)}** with **${formattedValues[i]} XP**`,
-                                thumbnail: getThumbnail(medalNames[i])
+                                thumbnail: getThumbnail(medalNames[i] || 'bronze')
                             };
                         })
                     });
