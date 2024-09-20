@@ -1,7 +1,7 @@
 import { PermissionFlagsBits } from 'discord.js';
 import { loadJson } from 'evanw555.js';
 import { Boss, CLUES, SKILLS, BOSSES, FORMATTED_SKILL_NAMES, FORMATTED_BOSS_NAMES, FORMATTED_LEAGUE_POINTS, FORMATTED_LMS, FORMATTED_PVP_ARENA, FORMATTED_SOUL_WARS, FORMATTED_RIFTS_CLOSED, FORMATTED_COLOSSEUM_GLORY } from 'osrs-json-hiscores';
-import { IndividualClueType, IndividualSkillName, ScapeBotAuth, ScapeBotConfig, ScapeBotConstants, CommandOptionChoice } from './types';
+import { IndividualClueType, IndividualSkillName, ScapeBotAuth, ScapeBotConfig, ScapeBotConstants, CommandOptionChoice, GuildSetting } from './types';
 
 export const SKILLS_NO_OVERALL: IndividualSkillName[] = SKILLS.filter(skill => skill !== 'overall') as IndividualSkillName[];
 export const CLUES_NO_ALL: IndividualClueType[] = CLUES.filter(clue => clue !== 'all') as IndividualClueType[];
@@ -87,4 +87,34 @@ export const UNAUTHORIZED_ROLE = 'err/unauthorized-role';
 
 export const DEFAULT_AXIOS_CONFIG: { timeout: number } = {
     timeout: 30000
+};
+
+export const GUILD_SETTINGS: Set<GuildSetting> = new Set([
+    'skills_broadcast_every_10',
+    'skills_broadcast_every_5',
+    'skills_broadcast_every_1',
+    'bosses_broadcast_interval',
+    'clues_broadcast_interval',
+    'minigames_broadcast_interval',
+    'weekly_ranking_max_count'
+]);
+
+export const FORMATTED_GUILD_SETTINGS: Record<GuildSetting, string> = {
+    'skills_broadcast_every_10': 'Broadcast skills every 10 levels up to this level',
+    'skills_broadcast_every_5': 'Broadcast skills every 5 levels up to this level',
+    'skills_broadcast_every_1': 'Broadcast skills every level up to this level',
+    'bosses_broadcast_interval': 'Broadcast boss kills at this interval',
+    'clues_broadcast_interval': 'Broadcast clue completions at this interval',
+    'minigames_broadcast_interval': 'Broadcast minigame completions at this interval',
+    'weekly_ranking_max_count': 'Number of players included in the weekly ranking'
+};
+
+export const DEFAULT_GUILD_SETTINGS: Record<GuildSetting, number> = {
+    'skills_broadcast_every_10': 0,
+    'skills_broadcast_every_5': 0,
+    'skills_broadcast_every_1': 99,     // Broadcast every level-up
+    'bosses_broadcast_interval': 1,     // Broadcast every boss kill
+    'clues_broadcast_interval': 1,      // Broadcast every clue completion
+    'minigames_broadcast_interval': 1,  // Broadcast every minigame completion
+    'weekly_ranking_max_count': 3       // Show the top 3 players in the weekly ranking
 };

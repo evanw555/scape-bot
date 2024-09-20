@@ -341,6 +341,112 @@ const slashCommands: SlashCommandsType = {
         text: 'Shows the kill count of a boss for some player',
         failIfDisabled: true
     },
+    settings: {
+        subcommands: [
+            {
+                name: 'skills_broadcast_every_10',
+                description: 'Broadcast skill updates every 10 levels up to this level',
+                options: [
+                    {
+                        type: ApplicationCommandOptionType.Integer,
+                        name: 'value',
+                        description: 'Level',
+                        required: true
+                    }
+                ]
+            },
+            {
+                name: 'skills_broadcast_every_5',
+                description: 'Broadcast skill updates every 5 levels up to this level',
+                options: [
+                    {
+                        type: ApplicationCommandOptionType.Integer,
+                        name: 'value',
+                        description: 'Level',
+                        required: true
+                    }
+                ]
+            },
+            {
+                name: 'skills_broadcast_every_1',
+                description: 'Broadcast skill updates every level up to this level',
+                options: [
+                    {
+                        type: ApplicationCommandOptionType.Integer,
+                        name: 'value',
+                        description: 'Level',
+                        required: true
+                    }
+                ]
+            },
+            {
+                name: 'bosses_broadcast_interval',
+                description: 'Broadcast boss kills at this interval (e.g. every 1, 5, 10)',
+                options: [
+                    {
+                        type: ApplicationCommandOptionType.Integer,
+                        name: 'value',
+                        description: 'Interval',
+                        required: true
+                    }
+                ]
+            },
+            {
+                name: 'clues_broadcast_interval',
+                description: 'Broadcast clue completions at this interval (e.g. every 1, 5, 10)',
+                options: [
+                    {
+                        type: ApplicationCommandOptionType.Integer,
+                        name: 'value',
+                        description: 'Interval',
+                        required: true
+                    }
+                ]
+            },
+            {
+                name: 'minigames_broadcast_interval',
+                description: 'Broadcast minigame completions at this interval (e.g. every 1, 5, 10)',
+                options: [
+                    {
+                        type: ApplicationCommandOptionType.Integer,
+                        name: 'value',
+                        description: 'Interval',
+                        required: true
+                    }
+                ]
+            },
+            {
+                name: 'weekly_ranking_max_count',
+                description: 'Number of players included in the weekly ranking',
+                options: [
+                    {
+                        type: ApplicationCommandOptionType.Integer,
+                        name: 'value',
+                        description: 'Count',
+                        required: true
+                    }
+                ]
+            }
+        ],
+        execute: async (interaction) => {
+            try {
+                const value = interaction.options.getInteger('value', true);
+                await interaction.reply({
+                    content: `${interaction.options.getSubcommand()}: ${value}`,
+                    ephemeral: true
+                });
+                return true;
+            } catch (err) {
+                if (err instanceof Error) {
+                    await logger.log(`Error while configuring settings for guild ${interaction.guildId}: ${err.toString()}`, MultiLoggerLevel.Error);
+                    await interaction.reply(`Couldn't set settings: ${err.toString()}`);
+                }
+                return false;
+            }
+        },
+        text: 'Configure ScapeBot settings for this server',
+        failIfDisabled: true
+    },
     channel: {
         execute: async (interaction) => {
             const guild = getInteractionGuild(interaction);
