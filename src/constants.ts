@@ -102,9 +102,9 @@ export const GUILD_SETTINGS_MAP = {
 export const GUILD_SETTINGS: Set<GuildSetting> = new Set(Object.values(GUILD_SETTINGS_MAP) as GuildSetting[]);
 
 export const FORMATTED_GUILD_SETTINGS = {
-    [GUILD_SETTINGS_MAP.SKILLS_BROADCAST_EVERY_10]: 'Every 10th level-up starting level',
-    [GUILD_SETTINGS_MAP.SKILLS_BROADCAST_EVERY_5]: 'Every 5th level-up starting level',
-    [GUILD_SETTINGS_MAP.SKILLS_BROADCAST_EVERY_1]: 'Every level-up starting level',
+    [GUILD_SETTINGS_MAP.SKILLS_BROADCAST_EVERY_10]: 'Broadcast every 10th level-up starting at',
+    [GUILD_SETTINGS_MAP.SKILLS_BROADCAST_EVERY_5]: 'Broadcast every 5th level-up starting at',
+    [GUILD_SETTINGS_MAP.SKILLS_BROADCAST_EVERY_1]: 'Broadcast every level-up starting at',
     [GUILD_SETTINGS_MAP.BOSSES_BROADCAST_INTERVAL]: 'Boss kills broadcast interval',
     [GUILD_SETTINGS_MAP.CLUES_BROADCAST_INTERVAL]: 'Clue completions broadcast interval',
     [GUILD_SETTINGS_MAP.MINIGAMES_BROADCAST_INTERVAL]: 'Minigame completions broadcast interval',
