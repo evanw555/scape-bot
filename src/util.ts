@@ -516,6 +516,21 @@ export async function updateLevels(rsn: string, newLevels: Record<IndividualSkil
     return false;
 }
 
+export function filterToInterval(newScores: Record<string, number>, diff: Record<string, number>, interval: number) {
+    const filteredKeys: string[] = [];
+    for (const [key, value] of Object.entries(diff)) {
+        // Get the previous score for the activity and calculate what remains to equal or exceed interval
+        if (newScores[key] >= interval) {
+            const remainder = (newScores[key] - value) % interval;
+            // If diff value is greater than remainder, we can add to filtered keys
+            if (value >= remainder) {
+                filteredKeys.push(key);
+            }
+        }
+    }
+    return filteredKeys;
+}
+
 export async function updateKillCounts(rsn: string, newScores: Record<Boss, number>, spoofedDiff?: Record<string, number>): Promise<boolean> {
     // We shouldn't be doing this if this player doesn't have any boss info in the state
     if (!state.hasBosses(rsn)) {
@@ -547,28 +562,16 @@ export async function updateKillCounts(rsn: string, newScores: Record<Boss, numb
     if (!diff) {
         return false;
     }
-    // Send a message showing all the incremented boss scores
+    // Send a message showing all the incremented boss scores, filtering per interval
     const updatedBosses: Boss[] = Object.keys(diff) as Boss[];
-    // We need to filter out bosses from guild messages that don't satisfy the broadcast interval
-    // First, get the guilds tracking this player
     const playerGuildIds = state.getGuildsTrackingPlayer(rsn);
-    // Loop through those guilds, and create a new diff that filters out these bosses
     const sendMessages = playerGuildIds.map(async (guildId) => {
+        // Get the boss broadcast interval and filter out invalid boss updates
         const bossesIntervalSetting = GUILD_SETTINGS_MAP.BOSSES_BROADCAST_INTERVAL;
-        // Get the guild's saved setting or the default (1, AKA every boss kill)
         const bossesBroadcastInterval = state.getGuildSetting(guildId, bossesIntervalSetting)
             || DEFAULT_GUILD_SETTINGS[bossesIntervalSetting];
-        const guildBosses: Boss[] = [];
-        for (const [boss, value] of Object.entries(diff)) {
-            // Get the previous score for the boss and calculate what remains to equal or exceed interval
-            if (newScores[boss as Boss] >= bossesBroadcastInterval) {
-                const remainder = (newScores[boss as Boss] - value) % bossesBroadcastInterval;
-                // If diff value is greater than remainder, we can add to broadcastDiff
-                if (value >= remainder) {
-                    guildBosses.push(boss as Boss);
-                }
-            }
-        }
+        const guildBosses = filterToInterval(newScores, diff, bossesBroadcastInterval) as Boss[];
+        // TODO: Save "skipped" boss updates per guild in database so we can get true delta when boss update passes interval check and is broadcast to guild
         const textChannel = state.getTrackingChannel(guildId);
         // Only use a kill verb if all the updated bosses are "killable" bosses, else use a complete verb
         const verb: string = updatedBosses.some(boss => COMPLETE_VERB_BOSSES.has(boss)) ? randChoice(...DOPE_COMPLETE_VERBS) : randChoice(...DOPE_KILL_VERBS);
@@ -671,29 +674,39 @@ export async function updateClues(rsn: string, newScores: Record<IndividualClueT
         return quantityText + ` **${_clue}** ${_scoreGained === 1 ? 'clue' : 'clues'} for a total of **${_newScore}**`;
     };
     const updatedClues: IndividualClueType[] = toSortedCluesNoAll(Object.keys(diff));
-    switch (updatedClues.length) {
-    case 0:
-        break;
-    case 1: {
-        const clue = updatedClues[0];
-        const scoreGained = diff[clue] ?? 0;
-        const text = `**${state.getDisplayName(rsn)}** has completed ${getClueCompletionPhrase(clue, scoreGained, newScores[clue])}`;
-        await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, clue, { color: CLUE_EMBED_COLOR });
-        break;
-    }
-    default: {
-        const text = updatedClues.map((clue) => {
+    const playerGuildIds = state.getGuildsTrackingPlayer(rsn);
+    const sendMessages = playerGuildIds.map(async (guildId) => {
+        // Get the clue broadcast interval and filter out invalid clue updates
+        const cluesIntervalSetting = GUILD_SETTINGS_MAP.CLUES_BROADCAST_INTERVAL;
+        const cluesBroadcastInterval = state.getGuildSetting(guildId, cluesIntervalSetting)
+            || DEFAULT_GUILD_SETTINGS[cluesIntervalSetting];
+        const guildClues = filterToInterval(newScores, diff, cluesBroadcastInterval) as IndividualClueType[];
+        const textChannel = state.getTrackingChannel(guildId);
+        switch (guildClues.length) {
+        case 0:
+            break;
+        case 1: {
+            const clue = guildClues[0];
             const scoreGained = diff[clue] ?? 0;
-            return getClueCompletionPhrase(clue, scoreGained, newScores[clue]);
-        }).join('\n');
-        await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn),
-            `**${state.getDisplayName(rsn)}** has completed...\n${text}`,
-            // Show the highest level clue as the icon
-            updatedClues[updatedClues.length - 1],
-            { color: CLUE_EMBED_COLOR });
-        break;
-    }
-    }
+            const text = `**${state.getDisplayName(rsn)}** has completed ${getClueCompletionPhrase(clue, scoreGained, newScores[clue])}`;
+            await sendUpdateMessage([textChannel], text, clue, { color: CLUE_EMBED_COLOR });
+            break;
+        }
+        default: {
+            const text = guildClues.map((clue) => {
+                const scoreGained = diff[clue] ?? 0;
+                return getClueCompletionPhrase(clue, scoreGained, newScores[clue]);
+            }).join('\n');
+            await sendUpdateMessage([textChannel],
+                `**${state.getDisplayName(rsn)}** has completed...\n${text}`,
+                // Show the highest level clue as the icon
+                guildClues[guildClues.length - 1],
+                { color: CLUE_EMBED_COLOR });
+            break;
+        }
+        }
+    });
+    await Promise.all(sendMessages);
 
     // If not spoofing the diff, update player's clue scores
     if (!spoofedDiff) {
@@ -774,29 +787,39 @@ export async function updateActivities(rsn: string, newScores: Record<Individual
         }
     };
     const updatedActivities: IndividualActivityName[] = Object.keys(diff) as IndividualActivityName[];
-    switch (updatedActivities.length) {
-    case 0:
-        break;
-    case 1: {
-        const activity = updatedActivities[0];
-        const scoreGained = diff[activity] ?? 0;
-        const text = `**${state.getDisplayName(rsn)}** ${getActivityPhrase(activity, scoreGained, newScores[activity])}`;
-        await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, activity, { color: ACTIVITY_EMBED_COLOR });
-        break;
-    }
-    default: {
-        const text = updatedActivities.map((activity) => {
+    const playerGuildIds = state.getGuildsTrackingPlayer(rsn);
+    const sendMessages = playerGuildIds.map(async (guildId) => {
+        // Get the minigames broadcast interval and filter out invalid minigame updates
+        const minigamesIntervalSetting = GUILD_SETTINGS_MAP.MINIGAMES_BROADCAST_INTERVAL;
+        const minigamesBroadcastInterval = state.getGuildSetting(guildId, minigamesIntervalSetting)
+            || DEFAULT_GUILD_SETTINGS[minigamesIntervalSetting];
+        const guildMinigames = filterToInterval(newScores, diff, minigamesBroadcastInterval) as IndividualActivityName[];
+        const textChannel = state.getTrackingChannel(guildId);
+        switch (guildMinigames.length) {
+        case 0:
+            break;
+        case 1: {
+            const activity = guildMinigames[0];
             const scoreGained = diff[activity] ?? 0;
-            return getActivityPhrase(activity, scoreGained, newScores[activity]);
-        }).join('\n');
-        await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn),
-            `**${state.getDisplayName(rsn)}**...\n${text}`,
-            // Show the first activity as the icon
-            updatedActivities[0],
-            { color: ACTIVITY_EMBED_COLOR });
-        break;
-    }
-    }
+            const text = `**${state.getDisplayName(rsn)}** ${getActivityPhrase(activity, scoreGained, newScores[activity])}`;
+            await sendUpdateMessage([textChannel], text, activity, { color: ACTIVITY_EMBED_COLOR });
+            break;
+        }
+        default: {
+            const text = guildMinigames.map((activity) => {
+                const scoreGained = diff[activity] ?? 0;
+                return getActivityPhrase(activity, scoreGained, newScores[activity]);
+            }).join('\n');
+            await sendUpdateMessage([textChannel],
+                `**${state.getDisplayName(rsn)}**...\n${text}`,
+                // Show the first activity as the icon
+                guildMinigames[0],
+                { color: ACTIVITY_EMBED_COLOR });
+            break;
+        }
+        }
+    });
+    await Promise.all(sendMessages);
 
     // If not spoofing the diff, update player's activities
     if (!spoofedDiff) {
