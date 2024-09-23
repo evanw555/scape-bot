@@ -549,43 +549,66 @@ export async function updateKillCounts(rsn: string, newScores: Record<Boss, numb
     }
     // Send a message showing all the incremented boss scores
     const updatedBosses: Boss[] = Object.keys(diff) as Boss[];
-    // Only use a kill verb if all the updated bosses are "killable" bosses, else use a complete verb
-    const verb: string = updatedBosses.some(boss => COMPLETE_VERB_BOSSES.has(boss)) ? randChoice(...DOPE_COMPLETE_VERBS) : randChoice(...DOPE_KILL_VERBS);
-    switch (updatedBosses.length) {
-    case 0:
-        break;
-    case 1: {
-        const boss: Boss = updatedBosses[0];
-        const scoreIncrease = diff[boss];
-        const bossName = getBossName(boss);
-        // Note that this will be funky if the KC is 1, but currently the hiscores don't report KCs until >1
-        const text = newScores[boss] === scoreIncrease
-            ? `**${state.getDisplayName(rsn)}** ${verb} **${bossName}** for the first **${scoreIncrease}** times!`
-            : `**${state.getDisplayName(rsn)}** ${verb} **${bossName}** `
-                    + (scoreIncrease === 1 ? 'again' : `**${scoreIncrease}** more times`)
-                    + ` for a total of **${newScores[boss]}**`;
-        await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, boss, { color: BOSS_EMBED_COLOR });
-        break;
-    }
-    default: {
-        const text = updatedBosses.map((boss) => {
+    // We need to filter out bosses from guild messages that don't satisfy the broadcast interval
+    // First, get the guilds tracking this player
+    const playerGuildIds = state.getGuildsTrackingPlayer(rsn);
+    // Loop through those guilds, and create a new diff that filters out these bosses
+    const sendMessages = playerGuildIds.map(async (guildId) => {
+        const bossesIntervalSetting = GUILD_SETTINGS_MAP.BOSSES_BROADCAST_INTERVAL;
+        // Get the guild's saved setting or the default (1, AKA every boss kill)
+        const bossesBroadcastInterval = state.getGuildSetting(guildId, bossesIntervalSetting)
+            || DEFAULT_GUILD_SETTINGS[bossesIntervalSetting];
+        const guildBosses: Boss[] = [];
+        for (const [boss, value] of Object.entries(diff)) {
+            // Get the previous score for the boss and calculate what remains to equal or exceed interval
+            if (newScores[boss as Boss] >= bossesBroadcastInterval) {
+                const remainder = (newScores[boss as Boss] - value) % bossesBroadcastInterval;
+                // If diff value is greater than remainder, we can add to broadcastDiff
+                if (value >= remainder) {
+                    guildBosses.push(boss as Boss);
+                }
+            }
+        }
+        const textChannel = state.getTrackingChannel(guildId);
+        // Only use a kill verb if all the updated bosses are "killable" bosses, else use a complete verb
+        const verb: string = updatedBosses.some(boss => COMPLETE_VERB_BOSSES.has(boss)) ? randChoice(...DOPE_COMPLETE_VERBS) : randChoice(...DOPE_KILL_VERBS);
+        switch (guildBosses.length) {
+        case 0:
+            break;
+        case 1: {
+            const boss: Boss = guildBosses[0];
             const scoreIncrease = diff[boss];
             const bossName = getBossName(boss);
             // Note that this will be funky if the KC is 1, but currently the hiscores don't report KCs until >1
-            return newScores[boss] === scoreIncrease
-                ? `**${bossName}** for the first **${scoreIncrease}** times!`
-                : `**${bossName}** ${scoreIncrease === 1 ? 'again' : `**${scoreIncrease}** more times`} for a total of **${newScores[boss]}**`;
-        }).join('\n');
-        await sendUpdateMessage(
-            state.getTrackingChannelsForPlayer(rsn),
-            `**${state.getDisplayName(rsn)}** ${verb}...\n${text}`,
-            // Show the first boss in the list as the icon
-            updatedBosses[0],
-            { color: BOSS_EMBED_COLOR }
-        );
-        break;
-    }
-    }
+            const text = newScores[boss] === scoreIncrease
+                ? `**${state.getDisplayName(rsn)}** ${verb} **${bossName}** for the first **${scoreIncrease}** times!`
+                : `**${state.getDisplayName(rsn)}** ${verb} **${bossName}** `
+                        + (scoreIncrease === 1 ? 'again' : `**${scoreIncrease}** more times`)
+                        + ` for a total of **${newScores[boss]}**`;
+            await sendUpdateMessage([textChannel], text, boss, { color: BOSS_EMBED_COLOR });
+            break;
+        }
+        default: {
+            const text = guildBosses.map((boss) => {
+                const scoreIncrease = diff[boss];
+                const bossName = getBossName(boss);
+                // Note that this will be funky if the KC is 1, but currently the hiscores don't report KCs until >1
+                return newScores[boss] === scoreIncrease
+                    ? `**${bossName}** for the first **${scoreIncrease}** times!`
+                    : `**${bossName}** ${scoreIncrease === 1 ? 'again' : `**${scoreIncrease}** more times`} for a total of **${newScores[boss]}**`;
+            }).join('\n');
+            await sendUpdateMessage(
+                [textChannel],
+                `**${state.getDisplayName(rsn)}** ${verb}...\n${text}`,
+                // Show the first boss in the list as the icon
+                guildBosses[0],
+                { color: BOSS_EMBED_COLOR }
+            );
+            break;
+        }
+        }
+    });
+    await Promise.all(sendMessages);
 
     // If not spoofing the diff, update player's boss scores
     if (!spoofedDiff) {
