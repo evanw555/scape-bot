@@ -1,14 +1,14 @@
 import { BOSSES, CLUES } from 'osrs-json-hiscores';
 import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel, ActivityType, Snowflake, PermissionFlagsBits, MessageCreateOptions, GuildResolvable } from 'discord.js';
 import { DailyAnalyticsLabel, TimeoutType } from './types';
-import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer, getNextEvening, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers, getHelpComponents, readDir, getAnalyticsTrendsString, getUnambiguousQuantitiesWithUnits } from './util';
+import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer, getNextEvening, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers, getHelpComponents, readDir, getAnalyticsTrendsString, getUnambiguousQuantitiesWithUnits, getGuildSettingOrDefault } from './util';
 import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel, naturalJoin, getPreciseDurationString, toDiscordTimestamp } from 'evanw555.js';
 import CommandReader from './command-reader';
 import CommandHandler from './command-handler';
 import commands from './commands';
 import TimeoutStorage from './timeout-storage';
 
-import { AUTH, CONFIG, INACTIVE_THRESHOLD_MILLIES, OTHER_ACTIVITIES, RED_EMBED_COLOR, SKILLS_NO_OVERALL, TIMEOUTS_PROPERTY } from './constants';
+import { AUTH, CONFIG, GUILD_SETTINGS_MAP, INACTIVE_THRESHOLD_MILLIES, OTHER_ACTIVITIES, RED_EMBED_COLOR, SKILLS_NO_OVERALL, TIMEOUTS_PROPERTY } from './constants';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -230,6 +230,16 @@ const loadState = async (): Promise<void> => {
             }
         }
     }
+    const guildSettings = await pgStorageClient.fetchAllGuildSettings();
+    for (const [ guildId, settings ] of Object.entries(guildSettings)) {
+        try {
+            state.setGuildSettings(guildId, settings);
+        } catch (err) {
+            if (err instanceof Error) {
+                await logger.log(`Failed to set settings for guild ${guildId} due to ${err.toString()}`, MultiLoggerLevel.Error);
+            }
+        }
+    }
     for (const rsn of playersOffHiScores) {
         state.removePlayerFromHiScores(rsn);
     }
@@ -416,21 +426,24 @@ const weeklyTotalXpUpdate = async () => {
     for (const guildId of state.getAllRelevantGuilds()) {
         if (state.hasTrackingChannel(guildId)) {
             try {
-                // Get the top 3 XP earners for this guild
-                const winners: string[] = sortedPlayers.filter(rsn => state.isTrackingPlayer(guildId, rsn)).slice(0, 3);
+                // Get the top XP earners for this guild
+                const weeklyRankingSetting = GUILD_SETTINGS_MAP.WEEKLY_RANKING_MAX_COUNT;
+                const weeklyRankingMaxCount = getGuildSettingOrDefault(guildId, weeklyRankingSetting);
+                const winners: string[] = sortedPlayers.filter(rsn => state.isTrackingPlayer(guildId, rsn)).slice(0, weeklyRankingMaxCount);
 
                 // Only send out a message if there are any XP earners
                 if (winners.length !== 0) {
                     // Format all the XP quantities first to ensure they're mutually unambiguous
                     const formattedValues = getUnambiguousQuantitiesWithUnits(winners.map(rsn => totalXpDiffs[rsn]));
                     // Send the message to the tracking channel
+                    // TODO: Add more RuneScape metal bar thumbnails and expand this array
                     const medalNames = ['gold', 'silver', 'bronze'];
                     await state.getTrackingChannel(guildId).send({
                         content: '**Biggest XP earners over the last week:**',
                         embeds: winners.map((rsn, i) => {
                             return {
                                 description: `**${state.getDisplayName(rsn)}** with **${formattedValues[i]} XP**`,
-                                thumbnail: getThumbnail(medalNames[i])
+                                thumbnail: getThumbnail(medalNames[i] || 'bronze')
                             };
                         })
                     });
