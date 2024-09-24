@@ -1,14 +1,14 @@
 import { BOSSES, CLUES } from 'osrs-json-hiscores';
 import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel, ActivityType, Snowflake, PermissionFlagsBits, MessageCreateOptions, GuildResolvable } from 'discord.js';
 import { DailyAnalyticsLabel, TimeoutType } from './types';
-import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer, getNextEvening, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers, getHelpComponents, readDir, getAnalyticsTrendsString, getUnambiguousQuantitiesWithUnits } from './util';
+import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer, getNextEvening, getGuildWarningEmbeds, getGuildSettingOrDefault, createWarningEmbed, purgeUntrackedPlayers, getHelpComponents, readDir, getAnalyticsTrendsString, getUnambiguousQuantitiesWithUnits } from './util';
 import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel, naturalJoin, getPreciseDurationString, toDiscordTimestamp, DiscordTimestampFormat } from 'evanw555.js';
 import CommandReader from './command-reader';
 import CommandHandler from './command-handler';
 import commands from './commands';
 import TimeoutStorage from './timeout-storage';
 
-import { AUTH, CONFIG, DEFAULT_GUILD_SETTINGS, GUILD_SETTINGS_MAP, INACTIVE_THRESHOLD_MILLIES, OTHER_ACTIVITIES, RED_EMBED_COLOR, SKILLS_NO_OVERALL, TIMEOUTS_PROPERTY } from './constants';
+import { AUTH, CONFIG, GUILD_SETTINGS_MAP, INACTIVE_THRESHOLD_MILLIES, OTHER_ACTIVITIES, RED_EMBED_COLOR, SKILLS_NO_OVERALL, TIMEOUTS_PROPERTY } from './constants';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -439,7 +439,7 @@ const weeklyTotalXpUpdate = async () => {
             try {
                 // Get the top XP earners for this guild
                 const weeklyRankingSetting = GUILD_SETTINGS_MAP.WEEKLY_RANKING_MAX_COUNT;
-                const weeklyRankingMaxCount = state.getGuildSetting(guildId, weeklyRankingSetting) ?? DEFAULT_GUILD_SETTINGS[weeklyRankingSetting];
+                const weeklyRankingMaxCount = getGuildSettingOrDefault(guildId, weeklyRankingSetting);
                 const winners: string[] = sortedPlayers.filter(rsn => state.isTrackingPlayer(guildId, rsn)).slice(0, weeklyRankingMaxCount);
 
                 // Only send out a message if there are any XP earners

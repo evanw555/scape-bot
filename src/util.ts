@@ -574,8 +574,7 @@ export async function updateKillCounts(rsn: string, newScores: Record<Boss, numb
     const sendMessages = playerGuildIds.map(async (guildId) => {
         // Get the boss broadcast interval and filter out invalid boss updates
         const bossesIntervalSetting = GUILD_SETTINGS_MAP.BOSSES_BROADCAST_INTERVAL;
-        const bossesBroadcastInterval = state.getGuildSetting(guildId, bossesIntervalSetting)
-            || DEFAULT_GUILD_SETTINGS[bossesIntervalSetting];
+        const bossesBroadcastInterval = getGuildSettingOrDefault(guildId, bossesIntervalSetting);
         const guildBosses = filterToInterval(newScores, diff, bossesBroadcastInterval) as Boss[];
         // TODO: Save "skipped" boss updates per guild in database so we can get true delta when boss update passes interval check and is broadcast to guild
         const textChannel = state.getTrackingChannel(guildId);
@@ -684,8 +683,7 @@ export async function updateClues(rsn: string, newScores: Record<IndividualClueT
     const sendMessages = playerGuildIds.map(async (guildId) => {
         // Get the clue broadcast interval and filter out invalid clue updates
         const cluesIntervalSetting = GUILD_SETTINGS_MAP.CLUES_BROADCAST_INTERVAL;
-        const cluesBroadcastInterval = state.getGuildSetting(guildId, cluesIntervalSetting)
-            || DEFAULT_GUILD_SETTINGS[cluesIntervalSetting];
+        const cluesBroadcastInterval = getGuildSettingOrDefault(guildId, cluesIntervalSetting);
         const guildClues = filterToInterval(newScores, diff, cluesBroadcastInterval) as IndividualClueType[];
         const textChannel = state.getTrackingChannel(guildId);
         switch (guildClues.length) {
@@ -797,8 +795,7 @@ export async function updateActivities(rsn: string, newScores: Record<Individual
     const sendMessages = playerGuildIds.map(async (guildId) => {
         // Get the minigames broadcast interval and filter out invalid minigame updates
         const minigamesIntervalSetting = GUILD_SETTINGS_MAP.MINIGAMES_BROADCAST_INTERVAL;
-        const minigamesBroadcastInterval = state.getGuildSetting(guildId, minigamesIntervalSetting)
-            || DEFAULT_GUILD_SETTINGS[minigamesIntervalSetting];
+        const minigamesBroadcastInterval = getGuildSettingOrDefault(guildId, minigamesIntervalSetting);
         const guildMinigames = filterToInterval(newScores, diff, minigamesBroadcastInterval) as IndividualActivityName[];
         const textChannel = state.getTrackingChannel(guildId);
         switch (guildMinigames.length) {
@@ -1007,6 +1004,10 @@ export function generateDetailsContentString(players: string[]): string {
         }
     }
     return contentString;
+}
+
+export function getGuildSettingOrDefault(guildId: Snowflake, setting: GuildSetting): number {
+    return state.getGuildSetting(guildId, setting) ?? DEFAULT_GUILD_SETTINGS[setting];
 }
 
 /**
