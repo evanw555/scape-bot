@@ -90,9 +90,9 @@ export const DEFAULT_AXIOS_CONFIG: { timeout: number } = {
 };
 
 export const GUILD_SETTINGS_MAP = {
-    SKILLS_BROADCAST_EVERY_10: 'skills_broadcast_every_10',
-    SKILLS_BROADCAST_EVERY_5: 'skills_broadcast_every_5',
-    SKILLS_BROADCAST_EVERY_1: 'skills_broadcast_every_1',
+    // SKILLS_BROADCAST_EVERY_10: 'skills_broadcast_every_10',
+    // SKILLS_BROADCAST_EVERY_5: 'skills_broadcast_every_5',
+    // SKILLS_BROADCAST_EVERY_1: 'skills_broadcast_every_1',
     BOSSES_BROADCAST_INTERVAL: 'bosses_broadcast_interval',
     CLUES_BROADCAST_INTERVAL: 'clues_broadcast_interval',
     MINIGAMES_BROADCAST_INTERVAL: 'minigames_broadcast_interval',
@@ -102,9 +102,9 @@ export const GUILD_SETTINGS_MAP = {
 export const GUILD_SETTINGS: Set<GuildSetting> = new Set(Object.values(GUILD_SETTINGS_MAP) as GuildSetting[]);
 
 export const FORMATTED_GUILD_SETTINGS = {
-    [GUILD_SETTINGS_MAP.SKILLS_BROADCAST_EVERY_10]: 'Broadcast every 10th level-up starting at',
-    [GUILD_SETTINGS_MAP.SKILLS_BROADCAST_EVERY_5]: 'Broadcast every 5th level-up starting at',
-    [GUILD_SETTINGS_MAP.SKILLS_BROADCAST_EVERY_1]: 'Broadcast every level-up starting at',
+    // [GUILD_SETTINGS_MAP.SKILLS_BROADCAST_EVERY_10]: 'Broadcast every 10th level-up starting at',
+    // [GUILD_SETTINGS_MAP.SKILLS_BROADCAST_EVERY_5]: 'Broadcast every 5th level-up starting at',
+    // [GUILD_SETTINGS_MAP.SKILLS_BROADCAST_EVERY_1]: 'Broadcast every level-up starting at',
     [GUILD_SETTINGS_MAP.BOSSES_BROADCAST_INTERVAL]: 'Boss kills broadcast interval',
     [GUILD_SETTINGS_MAP.CLUES_BROADCAST_INTERVAL]: 'Clue completions broadcast interval',
     [GUILD_SETTINGS_MAP.MINIGAMES_BROADCAST_INTERVAL]: 'Minigame completions broadcast interval',
@@ -112,9 +112,9 @@ export const FORMATTED_GUILD_SETTINGS = {
 } as const;
 
 export const DEFAULT_GUILD_SETTINGS = {
-    [GUILD_SETTINGS_MAP.SKILLS_BROADCAST_EVERY_10]: 0,
-    [GUILD_SETTINGS_MAP.SKILLS_BROADCAST_EVERY_5]: 0,
-    [GUILD_SETTINGS_MAP.SKILLS_BROADCAST_EVERY_1]: 1,
+    // [GUILD_SETTINGS_MAP.SKILLS_BROADCAST_EVERY_10]: 0,
+    // [GUILD_SETTINGS_MAP.SKILLS_BROADCAST_EVERY_5]: 0,
+    // [GUILD_SETTINGS_MAP.SKILLS_BROADCAST_EVERY_1]: 1,
     [GUILD_SETTINGS_MAP.BOSSES_BROADCAST_INTERVAL]: 1,
     [GUILD_SETTINGS_MAP.CLUES_BROADCAST_INTERVAL]: 1,
     [GUILD_SETTINGS_MAP.MINIGAMES_BROADCAST_INTERVAL]: 1,
