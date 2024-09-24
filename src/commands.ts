@@ -371,42 +371,42 @@ const slashCommands: SlashCommandsType = {
                     }
                 }
             },
-            {
-                name: 'skills_broadcast_every_10',
-                description: 'Broadcast skill updates for every 10th level-up, starting from this value',
-                options: [
-                    {
-                        type: ApplicationCommandOptionType.Integer,
-                        name: 'value',
-                        description: 'Level',
-                        required: true
-                    }
-                ]
-            },
-            {
-                name: 'skills_broadcast_every_5',
-                description: 'Broadcast skill updates for every 5th level-up, starting from this value',
-                options: [
-                    {
-                        type: ApplicationCommandOptionType.Integer,
-                        name: 'value',
-                        description: 'Level',
-                        required: true
-                    }
-                ]
-            },
-            {
-                name: 'skills_broadcast_every_1',
-                description: 'Broadcast skill updates for every level-up, starting from this value',
-                options: [
-                    {
-                        type: ApplicationCommandOptionType.Integer,
-                        name: 'value',
-                        description: 'Level',
-                        required: true
-                    }
-                ]
-            },
+            // {
+            //     name: 'skills_broadcast_every_10',
+            //     description: 'Broadcast skill updates for every 10th level-up, starting from this value',
+            //     options: [
+            //         {
+            //             type: ApplicationCommandOptionType.Integer,
+            //             name: 'value',
+            //             description: 'Level',
+            //             required: true
+            //         }
+            //     ]
+            // },
+            // {
+            //     name: 'skills_broadcast_every_5',
+            //     description: 'Broadcast skill updates for every 5th level-up, starting from this value',
+            //     options: [
+            //         {
+            //             type: ApplicationCommandOptionType.Integer,
+            //             name: 'value',
+            //             description: 'Level',
+            //             required: true
+            //         }
+            //     ]
+            // },
+            // {
+            //     name: 'skills_broadcast_every_1',
+            //     description: 'Broadcast skill updates for every level-up, starting from this value',
+            //     options: [
+            //         {
+            //             type: ApplicationCommandOptionType.Integer,
+            //             name: 'value',
+            //             description: 'Level',
+            //             required: true
+            //         }
+            //     ]
+            // },
             {
                 name: 'bosses_broadcast_interval',
                 description: 'Broadcast boss kills at every multiple of this value (e.g. every 1, 5, 10)',

@@ -516,12 +516,18 @@ export async function updateLevels(rsn: string, newLevels: Record<IndividualSkil
     return false;
 }
 
+/**
+ * Takes a map of player activity scores, the diff, and an interval, and determines which new activity scores meet or
+ * exceed the next value in the interval, returning those keys in an array.
+ */
 export function filterToInterval(newScores: Record<string, number>, diff: Record<string, number>, interval: number) {
     const filteredKeys: string[] = [];
     for (const [key, value] of Object.entries(diff)) {
-        // Get the previous score for the activity and calculate what remains to equal or exceed interval
+        // New score must at least exceed interval
         if (newScores[key] >= interval) {
-            const remainder = (newScores[key] - value) % interval;
+            // Get the remainder needed to reach next interval multiple
+            const prevScore = newScores[key] - value;
+            const remainder = prevScore % interval || interval;
             // If diff value is greater than remainder, we can add to filtered keys
             if (value >= remainder) {
                 filteredKeys.push(key);
@@ -1012,12 +1018,12 @@ export function getReadableSettingValue(setting: GuildSetting, value: number, is
         valueStr = 'Disabled';
     } else {
         switch (setting) {
-        case GUILD_SETTINGS_MAP.SKILLS_BROADCAST_EVERY_10:
-        case GUILD_SETTINGS_MAP.SKILLS_BROADCAST_EVERY_5:
-        case GUILD_SETTINGS_MAP.SKILLS_BROADCAST_EVERY_1: {
-            valueStr = `Level ${value}`;
-            break;
-        }
+        // case GUILD_SETTINGS_MAP.SKILLS_BROADCAST_EVERY_10:
+        // case GUILD_SETTINGS_MAP.SKILLS_BROADCAST_EVERY_5:
+        // case GUILD_SETTINGS_MAP.SKILLS_BROADCAST_EVERY_1: {
+        //     valueStr = `Level ${value}`;
+        //     break;
+        // }
         case GUILD_SETTINGS_MAP.BOSSES_BROADCAST_INTERVAL:
             valueStr = `Every${value !== 1 ? ` ${value}` : ''} kill${value !== 1 ? 's' : ''}`;
             break;
