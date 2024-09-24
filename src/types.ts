@@ -154,4 +154,4 @@ export enum DailyAnalyticsLabel {
 
 export class NegativeDiffError extends Error {}
 
-export type GuildSetting =  'skills_broadcast_every_10' | 'skills_broadcast_every_5' | 'skills_broadcast_every_1' | 'bosses_broadcast_interval' | 'clues_broadcast_interval' | 'minigames_broadcast_interval' | 'weekly_ranking_max_count';
+export type GuildSetting =  /*'skills_broadcast_every_10' | 'skills_broadcast_every_5' | 'skills_broadcast_every_1' | */'bosses_broadcast_interval' | 'clues_broadcast_interval' | 'minigames_broadcast_interval' | 'weekly_ranking_max_count';
