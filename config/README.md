@@ -21,7 +21,7 @@ where `<YOUR_TOKEN>` is the bot's token,
 
 `<ADMIN_USER_ID>` is the ID of whichever Discord user owns the bot,
 
-`<PG_CONFIG>` is the connection object for the postgres instance,
+`<PG_CONFIG>` is the connection object for the PostgreSQL instance (detailed [here](https://node-postgres.com/apis/client#new-client)),
 
 `<CLIENT_ID>` is the bot client's ID (optional, only needed to deploy commands),
 

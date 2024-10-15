@@ -10,16 +10,19 @@ import {
 import { MultiLoggerLevel } from 'evanw555.js';
 import { INVALID_TEXT_CHANNEL, UNAUTHORIZED_USER, STATE_DISABLED, UNAUTHORIZED_ROLE } from './constants';
 import {
-    BuiltSlashCommand,
     SlashCommandName,
     CommandOption,
     CommandWithOptions,
     SlashCommand,
-    SlashCommandsType
+    SlashCommandsType,
+    Subcommand
 } from './types';
 
 import state from './instances/state';
 import logger from './instances/logger';
+
+type OptionSlashCommand = Omit<SlashCommandBuilder, 'addSubcommand' | 'addSubcommandGroup'>;
+type SubcommandSlashCommand = Omit<SlashCommandBuilder, 'addBooleanOption' | 'addUserOption' | 'addChannelOption' | 'addRoleOption' | 'addAttachmentOption' | 'addMentionableOption' | 'addStringOption' | 'addIntegerOption' | 'addNumberOption'>;
 
 class CommandHandler {
     commands: SlashCommandsType;
@@ -123,13 +126,13 @@ class CommandHandler {
             // If there are choices and autocomplete is not on, then add them to
             // the list of static choices
             if (!autocomplete) {
-                option = option.addChoices(optionInfo.choices);
+                option = option.addChoices(...optionInfo.choices);
             }
         }
         return option;
     };
 
-    static buildCommandOptions(builder: BuiltSlashCommand, options: CommandOption[]) {
+    static buildCommandOptions(builder: OptionSlashCommand, options: CommandOption[]) {
         options.forEach((optionInfo: CommandOption) => {
             if (optionInfo.type === ApplicationCommandOptionType.String) {
                 builder = builder.addStringOption((option) => CommandHandler.buildCommandOption(option, optionInfo));
@@ -143,6 +146,25 @@ class CommandHandler {
         });
         return builder;
     }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    static buildSubcommand = (builder: any, subcommandInfo: Subcommand) => {
+        let subcommand = builder
+            .setName(subcommandInfo.name)
+            .setDescription(subcommandInfo.description);
+        if (subcommandInfo.options) {
+            subcommand = CommandHandler.buildCommandOptions(subcommand, subcommandInfo.options);
+        }
+        return subcommand;
+    };
+
+    static buildSubcommands(builder: SubcommandSlashCommand, subcommands: Subcommand[]) {
+        subcommands.forEach((subcommandInfo: Subcommand) => {
+            builder = builder.addSubcommand((subcommand) => CommandHandler.buildSubcommand(subcommand, subcommandInfo));
+        });
+        return builder;
+    }
+
     /**
      * Flexible method that takes static slash command data and uses the key/value arguments
      * to filter the list.
@@ -171,7 +193,7 @@ class CommandHandler {
      */
     buildCommand(key: SlashCommandName): ApplicationCommandDataResolvable {
         const commandInfo = this.commands[key];
-        let command: BuiltSlashCommand = new SlashCommandBuilder()
+        let command: SlashCommandBuilder = new SlashCommandBuilder()
             .setName(key)
             .setDescription(commandInfo.text);
         // If command has the admin flag, set the command permissions to admin
@@ -180,7 +202,10 @@ class CommandHandler {
         }
         // Build the command options if they exist
         if (commandInfo.options) {
-            command = CommandHandler.buildCommandOptions(command, commandInfo.options);
+            return CommandHandler.buildCommandOptions(command, commandInfo.options);
+        }
+        if (commandInfo.subcommands) {
+            return CommandHandler.buildSubcommands(command, commandInfo.subcommands);
         }
         return command;
     }
@@ -207,6 +232,19 @@ class CommandHandler {
             return;
         }
         const command = this.commands[interaction.commandName];
+        let subcommand = null;
+        let subcommandExecute;
+        try {
+            // Throws an error if a subcommand does not exist
+            const subcommandName = interaction.options.getSubcommand();
+            subcommand = command.subcommands?.find(s => s.name === subcommandName);
+            // Only assign to subcommandExecute if there is a valid subcommand and subcommand execute function
+            if (subcommand && typeof subcommand.execute === 'function') {
+                subcommandExecute = subcommand.execute;
+            }
+        } catch (err) {
+            // No subcommand found, ignore
+        }
         const debugString = `\`${interaction.user.tag}\` executed command \`${interaction.toString()}\` in _${interaction.guild?.name ?? '???'}_ \`#${interaction.channel ?? '???'}\``;
         try {
             if (command.failIfDisabled) {
@@ -221,8 +259,10 @@ class CommandHandler {
                     CommandHandler.assertHasPrivilegedRole(interaction);
                 }
             }
-            if (typeof command.execute === 'function') {
-                const success = await command.execute(interaction);
+            // Will always fall back on base command execute if subcommand execute does not exist
+            const executeFn = subcommandExecute || command.execute;
+            if (typeof executeFn === 'function') {
+                const success = await executeFn(interaction);
                 await logger.log(debugString + ` ${success ? '✅' : '❌'}`, MultiLoggerLevel.Info);
             } else {
                 await interaction.reply(`Warning: slash command does not exist yet for command: ${interaction.commandName}`);
