@@ -1,6 +1,6 @@
 import { ApplicationCommandOptionType, ChatInputCommandInteraction, Message, SlashCommandBuilder, Snowflake } from 'discord.js';
 import { MultiLoggerLevel } from 'evanw555.js';
-import { Boss, ClueType, SkillName } from 'osrs-json-hiscores';
+import { Boss, ClueType, Gamemode, SkillName } from 'osrs-json-hiscores';
 import { ClientConfig } from 'pg';
 import { OTHER_ACTIVITIES_MAP, TIMEOUTS_PROPERTY } from './constants';
 
@@ -19,7 +19,8 @@ export interface ScapeBotAuth {
     pg: ClientConfig,
     clientId?: Snowflake,
     maintainerUserIds?: Snowflake[],
-    channelLoggers?: { id: Snowflake, level: MultiLoggerLevel, dm?: boolean }[]
+    channelLoggers?: { id: Snowflake, level: MultiLoggerLevel, dm?: boolean }[],
+    gameMode?: Gamemode
 }
 
 export interface ScapeBotLoggerConfig {
@@ -44,7 +45,6 @@ export interface ScapeBotConstants {
     miscThumbnailPath: string,
     clueThumbnailPath: string,
     imageFileExtension: string,
-    hiScoresUrlTemplate: string,
     osrsWikiBaseUrl: string
 }
 

@@ -482,6 +482,7 @@ client.on('ready', async () => {
     try {
         await logger.log(`Logged in as: ${client.user?.tag}`);
         await logger.log(`Config=${JSON.stringify(CONFIG)}`);
+        await logger.log(`Game Mode=${AUTH.gameMode}`);
 
         // Read the maintainer user IDs
         if (AUTH.maintainerUserIds) {

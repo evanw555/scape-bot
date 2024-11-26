@@ -39,6 +39,5 @@
     "miscThumbnailPath": "misc/",
     "clueThumbnailPath": "clues/",
     "imageFileExtension": ".png",
-    "hiScoresUrlTemplate": "https://secure.runescape.com/m=hiscore_oldschool/hiscorepersonal.ws?user1=",
     "osrsWikiBaseUrl": "https://oldschool.runescape.wiki/w/"
 }
