@@ -5,7 +5,7 @@ import { PlayerHiScores, SlashCommandsType } from './types';
 import { replyUpdateMessage, updatePlayer, getBossName, generateDetailsContentString, sanitizeRSN, botHasRequiredPermissionsInChannel, validateRSN, getMissingRequiredChannelPermissionNames, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers, getHelpComponents, getHelpText, resolveHiScoresUrlTemplate } from './util';
 import { fetchHiScores, isPlayerNotFoundError } from './hiscores';
 import CommandHandler from './command-handler';
-import { CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, BOSS_CHOICES, INVALID_TEXT_CHANNEL, SKILL_EMBED_COLOR, OTHER_ACTIVITIES, OTHER_ACTIVITIES_MAP } from './constants';
+import { AUTH, CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, BOSS_CHOICES, INVALID_TEXT_CHANNEL, SKILL_EMBED_COLOR, OTHER_ACTIVITIES, OTHER_ACTIVITIES_MAP } from './constants';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -138,11 +138,16 @@ const slashCommands: SlashCommandsType = {
                 await logger.log(`\`${interaction.user.tag}\` has tracked player **${state.getDisplayName(rsn)}** (**${state.getNumTrackedPlayers(guildId)}** in guild)`, MultiLoggerLevel.Warn);
             } catch (err) {
                 if (isPlayerNotFoundError(err)) {
+                    if (AUTH.gameMode && AUTH.gameMode !== 'main') {
+                        warningEmbeds.push(createWarningEmbed(`This bot is tracking players in the **${AUTH.gameMode}** game mode, `
+                            + 'please make sure the player you are tracking exists (or will exist) in this game mode!'));
+                    }
+                    const gameModeString = AUTH.gameMode ? ` **${AUTH.gameMode}**` : '';
                     // If the hiscores returns a 404, add a warning to the existing list of guild warnings and edit the reply
-                    warningEmbeds.push(createWarningEmbed('This player was _not_ found on the hiscores, '
-                    + 'meaning they either are temporarily missing or they don\'t exist at all. '
-                    + 'This player will still be tracked, but please ensure you spelled their username correctly. '
-                    + 'If you made a typo, please remove this player with **/remove**!'));
+                    warningEmbeds.push(createWarningEmbed(`This player was _not_ found on the${gameModeString} hiscores, `
+                        + 'meaning they either are temporarily missing or they don\'t exist at all. '
+                        + 'This player will still be tracked, but please ensure you spelled their username correctly. '
+                        + 'If you made a typo, please remove this player with **/remove**!'));
                     await interaction.editReply({
                         content: replyText,
                         embeds: warningEmbeds
