@@ -5,7 +5,7 @@ import { FORMATTED_BOSS_NAMES, BOSSES, Boss, INVALID_FORMAT_ERROR } from 'osrs-j
 import { OTHER_ACTIVITIES, SKILLS_NO_OVERALL, CLUES_NO_ALL, GRAY_EMBED_COLOR, CONSTANTS } from './constants';
 import { fetchHiScores, isPlayerNotFoundError } from './hiscores';
 import { HiddenCommandsType, DailyAnalyticsLabel, PlayerHiScores, IndividualSkillName, IndividualClueType, IndividualActivityName } from './types';
-import { sendUpdateMessage, isValidBoss, updatePlayer, sanitizeRSN, purgeUntrackedPlayers, fetchDisplayName, createWarningEmbed, getHelpText, getAnalyticsTrendsEmbeds, getUnambiguousQuantitiesWithUnits } from './util';
+import { sendUpdateMessage, isValidBoss, updatePlayer, sanitizeRSN, purgeUntrackedPlayers, fetchDisplayName, createWarningEmbed, getHelpText, getAnalyticsTrendsEmbeds, getUnambiguousQuantitiesWithUnits, resolveHiScoresUrlTemplate } from './util';
 
 import state from './instances/state';
 import timer from './instances/timer';
@@ -20,6 +20,8 @@ const validSkills = new Set<string>(CONSTANTS.skills);
 // Storing rollback-related data as volatile in-memory variables because it doesn't need to be persistent
 let rollbackStaging: { rsn: string, category: 'skill' | 'boss' | 'clue' | 'activity', name: string, score: number }[] = [];
 let rollbackLock = false;
+
+const hiScoresUrlTemplate = resolveHiScoresUrlTemplate();
 
 /**
  * These commands are accessible only to the user matching the adminUserId
@@ -566,5 +568,15 @@ export const hiddenCommands: HiddenCommandsType = {
             }
         },
         text: 'Sends an arbitrary message to some guild by ID'
+    },
+    hiscoresurl: {
+        fn: async (msg: Message) => {
+            try {
+                await msg.reply(`Hiscores URL template: ${hiScoresUrlTemplate}`);
+            } catch (err) {
+                await msg.reply(`Error while fetching hiscores URL: \`${err}\``);
+            }
+        },
+        text: 'Shows the HiScores URL based on the game mode'
     }
 };
