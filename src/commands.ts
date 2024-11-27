@@ -2,7 +2,7 @@ import { ApplicationCommandOptionType, AttachmentBuilder, ChatInputCommandIntera
 import { Boss, BOSSES } from 'osrs-json-hiscores';
 import { MultiLoggerLevel, naturalJoin } from 'evanw555.js';
 import { PlayerHiScores, SlashCommandsType } from './types';
-import { replyUpdateMessage, updatePlayer, getBossName, generateDetailsContentString, sanitizeRSN, botHasRequiredPermissionsInChannel, validateRSN, getMissingRequiredChannelPermissionNames, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers, getHelpComponents, getHelpText } from './util';
+import { replyUpdateMessage, updatePlayer, getBossName, generateDetailsContentString, sanitizeRSN, botHasRequiredPermissionsInChannel, validateRSN, getMissingRequiredChannelPermissionNames, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers, getHelpComponents, getHelpText, resolveHiScoresUrlTemplate } from './util';
 import { fetchHiScores, isPlayerNotFoundError } from './hiscores';
 import CommandHandler from './command-handler';
 import { CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, BOSS_CHOICES, INVALID_TEXT_CHANNEL, SKILL_EMBED_COLOR, OTHER_ACTIVITIES, OTHER_ACTIVITIES_MAP } from './constants';
@@ -27,6 +27,8 @@ const getInteractionGuildId = (interaction: ChatInputCommandInteraction): string
     const guild = getInteractionGuild(interaction);
     return guild.id;
 };
+
+const hiScoresUrlTemplate = resolveHiScoresUrlTemplate();
 
 const slashCommands: SlashCommandsType = {
     ping: {
@@ -266,7 +268,7 @@ const slashCommands: SlashCommandsType = {
                 }
                 await replyUpdateMessage(interaction, messageText, 'overall', {
                     title: state.getDisplayName(rsn),
-                    url: `${CONSTANTS.hiScoresUrlTemplate}${encodeURI(rsn)}`,
+                    url: `${hiScoresUrlTemplate}${encodeURI(rsn)}`,
                     extraEmbeds: getGuildWarningEmbeds(interaction.guildId)
                 });
                 return true;

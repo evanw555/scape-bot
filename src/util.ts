@@ -4,7 +4,7 @@ import { APIEmbed, ActionRowData, ButtonStyle, ChatInputCommandInteraction, Comp
 import { addReactsSync, DiscordTimestampFormat, MultiLoggerLevel, naturalJoin, randChoice, toDiscordTimestamp } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName, IndividualActivityName, PlayerHiScores, NegativeDiffError, CommandsType, SlashCommand, DailyAnalyticsLabel } from './types';
 import { fetchHiScores, isPlayerNotFoundError } from './hiscores';
-import { CONSTANTS, BOSS_EMBED_COLOR, CLUES_NO_ALL, CLUE_EMBED_COLOR, COMPLETE_VERB_BOSSES, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, DOPE_COMPLETE_VERBS, DOPE_KILL_VERBS, GRAY_EMBED_COLOR, RED_EMBED_COLOR, SKILLS_NO_OVERALL, SKILL_EMBED_COLOR, YELLOW_EMBED_COLOR, REQUIRED_PERMISSIONS, REQUIRED_PERMISSION_NAMES, CONFIG, DEFAULT_AXIOS_CONFIG, OTHER_ACTIVITIES, DEFAULT_ACTIVITY_SCORE, ACTIVITY_EMBED_COLOR, OTHER_ACTIVITIES_MAP } from './constants';
+import { AUTH, CONSTANTS, BOSS_EMBED_COLOR, CLUES_NO_ALL, CLUE_EMBED_COLOR, COMPLETE_VERB_BOSSES, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, DOPE_COMPLETE_VERBS, DOPE_KILL_VERBS, GRAY_EMBED_COLOR, RED_EMBED_COLOR, SKILLS_NO_OVERALL, SKILL_EMBED_COLOR, YELLOW_EMBED_COLOR, REQUIRED_PERMISSIONS, REQUIRED_PERMISSION_NAMES, CONFIG, DEFAULT_AXIOS_CONFIG, OTHER_ACTIVITIES, DEFAULT_ACTIVITY_SCORE, ACTIVITY_EMBED_COLOR, OTHER_ACTIVITIES_MAP } from './constants';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -1180,4 +1180,12 @@ export async function getAnalyticsTrendsString(): Promise<string> {
         + `Today: **${trends.guilds.today}**\n`
         + `Last Week: **${trends.guilds.lastWeek}** (${trends.guilds.weeklyChange}%)\n`
         + `Last Month: **${trends.guilds.lastMonth}** (${trends.guilds.monthlyChange}%)`;
+}
+
+export function resolveHiScoresUrlTemplate(): string {
+    let gameModeSuffix = '';
+    if (AUTH.gameMode && AUTH.gameMode !== 'main') {
+        gameModeSuffix = `_${AUTH.gameMode}`;
+    }
+    return `https://secure.runescape.com/m=hiscore_oldschool${gameModeSuffix}/hiscorepersonal.ws?user1=`;
 }

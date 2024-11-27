@@ -1,11 +1,11 @@
 import hiscores, { Activity, Boss, BOSSES, PLAYER_NOT_FOUND_ERROR, Skill, Stats } from 'osrs-json-hiscores';
-import { CLUES_NO_ALL, DEFAULT_ACTIVITY_SCORE, DEFAULT_AXIOS_CONFIG, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, OTHER_ACTIVITIES, SKILLS_NO_OVERALL } from './constants';
+import { AUTH, CLUES_NO_ALL, DEFAULT_ACTIVITY_SCORE, DEFAULT_AXIOS_CONFIG, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, OTHER_ACTIVITIES, SKILLS_NO_OVERALL } from './constants';
 import { IndividualActivityName, IndividualClueType, IndividualSkillName, PlayerHiScores } from './types';
 
 import state from './instances/state';
 
 export async function fetchHiScores(rsn: string): Promise<PlayerHiScores> {
-    const stats: Stats = await hiscores.getStatsByGamemode(rsn, undefined, DEFAULT_AXIOS_CONFIG);
+    const stats: Stats = await hiscores.getStatsByGamemode(rsn, AUTH.gameMode, DEFAULT_AXIOS_CONFIG);
 
     // Attempt to patch over some of the missing data for this player (default to 1/0 if there's no pre-existing data)
     // The purpose of doing this is to avoid negative skill/kc diffs (caused by weird behavior of the so-called 'API')
