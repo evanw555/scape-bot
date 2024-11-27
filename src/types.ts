@@ -1,4 +1,4 @@
-import { ApplicationCommandOptionType, ChatInputCommandInteraction, Message, SlashCommandBuilder, Snowflake } from 'discord.js';
+import { ApplicationCommandOptionType, ChatInputCommandInteraction, Message, Snowflake } from 'discord.js';
 import { MultiLoggerLevel } from 'evanw555.js';
 import { Boss, ClueType, Gamemode, SkillName } from 'osrs-json-hiscores';
 import { ClientConfig } from 'pg';
@@ -59,15 +59,15 @@ export interface SerializedGuildState {
 
 export type MiscPropertyName = 'timestamp' | 'disabled' | 'auditCounters' | typeof TIMEOUTS_PROPERTY;
 
-export type BuiltSlashCommand = SlashCommandBuilder | Omit<SlashCommandBuilder, 'addSubcommand' | 'addSubcommandGroup'>;
-
-export type SlashCommandName = 'help' | 'ping' | 'info' | 'track' | 'remove' | 'clear' | 'list' | 'check' | 'channel' | 'kc' | 'details' | 'role';
+export type SlashCommandName = 'help' | 'ping' | 'info' | 'track' | 'remove' | 'clear' | 'list' | 'check' | 'channel' | 'kc' | 'details' | 'role' | 'settings';
 
 export type HiddenCommandName = 'help' | 'log' | 'thumbnail' | 'thumbnail99' | 'spoof' | 'spoofverbose' | 'admin' | 'kill' | 'enable' | 'rollback' | 'removeglobal' | 'logger' | 'player' | 'refresh' | 'guildnotify';
 
 export type CommandsType = Record<string, Command>;
 export type SlashCommandsType = Record<SlashCommandName, SlashCommand>;
 export type HiddenCommandsType = Record<HiddenCommandName, HiddenCommand>;
+
+type CommandExecute = (interaction: ChatInputCommandInteraction) => Promise<boolean>;
 
 export interface CommandOptionChoice {
     name: string,
@@ -82,6 +82,13 @@ export interface CommandOption {
     choices?: CommandOptionChoice[]
 }
 
+export interface Subcommand {
+    name: string,
+    description: string,
+    options?: CommandOption[],
+    execute?: CommandExecute
+}
+
 export interface Command {
     text: string,
     failIfDisabled?: boolean
@@ -89,7 +96,8 @@ export interface Command {
 
 export interface SlashCommand extends Command {
     options?: CommandOption[],
-    execute: (interaction: ChatInputCommandInteraction) => Promise<boolean>,
+    subcommands?: Subcommand[],
+    execute: CommandExecute,
     /**
      * If true, this command can only be invoked (and seen in help text) by guild admins (or bot maintainers).
      * Mutually exclusive with 'privilegedRole'.
@@ -108,6 +116,10 @@ export interface HiddenCommand extends Command {
 
 export interface CommandWithOptions extends SlashCommand {
     options: CommandOption[]
+}
+
+export interface CommandWithSubcommands extends SlashCommand {
+    subcommands: Subcommand[]
 }
 
 export interface ParsedCommand {
@@ -141,3 +153,5 @@ export enum DailyAnalyticsLabel {
 }
 
 export class NegativeDiffError extends Error {}
+
+export type GuildSetting =  /*'skills_broadcast_every_10' | 'skills_broadcast_every_5' | 'skills_broadcast_every_1' | */'bosses_broadcast_interval' | 'clues_broadcast_interval' | 'minigames_broadcast_interval' | 'weekly_ranking_max_count';
