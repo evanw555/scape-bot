@@ -297,7 +297,7 @@ export const hiddenCommands: HiddenCommandsType = {
                     numPlayersProcessed++;
                     let data: PlayerHiScores;
                     try {
-                        data = await fetchHiScores(rsn);
+                        data = await fetchHiScores(rsn, true);
                     } catch (err) {
                         // Ignore 404 errors
                         if (!isPlayerNotFoundError(err)) {

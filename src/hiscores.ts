@@ -4,7 +4,7 @@ import { IndividualActivityName, IndividualClueType, IndividualSkillName, Player
 
 import state from './instances/state';
 
-export async function fetchHiScores(rsn: string): Promise<PlayerHiScores> {
+export async function fetchHiScores(rsn: string, ignoreState = false): Promise<PlayerHiScores> {
     const stats: Stats = await hiscores.getStatsByGamemode(rsn, AUTH.gameMode, DEFAULT_AXIOS_CONFIG);
 
     // Attempt to patch over some of the missing data for this player (default to 1/0 if there's no pre-existing data)
@@ -17,7 +17,7 @@ export async function fetchHiScores(rsn: string): Promise<PlayerHiScores> {
             const skillPayload: Skill = stats.skills[skill];
             if (skillPayload.level === -1 || skillPayload.xp === -1) {
                 // If this skill is for some reason omitted from the payload (bad rank? inactivity? why?), then fill it in with existing data if possible
-                if (state.hasLevel(rsn, skill)) {
+                if (!ignoreState && state.hasLevel(rsn, skill)) {
                     levels[skill] = state.getLevel(rsn, skill);
                     levelsWithDefaults[skill] = state.getLevel(rsn, skill);
                 } else {
@@ -45,7 +45,7 @@ export async function fetchHiScores(rsn: string): Promise<PlayerHiScores> {
             const bossPayload: Activity = stats.bosses[boss];
             if (bossPayload.rank === -1 || bossPayload.score === -1) {
                 // If this boss is for some reason omitted for the payload, then fill it in with existing data if possible
-                if (state.hasBoss(rsn, boss)) {
+                if (!ignoreState && state.hasBoss(rsn, boss)) {
                     bosses[boss] = state.getBoss(rsn, boss);
                     bossesWithDefaults[boss] = state.getBoss(rsn, boss);
                 } else {
@@ -73,7 +73,7 @@ export async function fetchHiScores(rsn: string): Promise<PlayerHiScores> {
             const cluePayload: Activity = stats.clues[clue];
             if (cluePayload.rank === -1 || cluePayload.score === -1) {
                 // If this clue is for some reason omitted for the payload, then fill it in with existing data if possible
-                if (state.hasClue(rsn, clue)) {
+                if (!ignoreState && state.hasClue(rsn, clue)) {
                     clues[clue] = state.getClue(rsn, clue);
                     cluesWithDefaults[clue] = state.getClue(rsn, clue);
                 } else {
@@ -99,7 +99,7 @@ export async function fetchHiScores(rsn: string): Promise<PlayerHiScores> {
             const activityPayload: Activity = stats[activity];
             if (activityPayload.rank === -1 || activityPayload.score === -1) {
                 // If this activity is for some reason omitted for the payload, then fill it in with existing data if possible
-                if (state.hasActivity(rsn, activity)) {
+                if (!ignoreState && state.hasActivity(rsn, activity)) {
                     activities[activity] = state.getActivity(rsn, activity);
                     activitiesWithDefaults[activity] = state.getActivity(rsn, activity);
                 } else {
