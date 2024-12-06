@@ -610,7 +610,7 @@ client.on('ready', async () => {
                 client.user.setPresence({
                     status: 'online',
                     activities: [{
-                        name: `${numTracked} player${numTracked === 1 ? '' : 's'} grind`,
+                        name: `${getQuantityWithUnits(numTracked)} player${numTracked === 1 ? '' : 's'} grind`,
                         type: ActivityType.Watching
                     }]
                 });
