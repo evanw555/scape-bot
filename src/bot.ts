@@ -2,7 +2,7 @@ import { BOSSES, CLUES } from 'osrs-json-hiscores';
 import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel, ActivityType, Snowflake, PermissionFlagsBits, MessageCreateOptions, GuildResolvable } from 'discord.js';
 import { DailyAnalyticsLabel, TimeoutType } from './types';
 import { sendUpdateMessage, getQuantityWithUnits, getThumbnail, getNextFridayEvening, updatePlayer, getNextEvening, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers, getHelpComponents, readDir, getAnalyticsTrendsString, getUnambiguousQuantitiesWithUnits } from './util';
-import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel, naturalJoin, getPreciseDurationString, toDiscordTimestamp } from 'evanw555.js';
+import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel, naturalJoin, getPreciseDurationString, toDiscordTimestamp, DiscordTimestampFormat } from 'evanw555.js';
 import CommandReader from './command-reader';
 import CommandHandler from './command-handler';
 import commands from './commands';
@@ -387,9 +387,17 @@ const weeklyTotalXpUpdate = async () => {
         await logger.log(`Unable to fetch weekly XP snapshots from PG: \`${err}\``, MultiLoggerLevel.Error);
         return;
     }
+    // TODO: This is temp logic to investigate the accuracy of this computation
+    let oldXpValueTimestamps: Record<string, Date> | undefined;
+    try {
+        oldXpValueTimestamps = await pgStorageClient.fetchWeeklyXpSnapshotTimestamps();
+    } catch (err) {
+        await logger.log(`Unable to fetch weekly XP snapshot timestamps from PG: \`${err}\``, MultiLoggerLevel.Error);
+    }
 
     // Get new total XP values
     const newTotalXpValues: Record<string, number> = {};
+    const playerActivityTimestamps: Record<string, Date> = {};
     for (const rsn of state.getAllGloballyTrackedPlayers()) {
         const totalXp: number = state.getTotalXp(rsn);
         // Use some arbitrary threshold like 10xp to ensure inactive users aren't included
@@ -397,6 +405,9 @@ const weeklyTotalXpUpdate = async () => {
         // TODO: Keep in mind... If we included zero-XP players, their diff would suddenly be huge once they reach the hiscores
         if (totalXp > 10) {
             newTotalXpValues[rsn] = totalXp;
+            if (state.hasPlayerActivityTimestamp(rsn)) {
+                playerActivityTimestamps[rsn] = new Date(state.getPlayerActivityTimestamp(rsn));
+            }
         }
     }
 
@@ -454,6 +465,21 @@ const weeklyTotalXpUpdate = async () => {
             await logger.log(`Grand weekly XP winner is **${state.getDisplayName(grandWinnerRsn)}** `
                 + `from ${naturalJoin(grandChannels.map(c => `_${c.guild.name}_`))} `
                 + `with **${getQuantityWithUnits(totalXpDiffs[grandWinnerRsn])} XP**`, MultiLoggerLevel.Error);
+            // TODO: Temp logic for accuracy investigation
+            // Get top 5 players and see how much time they had between their two total XP values
+            if (oldXpValueTimestamps) {
+                const top10Rsns = sortedPlayers.slice(0, 10);
+                const top10RsnTimestampLogs: string[] = [];
+                for (const rsn of top10Rsns) {
+                    const beforeDate = oldXpValueTimestamps[rsn];
+                    const afterDate = playerActivityTimestamps[rsn];
+                    const beforeString = beforeDate ? toDiscordTimestamp(oldXpValueTimestamps[rsn], DiscordTimestampFormat.LongDateTime) : 'UNKNOWN';
+                    const afterString = afterDate ? toDiscordTimestamp(playerActivityTimestamps[rsn], DiscordTimestampFormat.LongDateTime) : 'UNKNOWN';
+                    const durationString = (beforeDate && afterDate) ? getDurationString(afterDate.getTime() - beforeDate.getTime()) : 'N/A';
+                    top10RsnTimestampLogs.push(`- **${state.getDisplayName(rsn)}** with **${getQuantityWithUnits(totalXpDiffs[rsn])} XP**, ${beforeString}-to-${afterString} (${durationString})`);
+                }
+                await logger.log('__Top 10 Earner Analysis:__\n' + top10RsnTimestampLogs.join('\n'), MultiLoggerLevel.Error);
+            }
         }
     } catch (err) {
         await logger.log(`Failed to compute and send weekly grand winner info: \`${err}\``, MultiLoggerLevel.Error);
@@ -464,6 +490,13 @@ const weeklyTotalXpUpdate = async () => {
         await pgStorageClient.writeWeeklyXpSnapshots(newTotalXpValues);
     } catch (err) {
         await logger.log(`Unable to write weekly XP snapshots to PG: \`${err}\``, MultiLoggerLevel.Error);
+    }
+    // TODO: This is temp logic for investigating this computation
+    // Commit the new snapshot timestamps
+    try {
+        await pgStorageClient.writeWeeklyXpSnapshotTimestamps(playerActivityTimestamps);
+    } catch (err) {
+        await logger.log(`Unable to write weekly XP snapshot timestamps to PG: \`${err}\``, MultiLoggerLevel.Error);
     }
 
     // Log all the data used to compute these values

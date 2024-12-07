@@ -104,6 +104,10 @@ export default class State {
         return this._masterPlayerQueue.getTimeSinceLastActive(rsn);
     }
 
+    getPlayerActivityTimestamp(rsn: string): number {
+        return this._masterPlayerQueue.getActivityTimestamp(rsn);
+    }
+
     hasPlayerActivityTimestamp(rsn: string): boolean {
         return this._masterPlayerQueue.hasActivityTimestamp(rsn);
     }

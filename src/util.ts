@@ -397,6 +397,8 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
         const wasSnapshotMissing = await pgStorageClient.writeWeeklyXpSnapshotIfMissing(rsn, data.totalXp);
         if (wasSnapshotMissing) {
             await logger.log(`Populated missing weekly XP snapshot (**${getQuantityWithUnits(data.totalXp)}**) for **${state.getDisplayName(rsn)}**`, MultiLoggerLevel.Warn);
+            // TODO: Temp logic to ensure the weekly XP snapshot has an accurate corresponding timestamp
+            await pgStorageClient.writeWeeklyXpSnapshotTimestampIfMissing(rsn, new Date());
         }
     }
 

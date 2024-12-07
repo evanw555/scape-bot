@@ -7,11 +7,13 @@ import { IndividualSkillName, IndividualClueType, IndividualActivityName, MiscPr
 
 import logger from './instances/logger';
 
-type TableName = 'weekly_xp_snapshots' | 'player_total_xp' | 'player_levels' | 'player_bosses' | 'player_clues' | 'player_activities' | 'tracked_players' | 'tracking_channels' | 'player_hiscore_status' | 'player_display_names' | 'player_activity_timestamps' | 'player_refresh_timestamps' | 'bot_counters' | 'privileged_roles' | 'daily_analytics' | 'misc_properties';
+type TableName = 'weekly_xp_snapshots' | 'weekly_xp_snapshot_timestamps' | 'player_total_xp' | 'player_levels' | 'player_bosses' | 'player_clues' | 'player_activities' | 'tracked_players' | 'tracking_channels' | 'player_hiscore_status' | 'player_display_names' | 'player_activity_timestamps' | 'player_refresh_timestamps' | 'bot_counters' | 'privileged_roles' | 'daily_analytics' | 'misc_properties';
 
 export default class PGStorageClient {
     private static readonly TABLES: Record<TableName, string> = {
         'weekly_xp_snapshots': 'CREATE TABLE weekly_xp_snapshots (rsn VARCHAR(12) PRIMARY KEY, xp BIGINT);',
+        // TODO: This table is temporary and will be used to investigate the accuracy of the "weekly" XP computation
+        'weekly_xp_snapshot_timestamps': 'CREATE TABLE weekly_xp_snapshot_timestamps (rsn VARCHAR(12) PRIMARY KEY, timestamp TIMESTAMPTZ);',
         'player_total_xp': 'CREATE TABLE player_total_xp (rsn VARCHAR(12) PRIMARY KEY, xp BIGINT);',
         'player_levels': 'CREATE TABLE player_levels (rsn VARCHAR(12), skill VARCHAR(12), level SMALLINT, PRIMARY KEY (rsn, skill));',
         'player_bosses': 'CREATE TABLE player_bosses (rsn VARCHAR(12), boss VARCHAR(32), score INTEGER, PRIMARY KEY (rsn, boss));',
@@ -32,6 +34,7 @@ export default class PGStorageClient {
     // List of tables that should be purged if the player corresponding to a row is missing from tracked_players
     private static readonly PURGEABLE_PLAYER_TABLES: TableName[] = [
         'weekly_xp_snapshots',
+        'weekly_xp_snapshot_timestamps',
         'player_total_xp',
         'player_levels',
         'player_bosses',
@@ -114,6 +117,25 @@ export default class PGStorageClient {
         for (const row of res.rows) {
             // Big ints are returned as strings in node-postgres
             result[row.rsn] = parseInt(row.xp.toString());
+        }
+        return result;
+    }
+
+    async writeWeeklyXpSnapshotTimestamps(timestamps: Record<string, Date>) {
+        await this.client.query(format('INSERT INTO weekly_xp_snapshot_timestamps VALUES %L ON CONFLICT (rsn) DO UPDATE SET timestamp = EXCLUDED.timestamp;', Object.entries(timestamps)));
+    }
+
+    async writeWeeklyXpSnapshotTimestampIfMissing(rsn: string, timestamp: Date): Promise<boolean> {
+        const result = await this.client.query('INSERT INTO weekly_xp_snapshot_timestamps VALUES ($1, $2) ON CONFLICT DO NOTHING;', [rsn, timestamp]);
+        return result.rowCount > 0;
+    }
+
+    async fetchWeeklyXpSnapshotTimestamps(): Promise<Record<string, Date>> {
+        const result: Record<string, Date> = {};
+        const res = await this.client.query<{rsn: string, timestamp: Date}>('SELECT * FROM weekly_xp_snapshot_timestamps;');
+        for (const row of res.rows) {
+            // Big ints are returned as strings in node-postgres
+            result[row.rsn] = row.timestamp;
         }
         return result;
     }

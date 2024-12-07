@@ -175,6 +175,10 @@ export default class PlayerQueue {
         return this.lastActive[rsn] ?? 0;
     }
 
+    getActivityTimestamp(rsn: string): number {
+        return this.lastActive[rsn];
+    }
+
     hasActivityTimestamp(rsn: string): boolean {
         return rsn in this.lastActive;
     }
