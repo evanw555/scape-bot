@@ -59,7 +59,7 @@ export interface SerializedGuildState {
 
 export type MiscPropertyName = 'timestamp' | 'disabled' | 'auditCounters' | typeof TIMEOUTS_PROPERTY;
 
-export type SlashCommandName = 'help' | 'ping' | 'info' | 'track' | 'remove' | 'clear' | 'list' | 'check' | 'channel' | 'kc' | 'details' | 'role' | 'settings';
+export type SlashCommandName = 'help' | 'ping' | 'info' | 'track' | 'remove' | 'clear' | 'list' | 'check' | 'channel' | 'kc' | 'details' | 'role';
 
 export type HiddenCommandName = 'help' | 'log' | 'thumbnail' | 'thumbnail99' | 'spoof' | 'spoofverbose' | 'admin' | 'kill' | 'enable' | 'rollback' | 'removeglobal' | 'logger' | 'player' | 'refresh' | 'guildnotify' | 'hiscoresurl';
 
