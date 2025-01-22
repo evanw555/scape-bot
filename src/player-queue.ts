@@ -94,11 +94,13 @@ export default class PlayerQueue {
     next(): string | undefined {
         for (let i = 0; i < this.queues.length; i++) {
             const queue = this.queues[i];
-            const isLastQueue = (i === this.queues.length - 1);
-            // If not on the last queue and the counter has reached the max, pass it off to the next queue
+            // If the counter has reached the max, reset it and attempt to defer to the next queue
             if (queue.queue.isEmpty() || queue.counter >= this.getQueueCounterMax(i)) {
                 queue.counter = 0;
-                if (!isLastQueue) {
+                // This is the last usable queue if all remaining queues are empty
+                const isLastUsableQueue = this.queues.slice(i + 1).every(q => q.queue.isEmpty());
+                // Only defer if this isn't the last usable queue (otherwise remain in this queue)
+                if (!isLastUsableQueue) {
                     continue;
                 }
             }
@@ -110,6 +112,7 @@ export default class PlayerQueue {
             // Increment the counter for this queue
             queue.counter++;
             // If not on the last queue and this player isn't active enough to be on this queue, shift them down a queue
+            const isLastQueue = (i === this.queues.length - 1);
             if (!isLastQueue && this.getTimeSinceLastActive(rsn) >= queue.config.threshold) {
                 // Remove from this queue
                 queue.queue.remove(rsn);
