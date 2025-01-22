@@ -120,7 +120,7 @@ export default class PlayerQueue {
                 const nextQueue = this.queues[i + 1];
                 nextQueue.queue.add(rsn);
             }
-            // void logger.log(`[Q${i}] ${queue.counter}/${this.getQueueCounterMax(i)} -> ${rsn}`, MultiLoggerLevel.Trace);
+            void logger.log(`[Q${i}] ${queue.counter}/${this.getQueueCounterMax(i)} -> ${rsn}`, MultiLoggerLevel.Trace);
             return rsn;
         }
         // Emergency fallback logging
