@@ -1,7 +1,7 @@
 import { PermissionFlagsBits } from 'discord.js';
 import { loadJson } from 'evanw555.js';
 import { Boss, CLUES, SKILLS, BOSSES, FORMATTED_SKILL_NAMES, FORMATTED_BOSS_NAMES, FORMATTED_LEAGUE_POINTS, FORMATTED_LMS, FORMATTED_PVP_ARENA, FORMATTED_SOUL_WARS, FORMATTED_RIFTS_CLOSED, FORMATTED_COLOSSEUM_GLORY } from 'osrs-json-hiscores';
-import { IndividualClueType, IndividualSkillName, ScapeBotAuth, ScapeBotConfig, ScapeBotConstants, CommandOptionChoice } from './types';
+import { IndividualClueType, IndividualSkillName, ScapeBotAuth, ScapeBotConfig, ScapeBotConstants, CommandOptionChoice, GuildSetting } from './types';
 
 export const SKILLS_NO_OVERALL: IndividualSkillName[] = SKILLS.filter(skill => skill !== 'overall') as IndividualSkillName[];
 export const CLUES_NO_ALL: IndividualClueType[] = CLUES.filter(clue => clue !== 'all') as IndividualClueType[];
@@ -88,3 +88,35 @@ export const UNAUTHORIZED_ROLE = 'err/unauthorized-role';
 export const DEFAULT_AXIOS_CONFIG: { timeout: number } = {
     timeout: 30000
 };
+
+export const GUILD_SETTINGS_MAP = {
+    // SKILLS_BROADCAST_EVERY_10: 'skills_broadcast_every_10',
+    // SKILLS_BROADCAST_EVERY_5: 'skills_broadcast_every_5',
+    // SKILLS_BROADCAST_EVERY_1: 'skills_broadcast_every_1',
+    BOSSES_BROADCAST_INTERVAL: 'bosses_broadcast_interval',
+    CLUES_BROADCAST_INTERVAL: 'clues_broadcast_interval',
+    MINIGAMES_BROADCAST_INTERVAL: 'minigames_broadcast_interval',
+    WEEKLY_RANKING_MAX_COUNT: 'weekly_ranking_max_count'
+} as const;
+
+export const GUILD_SETTINGS: Set<GuildSetting> = new Set(Object.values(GUILD_SETTINGS_MAP) as GuildSetting[]);
+
+export const FORMATTED_GUILD_SETTINGS = {
+    // [GUILD_SETTINGS_MAP.SKILLS_BROADCAST_EVERY_10]: 'Broadcast every 10th level-up starting at',
+    // [GUILD_SETTINGS_MAP.SKILLS_BROADCAST_EVERY_5]: 'Broadcast every 5th level-up starting at',
+    // [GUILD_SETTINGS_MAP.SKILLS_BROADCAST_EVERY_1]: 'Broadcast every level-up starting at',
+    [GUILD_SETTINGS_MAP.BOSSES_BROADCAST_INTERVAL]: 'Boss kills broadcast interval',
+    [GUILD_SETTINGS_MAP.CLUES_BROADCAST_INTERVAL]: 'Clue completions broadcast interval',
+    [GUILD_SETTINGS_MAP.MINIGAMES_BROADCAST_INTERVAL]: 'Minigame completions broadcast interval',
+    [GUILD_SETTINGS_MAP.WEEKLY_RANKING_MAX_COUNT]: 'Number of players in the weekly ranking'
+} as const;
+
+export const DEFAULT_GUILD_SETTINGS = {
+    // [GUILD_SETTINGS_MAP.SKILLS_BROADCAST_EVERY_10]: 0,
+    // [GUILD_SETTINGS_MAP.SKILLS_BROADCAST_EVERY_5]: 0,
+    // [GUILD_SETTINGS_MAP.SKILLS_BROADCAST_EVERY_1]: 1,
+    [GUILD_SETTINGS_MAP.BOSSES_BROADCAST_INTERVAL]: 1,
+    [GUILD_SETTINGS_MAP.CLUES_BROADCAST_INTERVAL]: 1,
+    [GUILD_SETTINGS_MAP.MINIGAMES_BROADCAST_INTERVAL]: 1,
+    [GUILD_SETTINGS_MAP.WEEKLY_RANKING_MAX_COUNT]: 3
+} as const;
