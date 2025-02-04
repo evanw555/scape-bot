@@ -261,7 +261,7 @@ const client = new Client({
 
 const auditGuilds = async () => {
     // First, load up the audit notification counters for each guild
-    const auditCounters: Record<Snowflake, number> = JSON.parse(await pgStorageClient.fetchMiscProperty('auditCounters') ?? '{}');
+    const auditCounters: Record<Snowflake, number> = JSON.parse(await pgStorageClient.fetchMiscPropertyElseWrite('auditCounters', '{}'));
     const newAuditCounters: Record<Snowflake, number> = {};
 
     const logStatements: string[] = [];

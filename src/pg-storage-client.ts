@@ -425,21 +425,37 @@ export default class PGStorageClient {
         return result.rows.map(row => ({ label: row.label, value: row.value }));
     }
     
-    async fetchMiscProperty(name: MiscPropertyName): Promise<string | null> {
+    async fetchMiscProperty(name: MiscPropertyName, options?: { log?: boolean }): Promise<string | null> {
+        const shouldLog = options?.log ?? true;
         try {
             const queryResult = await this.client.query<{name: string, value: string}>('SELECT * FROM misc_properties WHERE name = $1;', [name]);
             if (queryResult.rowCount === 0) {
-                await logger.log(`PG ERROR: No rows found for misc property \`${name}\``, MultiLoggerLevel.Error);
+                if (shouldLog) {
+                    await logger.log(`PG ERROR: No rows found for misc property \`${name}\``, MultiLoggerLevel.Error);
+                }
                 return null;
             }
             return queryResult.rows[0].value;
         } catch (err) {
-            await logger.log(`PG ERROR: Unable to fetch misc property \`${name}\`: \`${err}\``, MultiLoggerLevel.Error);
+            if (shouldLog) {
+                await logger.log(`PG ERROR: Unable to fetch misc property \`${name}\`: \`${err}\``, MultiLoggerLevel.Error);
+            }
             return null;
         }
     }
     
     async writeMiscProperty(name: MiscPropertyName, value: string): Promise<void> {
         await this.client.query('INSERT INTO misc_properties VALUES ($1, $2) ON CONFLICT (name) DO UPDATE SET value = EXCLUDED.value;', [name, value]);
+    }
+
+    async fetchMiscPropertyElseWrite(name: MiscPropertyName, defaultValue: string): Promise<string> {
+        // If the property exists, return that
+        const result = await this.fetchMiscProperty(name, { log: false });
+        if (result) {
+            return result;
+        }
+        // Else, write the default value and return
+        await this.writeMiscProperty(name, defaultValue);
+        return defaultValue;
     }
 }
