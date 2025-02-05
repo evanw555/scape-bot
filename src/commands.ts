@@ -122,6 +122,7 @@ const slashCommands: SlashCommandsType = {
             // If the display name could not be found and it's different than what the user input, warn them
             const warningEmbeds = getGuildWarningEmbeds(guildId);
             if (!state.hasDisplayName(rsn) && rsn !== rawRsnInput) {
+                // TODO: Display name can also be missing due to rate limiting, can we detect and communicate this?
                 warningEmbeds.push(createWarningEmbed('The correct formatting of this player\'s username could not be determined, '
                     + `so they will be tracked as **${rsn}** (versus **${rawRsnInput.trim()}**) until they reach the overall hiscores.`));
             }

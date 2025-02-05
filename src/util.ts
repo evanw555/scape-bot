@@ -1,4 +1,4 @@
-import { Boss, BOSSES, INVALID_FORMAT_ERROR, FORMATTED_BOSS_NAMES, getRSNFormat } from 'osrs-json-hiscores';
+import { Boss, BOSSES, INVALID_FORMAT_ERROR, FORMATTED_BOSS_NAMES, getRSNFormat, HISCORES_ERROR } from 'osrs-json-hiscores';
 import fs from 'fs';
 import { APIEmbed, ActionRowData, ButtonStyle, ChatInputCommandInteraction, ComponentType, MessageActionRowComponentData, PermissionFlagsBits, PermissionsBitField, Snowflake, TextBasedChannel, TextChannel } from 'discord.js';
 import { addReactsSync, DiscordTimestampFormat, MultiLoggerLevel, naturalJoin, randChoice, toDiscordTimestamp } from 'evanw555.js';
@@ -17,6 +17,9 @@ const validMiscThumbnails: Set<string> = new Set(CONSTANTS.miscThumbnails);
 
 // Volatile structure to track negative diff strikes
 const negativeDiffStrikes: Record<string, number> = {};
+
+// Volatile structure for pausing display name queries to avoid getting stuck in a rate-limiting loop
+let pauseDisplayNameQueries = false;
 
 export function getBossName(boss: Boss): string {
     return FORMATTED_BOSS_NAMES[boss] ?? 'Unknown';
@@ -1075,7 +1078,21 @@ export function getHelpComponents(inviteText: string): ActionRowData<MessageActi
 }
 
 export async function fetchDisplayName(rsn: string): Promise<string> {
-    return getRSNFormat(rsn, DEFAULT_AXIOS_CONFIG);
+    if (pauseDisplayNameQueries) {
+        throw new Error('Display name queries on hold due to rate limiting');
+    }
+    try {
+        return getRSNFormat(rsn, DEFAULT_AXIOS_CONFIG);
+    } catch (err) {
+        // HiScores not responding, so pause display name queries temporarily
+        if (err instanceof Error && err.message === HISCORES_ERROR) {
+            pauseDisplayNameQueries = true;
+            setTimeout(() => {
+                pauseDisplayNameQueries = false;
+            }, 60_000);
+        }
+        throw err;
+    }
 }
 
 export function readDir(dir: string): string[] {
