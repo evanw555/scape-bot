@@ -452,7 +452,7 @@ export async function updateLevels(rsn: string, newLevels: Record<IndividualSkil
     } catch (err) {
         if (err instanceof NegativeDiffError) {
             negativeDiffStrikes[rsn] = (negativeDiffStrikes[rsn] ?? 0) + 1;
-        } else if (err instanceof Error && err.message) {
+        } else if (err  && err.message) {
             await logger.log(`Failed to compute level diff for player ${rsn}: ${err.message}`, MultiLoggerLevel.Error);
         }
         return false;
@@ -1082,10 +1082,10 @@ export async function fetchDisplayName(rsn: string): Promise<string> {
         throw new Error('Display name queries on hold due to rate limiting');
     }
     try {
-        return getRSNFormat(rsn, DEFAULT_AXIOS_CONFIG);
+        return await getRSNFormat(rsn, DEFAULT_AXIOS_CONFIG);
     } catch (err) {
         // HiScores not responding, so pause display name queries temporarily
-        if (err instanceof Error && err.message === HISCORES_ERROR) {
+        if ((err instanceof Error) && err.message === HISCORES_ERROR) {
             pauseDisplayNameQueries = true;
             setTimeout(() => {
                 pauseDisplayNameQueries = false;
