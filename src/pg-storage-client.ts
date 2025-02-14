@@ -21,7 +21,7 @@ export default class PGStorageClient {
         'player_bosses': 'CREATE TABLE player_bosses (rsn VARCHAR(12), boss VARCHAR(32), score INTEGER, PRIMARY KEY (rsn, boss));',
         'player_clues': 'CREATE TABLE player_clues (rsn VARCHAR(12), clue VARCHAR(12), score SMALLINT, PRIMARY KEY (rsn, clue));',
         'player_activities': 'CREATE TABLE player_activities (rsn VARCHAR(12), activity VARCHAR(32), score BIGINT, PRIMARY KEY (rsn, activity));',
-        'pending_player_updates': 'CREATE TABLE pending_player_updates (guild_id BIGINT, rsn VARCHAR(12), type SMALLINT, key VARCHAR(32), from BIGINT, to BIGINT, PRIMARY KEY (guild_id, rsn, type, key));',
+        'pending_player_updates': 'CREATE TABLE pending_player_updates (guild_id BIGINT, rsn VARCHAR(12), type SMALLINT, key VARCHAR(32), base_value BIGINT, new_value BIGINT, PRIMARY KEY (guild_id, rsn, type, key));',
         'tracked_players': 'CREATE TABLE tracked_players (guild_id BIGINT, rsn VARCHAR(12), PRIMARY KEY (guild_id, rsn));',
         'tracking_channels': 'CREATE TABLE tracking_channels (guild_id BIGINT PRIMARY KEY, channel_id BIGINT);',
         'player_hiscore_status': 'CREATE TABLE player_hiscore_status (rsn VARCHAR(12) PRIMARY KEY, on_hiscores BOOLEAN);',
@@ -243,19 +243,19 @@ export default class PGStorageClient {
     }
 
     async fetchPendingPlayerUpdates(rsn: string): Promise<PendingPlayerUpdate[]> {
-        const queryResult = await this.client.query<{guild_id: Snowflake, rsn: string, type: PlayerUpdateType, key: PlayerUpdateKey, from: number, to: number}>('SELECT * FROM pending_player_updates WHERE rsn = $1;', [rsn]);
+        const queryResult = await this.client.query<{guild_id: Snowflake, rsn: string, type: PlayerUpdateType, key: PlayerUpdateKey, base_value: number, new_value: number}>('SELECT * FROM pending_player_updates WHERE rsn = $1;', [rsn]);
         return queryResult.rows.map(row => ({
             guildId: row.guild_id,
             rsn: row.rsn,
             type: row.type,
             key: row.key,
-            from: parseInt(row.from.toString()),
-            to: parseInt(row.to.toString())
+            baseValue: parseInt(row.base_value.toString()),
+            newValue: parseInt(row.new_value.toString())
         }));
     }
 
     async writePendingPlayerUpdates(updates: PendingPlayerUpdate[]) {
-        await this.client.query(format('INSERT INTO pending_player_updates VALUES %L ON CONFLICT (guild_id, rsn, type, key) DO UPDATE SET to = EXCLUDED.to;', updates));
+        await this.client.query(format('INSERT INTO pending_player_updates VALUES %L ON CONFLICT (guild_id, rsn, type, key) DO UPDATE SET new_value = EXCLUDED.new_value;', updates));
     }
 
     async deletePendingPlayerUpdate(update: PendingPlayerUpdate) {

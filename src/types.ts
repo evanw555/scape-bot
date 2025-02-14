@@ -146,8 +146,8 @@ export interface PendingPlayerUpdate {
     rsn: string,
     type: PlayerUpdateType,
     key: PlayerUpdateKey,
-    from: number,
-    to: number
+    baseValue: number,
+    newValue: number
 }
 
 /**

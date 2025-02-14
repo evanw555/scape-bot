@@ -443,13 +443,13 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
                 if (updates.length > 0) {
                     // Filter by applying mock rules
                     const updatesToSend = updates.filter(u => {
-                        const diff = u.to - u.from;
+                        const diff = u.newValue - u.baseValue;
                         switch (u.type) {
                         case PlayerUpdateType.Skill: {
-                            if (u.to < 50) {
+                            if (u.newValue < 50) {
                                 return diff >= 10;
                             }
-                            if (u.to < 80) {
+                            if (u.newValue < 80) {
                                 return diff >= 5;
                             }
                             return diff > 0;
@@ -470,7 +470,7 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
                     for (const update of updatesToSend) {
                         await testingChannel.send({
                             embeds: [{
-                                description: `**${state.getDisplayName(update.rsn)}** has gained **${update.to - update.from}** in **${update.key}** for a total of **${update.to}**`
+                                description: `**${state.getDisplayName(update.rsn)}** has gained **${update.newValue - update.baseValue}** in **${update.key}** for a total of **${update.newValue}**`
                             }]
                         });
                         // Delete the update
@@ -567,8 +567,8 @@ export async function updateLevels(rsn: string, newLevels: Record<IndividualSkil
                     rsn,
                     type: PlayerUpdateType.Skill,
                     key: skill,
-                    from: state.getLevel(rsn, skill),
-                    to: newLevels[skill]
+                    baseValue: state.getLevel(rsn, skill),
+                    newValue: newLevels[skill]
                 }));
                 await pgStorageClient.writePendingPlayerUpdates(updates);
                 const testingChannel = temp.pendingUpdateTestingChannels[guildId];
@@ -673,8 +673,8 @@ export async function updateKillCounts(rsn: string, newScores: Record<Boss, numb
                     rsn,
                     type: PlayerUpdateType.Boss,
                     key: boss,
-                    from: state.getBoss(rsn, boss),
-                    to: newScores[boss]
+                    baseValue: state.getBoss(rsn, boss),
+                    newValue: newScores[boss]
                 }));
                 await pgStorageClient.writePendingPlayerUpdates(updates);
                 const testingChannel = temp.pendingUpdateTestingChannels[guildId];
@@ -778,8 +778,8 @@ export async function updateClues(rsn: string, newScores: Record<IndividualClueT
                     rsn,
                     type: PlayerUpdateType.Clue,
                     key: clue,
-                    from: state.getClue(rsn, clue),
-                    to: newScores[clue]
+                    baseValue: state.getClue(rsn, clue),
+                    newValue: newScores[clue]
                 }));
                 await pgStorageClient.writePendingPlayerUpdates(updates);
                 const testingChannel = temp.pendingUpdateTestingChannels[guildId];
@@ -901,8 +901,8 @@ export async function updateActivities(rsn: string, newScores: Record<Individual
                     rsn,
                     type: PlayerUpdateType.Activity,
                     key: activity,
-                    from: state.getActivity(rsn, activity),
-                    to: newScores[activity]
+                    baseValue: state.getActivity(rsn, activity),
+                    newValue: newScores[activity]
                 }));
                 await pgStorageClient.writePendingPlayerUpdates(updates);
                 const testingChannel = temp.pendingUpdateTestingChannels[guildId];
