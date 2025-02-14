@@ -255,7 +255,11 @@ export default class PGStorageClient {
     }
 
     async writePendingPlayerUpdates(updates: PendingPlayerUpdate[]) {
-        await this.client.query(format('INSERT INTO pending_player_updates VALUES %L ON CONFLICT (guild_id, rsn, type, key) DO UPDATE SET new_value = EXCLUDED.new_value;', updates));
+        const values = updates.map(u => [u.guild_id, u.rsn, u.type, u.key, u.base_value, u.new_value]);
+        if (values.length === 0) {
+            return;
+        }
+        await this.client.query(format('INSERT INTO pending_player_updates VALUES %L ON CONFLICT (guild_id, rsn, type, key) DO UPDATE SET new_value = EXCLUDED.new_value;', values));
     }
 
     async deletePendingPlayerUpdate(update: PendingPlayerUpdate) {
