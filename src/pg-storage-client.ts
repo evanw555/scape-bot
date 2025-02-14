@@ -255,7 +255,7 @@ export default class PGStorageClient {
     }
 
     async writePendingPlayerUpdates(updates: PendingPlayerUpdate[]) {
-        const values = updates.map(u => [u.guild_id, u.rsn, u.type, u.key, u.base_value, u.new_value]);
+        const values = updates.map(u => [u.guildId, u.rsn, u.type, u.key, u.baseValue, u.newValue]);
         if (values.length === 0) {
             return;
         }
