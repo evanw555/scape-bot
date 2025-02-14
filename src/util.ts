@@ -1,8 +1,8 @@
 import { Boss, BOSSES, INVALID_FORMAT_ERROR, FORMATTED_BOSS_NAMES, getRSNFormat, HISCORES_ERROR } from 'osrs-json-hiscores';
 import fs from 'fs';
-import { APIEmbed, ActionRowData, ButtonStyle, ChatInputCommandInteraction, ComponentType, MessageActionRowComponentData, PermissionFlagsBits, PermissionsBitField, Snowflake, TextBasedChannel, TextChannel } from 'discord.js';
+import { APIEmbed, ActionRowData, ButtonStyle, ChatInputCommandInteraction, ComponentType, MessageActionRowComponentData, MessageCreateOptions, PermissionFlagsBits, PermissionsBitField, Snowflake, TextBasedChannel, TextChannel } from 'discord.js';
 import { addReactsSync, DiscordTimestampFormat, MultiLoggerLevel, naturalJoin, randChoice, toDiscordTimestamp } from 'evanw555.js';
-import { IndividualClueType, IndividualSkillName, IndividualActivityName, PlayerHiScores, NegativeDiffError, CommandsType, SlashCommand, DailyAnalyticsLabel, PendingPlayerUpdate, PlayerUpdateType } from './types';
+import { IndividualClueType, IndividualSkillName, IndividualActivityName, PlayerHiScores, NegativeDiffError, CommandsType, SlashCommand, DailyAnalyticsLabel, PendingPlayerUpdate, PlayerUpdateType, PlayerUpdateKey } from './types';
 import { fetchHiScores, isPlayerNotFoundError } from './hiscores';
 import { AUTH, CONSTANTS, BOSS_EMBED_COLOR, CLUES_NO_ALL, CLUE_EMBED_COLOR, COMPLETE_VERB_BOSSES, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, DOPE_COMPLETE_VERBS, DOPE_KILL_VERBS, GRAY_EMBED_COLOR, RED_EMBED_COLOR, SKILLS_NO_OVERALL, SKILL_EMBED_COLOR, YELLOW_EMBED_COLOR, REQUIRED_PERMISSIONS, REQUIRED_PERMISSION_NAMES, CONFIG, DEFAULT_AXIOS_CONFIG, OTHER_ACTIVITIES, DEFAULT_ACTIVITY_SCORE, ACTIVITY_EMBED_COLOR, OTHER_ACTIVITIES_MAP } from './constants';
 
@@ -86,29 +86,32 @@ interface UpdateMessageOptions {
     extraEmbeds?: APIEmbed[]
 }
 
-interface SendUpdateMessageOptions extends UpdateMessageOptions {
+interface SendUpdateMessageOptions {
     // Emojis to add to the sent message(s) as reacts
     reacts?: string[]
+}
+
+export function buildUpdateEmbed(text: string, name: string, options?: UpdateMessageOptions) {
+    return {
+        description: text,
+        thumbnail: getThumbnail(name, options),
+        color: options?.color ?? SKILL_EMBED_COLOR,
+        title: options?.title,
+        url: options?.url
+    };
 }
 
 export function buildUpdateMessage(text: string, name: string, options?: UpdateMessageOptions) {
     return {
         content: options?.header,
-        embeds: [{
-            description: text,
-            thumbnail: getThumbnail(name, options),
-            color: options?.color ?? SKILL_EMBED_COLOR,
-            title: options?.title,
-            url: options?.url
-        }, ...(options?.extraEmbeds ?? [])]
+        embeds: [buildUpdateEmbed(text, name, options), ...(options?.extraEmbeds ?? [])]
     };
 }
 
-export async function sendUpdateMessage(channels: TextBasedChannel[], text: string, name: string, options?: SendUpdateMessageOptions): Promise<void> {
-    const updateMessage = buildUpdateMessage(text, name, options);
+export async function sendUpdateMessageRaw(channels: TextBasedChannel[], payload: MessageCreateOptions, options?: SendUpdateMessageOptions) {
     for (const channel of channels) {
         try {
-            const message = await channel.send(updateMessage);
+            const message = await channel.send(payload);
             // If any reacts are specified, add them
             if (options?.reacts) {
                 try {
@@ -124,7 +127,7 @@ export async function sendUpdateMessage(channels: TextBasedChannel[], text: stri
                 state.addProblematicTrackingChannel(channel);
             }
             // Log info about this failure
-            let errorMessage = `Unable to send update message \`${text.slice(0, 100)}\` to channel`;
+            let errorMessage = 'Unable to send update message to channel';
             if (channel instanceof TextChannel) {
                 const textChannel: TextChannel = channel as TextChannel;
                 const guild = textChannel.guild;
@@ -141,6 +144,11 @@ export async function sendUpdateMessage(channels: TextBasedChannel[], text: stri
             await logger.log(`${errorMessage}: \`${err}\``, MultiLoggerLevel.Warn);
         }
     }
+}
+
+export async function sendUpdateMessage(channels: TextBasedChannel[], text: string, name: string, options?: SendUpdateMessageOptions & UpdateMessageOptions): Promise<void> {
+    const updateMessage = buildUpdateMessage(text, name, options);
+    await sendUpdateMessageRaw(channels, updateMessage, options);
 }
 
 export async function replyUpdateMessage(interaction: ChatInputCommandInteraction, text: string, name: string, options?: UpdateMessageOptions): Promise<void> {
@@ -437,48 +445,53 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
     // Prototype logic for processing pending player updates
     if (processPendingUpdates) {
         for (const guildId of state.getGuildsTrackingPlayer(rsn)) {
-            if (guildId in temp.pendingUpdateTestingChannels) {
-                const testingChannel = temp.pendingUpdateTestingChannels[guildId];
+            if (guildId in temp.pendingUpdateTestingChannels) { // state.hasTrackingChannel(guildId)
+                const testingChannel = temp.pendingUpdateTestingChannels[guildId]; // state.getTrackingChannel(guildId)
                 const updates = (await pgStorageClient.fetchPendingPlayerUpdates(rsn)).filter(u => u.guildId === guildId);
                 if (updates.length > 0) {
                     // Filter by applying mock rules
+                    const passesMilestone = (a: number, b: number, interval: number): boolean => {
+                        // If the diff is at least the interval, it MUST pass a milestone
+                        if (b - a >= interval) {
+                            return true;
+                        }
+                        // Otherwise, it passes if the new value is greater yet its mod is lower
+                        return b > a && ((b % interval) < (a % interval));
+                    };
                     const updatesToSend = updates.filter(u => {
-                        const diff = u.newValue - u.baseValue;
                         switch (u.type) {
                         case PlayerUpdateType.Skill: {
                             if (u.newValue < 50) {
-                                return diff >= 10;
+                                return passesMilestone(u.baseValue, u.newValue, 10);
                             }
                             if (u.newValue < 80) {
-                                return diff >= 5;
+                                return passesMilestone(u.baseValue, u.newValue, 5);
                             }
-                            return diff > 0;
+                            return passesMilestone(u.baseValue, u.newValue, 1);
                         }
                         case PlayerUpdateType.Boss: {
-                            return diff >= 5;
+                            return passesMilestone(u.baseValue, u.newValue, 5);
                         }
                         case PlayerUpdateType.Clue: {
-                            return diff > 0;
+                            return passesMilestone(u.baseValue, u.newValue, 1);
                         }
                         case PlayerUpdateType.Activity: {
-                            return diff > 10;
+                            return passesMilestone(u.baseValue, u.newValue, 10);
                         }
                         }
                     });
                     await testingChannel.send(`**${updates.length}** rows for this RSN+guild, **${updatesToSend.length}** pass the rule set`);
                     // Send an update for each update that passes the rule
+                    await sendPlayerUpdates(testingChannel, updatesToSend);
+                    // Delete all the updates
+                    // TODO: Can we batch this?
+                    // TODO: Can we only delete updates that are actually sent out?
                     for (const update of updatesToSend) {
-                        await testingChannel.send({
-                            embeds: [{
-                                description: `**${state.getDisplayName(update.rsn)}** has gained **${update.newValue - update.baseValue}** in **${update.key}** for a total of **${update.newValue}**`
-                            }]
-                        });
-                        // Delete the update
                         await pgStorageClient.deletePendingPlayerUpdate(update);
                     }
                     const tableContents = await pgStorageClient.fetchAllPendingPlayerUpdates();
                     await testingChannel.send('Contents of pending player update table:\n```'
-                        + tableContents.map(x => JSON.stringify(x)).join('\n')
+                        + tableContents.map(x => `${x.guild_id} ${x.rsn.padEnd(12)} ${x.type} ${x.key.slice(0, 12).padEnd(12)} ${x.base_value} ${x.new_value}`).join('\n').slice(0, 1900)
                         + '\n```');
                 }
             }
@@ -517,59 +530,39 @@ export async function updateLevels(rsn: string, newLevels: Record<IndividualSkil
     if (!diff) {
         return false;
     }
-    // Send a message for any skill that is now 99
-    const updatedSkills: IndividualSkillName[] = toSortedSkillsNoOverall(Object.keys(diff));
-    const updated99Skills = updatedSkills.filter(skill => newLevels[skill] === 99);
-    for (const skill of updated99Skills) {
-        const levelsGained = diff[skill];
-        await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn),
-            `**${state.getDisplayName(rsn)}** has gained `
-                + (levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`)
-                + ` in **${skill}** and is now level **99**`,
-            skill, {
-                // TODO: Disabling the @everyone tag now, but make it configurable when we support server settings
-                // header: '@everyone',
-                is99: true,
-                reacts: ['🇬', '🇿']
-            });
-    }
-    // Send a message showing all the levels gained for all non-99 skills
-    const updatedIncompleteSkills = updatedSkills.filter(skill => !updated99Skills.includes(skill));
-    switch (updatedIncompleteSkills.length) {
-    case 0:
-        break;
-    case 1: {
-        const skill = updatedIncompleteSkills[0];
-        const levelsGained = diff[skill];
-        const text = `**${state.getDisplayName(rsn)}** has gained `
-            + (levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`)
-            + ` in **${skill}** and is now level **${newLevels[skill]}**`;
-        await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, skill);
-        break;
-    }
-    default: {
-        const text = updatedIncompleteSkills.map((skill) => {
-            const levelsGained = diff[skill];
-            return `${levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`} in **${skill}** and is now level **${newLevels[skill]}**`;
-        }).join('\n');
-        await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), `**${state.getDisplayName(rsn)}** has gained...\n${text}`, 'overall');
-        break;
-    }
-    }
 
-    // Prototype logic for storing pending player updates to PG
+    const updatedSkills: IndividualSkillName[] = toSortedSkillsNoOverall(Object.keys(diff));
+
     if (updatedSkills.length > 0) {
         for (const guildId of state.getGuildsTrackingPlayer(rsn)) {
+            // Construct the pending player updates
+            const updates: PendingPlayerUpdate[] = updatedSkills.map(skill => ({
+                guildId,
+                rsn,
+                type: PlayerUpdateType.Skill,
+                key: skill,
+                baseValue: state.getLevel(rsn, skill),
+                newValue: newLevels[skill]
+            }));
+
+            const updates99 = updates.filter(u => u.newValue === 99);
+            const updatesIncomplete = updates.filter(u => u.newValue !== 99);
+
+            if (state.hasTrackingChannel(guildId)) {
+                // Construct the 99 message payload
+                for (const update of updates99) {
+                    const messagePayload99 = constructSkill99UpdateMessage(update);
+                    await sendUpdateMessageRaw([state.getTrackingChannel(guildId)], messagePayload99, { reacts: ['🇬', '🇿'] });
+                }
+
+                // Construct and send the update message
+                if (state.hasTrackingChannel(guildId)) {
+                    await sendUpdateMessageRaw([state.getTrackingChannel(guildId)], { embeds: constructSkillUpdateEmbeds(updatesIncomplete) });
+                }
+            }
+
+            // Prototype logic for storing pending player updates to PG
             if (guildId in temp.pendingUpdateTestingChannels) {
-                // Construct the pending player updates
-                const updates: PendingPlayerUpdate[] = updatedSkills.map(skill => ({
-                    guildId,
-                    rsn,
-                    type: PlayerUpdateType.Skill,
-                    key: skill,
-                    baseValue: state.getLevel(rsn, skill),
-                    newValue: newLevels[skill]
-                }));
                 await pgStorageClient.writePendingPlayerUpdates(updates);
                 const testingChannel = temp.pendingUpdateTestingChannels[guildId];
                 await testingChannel.send(`Wrote **${updates.length}** pending **skill** update row(s) for **${state.getDisplayName(rsn)}**`);
@@ -590,6 +583,48 @@ export async function updateLevels(rsn: string, newLevels: Record<IndividualSkil
         }
     }
     return false;
+}
+
+export function constructSkill99UpdateMessage(update: PendingPlayerUpdate): MessageCreateOptions {
+    const { rsn, key: skill, baseValue, newValue } = update;
+    const levelsGained = newValue - baseValue;
+    return buildUpdateMessage(
+        `**${state.getDisplayName(rsn)}** has gained `
+            + (levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`)
+            + ` in **${skill}** and is now level **99**`,
+        skill, {
+            // TODO: Disabling the @everyone tag now, but make it configurable when we support server settings
+            // header: '@everyone',
+            is99: true
+        });
+}
+
+export function constructSkillUpdateEmbeds(updates: PendingPlayerUpdate[]): APIEmbed[] {
+    // Send a message showing all the levels gained for all non-99 skills
+    switch (updates.length) {
+    case 0: {
+        return [];
+    }
+    case 1: {
+        const { rsn, key: skill, baseValue, newValue } = updates[0];
+        const levelsGained = newValue - baseValue;
+        const text = `**${state.getDisplayName(rsn)}** has gained `
+            + (levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`)
+            + ` in **${skill}** and is now level **${newValue}**`;
+        return [buildUpdateEmbed(text, skill)];
+        // await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, skill);
+    }
+    default: {
+        const text = updates.map((u) => {
+            const { key: skill, baseValue, newValue } = u;
+            const levelsGained = newValue - baseValue;
+            return `${levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`} in **${skill}** and is now level **${newValue}**`;
+        }).join('\n');
+        const { rsn } = updates[0];
+        return [buildUpdateEmbed(`**${state.getDisplayName(rsn)}** has gained...\n${text}`, 'overall')];
+        // await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), `**${state.getDisplayName(rsn)}** has gained...\n${text}`, 'overall');
+    }
+    }
 }
 
 export async function updateKillCounts(rsn: string, newScores: Record<Boss, number>, spoofedDiff?: Record<string, number>): Promise<boolean> {
@@ -623,59 +658,28 @@ export async function updateKillCounts(rsn: string, newScores: Record<Boss, numb
     if (!diff) {
         return false;
     }
-    // Send a message showing all the incremented boss scores
-    const updatedBosses: Boss[] = Object.keys(diff) as Boss[];
-    // Only use a kill verb if all the updated bosses are "killable" bosses, else use a complete verb
-    const verb: string = updatedBosses.some(boss => COMPLETE_VERB_BOSSES.has(boss)) ? randChoice(...DOPE_COMPLETE_VERBS) : randChoice(...DOPE_KILL_VERBS);
-    switch (updatedBosses.length) {
-    case 0:
-        break;
-    case 1: {
-        const boss: Boss = updatedBosses[0];
-        const scoreIncrease = diff[boss];
-        const bossName = getBossName(boss);
-        // Note that this will be funky if the KC is 1, but currently the hiscores don't report KCs until >1
-        const text = newScores[boss] === scoreIncrease
-            ? `**${state.getDisplayName(rsn)}** ${verb} **${bossName}** for the first **${scoreIncrease}** times!`
-            : `**${state.getDisplayName(rsn)}** ${verb} **${bossName}** `
-                    + (scoreIncrease === 1 ? 'again' : `**${scoreIncrease}** more times`)
-                    + ` for a total of **${newScores[boss]}**`;
-        await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, boss, { color: BOSS_EMBED_COLOR });
-        break;
-    }
-    default: {
-        const text = updatedBosses.map((boss) => {
-            const scoreIncrease = diff[boss];
-            const bossName = getBossName(boss);
-            // Note that this will be funky if the KC is 1, but currently the hiscores don't report KCs until >1
-            return newScores[boss] === scoreIncrease
-                ? `**${bossName}** for the first **${scoreIncrease}** times!`
-                : `**${bossName}** ${scoreIncrease === 1 ? 'again' : `**${scoreIncrease}** more times`} for a total of **${newScores[boss]}**`;
-        }).join('\n');
-        await sendUpdateMessage(
-            state.getTrackingChannelsForPlayer(rsn),
-            `**${state.getDisplayName(rsn)}** ${verb}...\n${text}`,
-            // Show the first boss in the list as the icon
-            updatedBosses[0],
-            { color: BOSS_EMBED_COLOR }
-        );
-        break;
-    }
-    }
 
-    // Prototype logic for storing pending player updates to PG
+    const updatedBosses: Boss[] = Object.keys(diff) as Boss[];
+
     if (updatedBosses.length > 0) {
         for (const guildId of state.getGuildsTrackingPlayer(rsn)) {
+            // Construct the pending player updates
+            const updates: PendingPlayerUpdate[] = updatedBosses.map(boss => ({
+                guildId,
+                rsn,
+                type: PlayerUpdateType.Boss,
+                key: boss,
+                baseValue: state.getBoss(rsn, boss),
+                newValue: newScores[boss]
+            }));
+
+            // Construct and send the update message
+            if (state.hasTrackingChannel(guildId)) {
+                await sendUpdateMessageRaw([state.getTrackingChannel(guildId)], { embeds: constructBossUpdateEmbeds(updates) });
+            }
+
+            // Prototype logic for storing pending player updates to PG
             if (guildId in temp.pendingUpdateTestingChannels) {
-                // Construct the pending player updates
-                const updates: PendingPlayerUpdate[] = updatedBosses.map(boss => ({
-                    guildId,
-                    rsn,
-                    type: PlayerUpdateType.Boss,
-                    key: boss,
-                    baseValue: state.getBoss(rsn, boss),
-                    newValue: newScores[boss]
-                }));
                 await pgStorageClient.writePendingPlayerUpdates(updates);
                 const testingChannel = temp.pendingUpdateTestingChannels[guildId];
                 await testingChannel.send(`Wrote **${updates.length}** pending **boss** update row(s) for **${state.getDisplayName(rsn)}**`);
@@ -696,6 +700,55 @@ export async function updateKillCounts(rsn: string, newScores: Record<Boss, numb
         }
     }
     return false;
+}
+
+export function constructBossUpdateEmbeds(updates: PendingPlayerUpdate[]): APIEmbed[] {
+    // Send a message showing all the incremented boss scores
+    // Only use a kill verb if all the updated bosses are "killable" bosses, else use a complete verb
+    const verb: string = updates.some(u => COMPLETE_VERB_BOSSES.has(u.key as Boss)) ? randChoice(...DOPE_COMPLETE_VERBS) : randChoice(...DOPE_KILL_VERBS);
+    switch (updates.length) {
+    case 0: {
+        return [];
+    }
+    case 1: {
+        const { rsn, key: boss, baseValue, newValue } = updates[0];
+        const scoreIncrease = newValue - baseValue;
+        const bossName = getBossName(boss as Boss);
+        // Note that this will be funky if the KC is 1, but currently the hiscores don't report KCs until >1
+        const text = newValue === scoreIncrease
+            ? `**${state.getDisplayName(rsn)}** ${verb} **${bossName}** for the first **${scoreIncrease}** times!`
+            : `**${state.getDisplayName(rsn)}** ${verb} **${bossName}** `
+                    + (scoreIncrease === 1 ? 'again' : `**${scoreIncrease}** more times`)
+                    + ` for a total of **${newValue}**`;
+        return [buildUpdateEmbed(text, boss, { color: BOSS_EMBED_COLOR })];
+        // await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, boss, { color: BOSS_EMBED_COLOR });
+    }
+    default: {
+        const text = updates.map((u) => {
+            const { key: boss, baseValue, newValue } = u;
+            const scoreIncrease = newValue - baseValue;
+            const bossName = getBossName(boss as Boss);
+            // Note that this will be funky if the KC is 1, but currently the hiscores don't report KCs until >1
+            return newValue === scoreIncrease
+                ? `**${bossName}** for the first **${scoreIncrease}** times!`
+                : `**${bossName}** ${scoreIncrease === 1 ? 'again' : `**${scoreIncrease}** more times`} for a total of **${newValue}**`;
+        }).join('\n');
+        const { rsn, key: firstBoss } = updates[0];
+        return [buildUpdateEmbed(
+            `**${state.getDisplayName(rsn)}** ${verb}...\n${text}`,
+            // Show the first boss in the list as the icon
+            firstBoss,
+            { color: BOSS_EMBED_COLOR }
+        )];
+        // await sendUpdateMessage(
+        //     state.getTrackingChannelsForPlayer(rsn),
+        //     `**${state.getDisplayName(rsn)}** ${verb}...\n${text}`,
+        //     // Show the first boss in the list as the icon
+        //     updatedBosses[0],
+        //     { color: BOSS_EMBED_COLOR }
+        // );
+    }
+    }
 }
 
 export async function updateClues(rsn: string, newScores: Record<IndividualClueType, number>, spoofedDiff?: Record<string, number>): Promise<boolean> {
@@ -729,58 +782,28 @@ export async function updateClues(rsn: string, newScores: Record<IndividualClueT
     if (!diff) {
         return false;
     }
-    // Send a message showing the updated clues
-    const getClueCompletionPhrase = (_clue: IndividualClueType, _scoreGained: number, _newScore: number): string => {
-        let quantityText = '';
-        if (_scoreGained === 1 && _newScore === 1) {
-            quantityText = 'their first';
-        } else if (_scoreGained === _newScore) {
-            quantityText = `**${_scoreGained}**`;
-        } else if (_scoreGained === 1) {
-            quantityText = 'another';
-        } else {
-            quantityText = `**${_scoreGained}** more`;
-        }
-        return quantityText + ` **${_clue}** ${_scoreGained === 1 ? 'clue' : 'clues'} for a total of **${_newScore}**`;
-    };
-    const updatedClues: IndividualClueType[] = toSortedCluesNoAll(Object.keys(diff));
-    switch (updatedClues.length) {
-    case 0:
-        break;
-    case 1: {
-        const clue = updatedClues[0];
-        const scoreGained = diff[clue] ?? 0;
-        const text = `**${state.getDisplayName(rsn)}** has completed ${getClueCompletionPhrase(clue, scoreGained, newScores[clue])}`;
-        await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, clue, { color: CLUE_EMBED_COLOR });
-        break;
-    }
-    default: {
-        const text = updatedClues.map((clue) => {
-            const scoreGained = diff[clue] ?? 0;
-            return getClueCompletionPhrase(clue, scoreGained, newScores[clue]);
-        }).join('\n');
-        await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn),
-            `**${state.getDisplayName(rsn)}** has completed...\n${text}`,
-            // Show the highest level clue as the icon
-            updatedClues[updatedClues.length - 1],
-            { color: CLUE_EMBED_COLOR });
-        break;
-    }
-    }
 
-    // Prototype logic for storing pending player updates to PG
+    const updatedClues: IndividualClueType[] = toSortedCluesNoAll(Object.keys(diff));
+
     if (updatedClues.length > 0) {
         for (const guildId of state.getGuildsTrackingPlayer(rsn)) {
+            // Construct the pending player updates
+            const updates: PendingPlayerUpdate[] = updatedClues.map(clue => ({
+                guildId,
+                rsn,
+                type: PlayerUpdateType.Clue,
+                key: clue,
+                baseValue: state.getClue(rsn, clue),
+                newValue: newScores[clue]
+            }));
+
+            // Construct the message payload
+            if (state.hasTrackingChannel(guildId)) {
+                await sendUpdateMessageRaw([state.getTrackingChannel(guildId)], { embeds: constructClueUpdateEmbeds(updates) });
+            }
+
+            // Prototype logic for storing pending player updates to PG
             if (guildId in temp.pendingUpdateTestingChannels) {
-                // Construct the pending player updates
-                const updates: PendingPlayerUpdate[] = updatedClues.map(clue => ({
-                    guildId,
-                    rsn,
-                    type: PlayerUpdateType.Clue,
-                    key: clue,
-                    baseValue: state.getClue(rsn, clue),
-                    newValue: newScores[clue]
-                }));
                 await pgStorageClient.writePendingPlayerUpdates(updates);
                 const testingChannel = temp.pendingUpdateTestingChannels[guildId];
                 await testingChannel.send(`Wrote **${updates.length}** pending **clue** update row(s) for **${state.getDisplayName(rsn)}**`);
@@ -801,6 +824,52 @@ export async function updateClues(rsn: string, newScores: Record<IndividualClueT
         }
     }
     return false;
+}
+
+export function constructClueUpdateEmbeds(updates: PendingPlayerUpdate[]): APIEmbed[] {
+    // Send a message showing the updated clues
+    const getClueCompletionPhrase = (_clue: PlayerUpdateKey, _scoreGained: number, _newScore: number): string => {
+        let quantityText = '';
+        if (_scoreGained === 1 && _newScore === 1) {
+            quantityText = 'their first';
+        } else if (_scoreGained === _newScore) {
+            quantityText = `**${_scoreGained}**`;
+        } else if (_scoreGained === 1) {
+            quantityText = 'another';
+        } else {
+            quantityText = `**${_scoreGained}** more`;
+        }
+        return quantityText + ` **${_clue}** ${_scoreGained === 1 ? 'clue' : 'clues'} for a total of **${_newScore}**`;
+    };
+    switch (updates.length) {
+    case 0: {
+        return [];
+    }
+    case 1: {
+        const { rsn, key: clue, baseValue, newValue } = updates[0];
+        const scoreGained = newValue - baseValue;
+        const text = `**${state.getDisplayName(rsn)}** has completed ${getClueCompletionPhrase(clue, scoreGained, newValue)}`;
+        return [buildUpdateEmbed(text, clue, { color: CLUE_EMBED_COLOR })];
+        // await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, clue, { color: CLUE_EMBED_COLOR });
+    }
+    default: {
+        const text = updates.map((u) => {
+            const { key: clue, baseValue, newValue } = u;
+            const scoreGained = newValue - baseValue;
+            return getClueCompletionPhrase(clue, scoreGained, newValue);
+        }).join('\n');
+        const { rsn, key: lastClue } = updates[updates.length - 1];
+        return [buildUpdateEmbed(`**${state.getDisplayName(rsn)}** has completed...\n${text}`,
+            // Show the highest level clue as the icon
+            lastClue,
+            { color: CLUE_EMBED_COLOR })];
+        // await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn),
+        //     `**${state.getDisplayName(rsn)}** has completed...\n${text}`,
+        //     // Show the highest level clue as the icon
+        //     updatedClues[updatedClues.length - 1],
+        //     { color: CLUE_EMBED_COLOR });
+    }
+    }
 }
 
 export async function updateActivities(rsn: string, newScores: Record<IndividualActivityName, number>, spoofedDiff?: Record<string, number>): Promise<boolean> {
@@ -834,6 +903,51 @@ export async function updateActivities(rsn: string, newScores: Record<Individual
     if (!diff) {
         return false;
     }
+
+    const updatedActivities: IndividualActivityName[] = Object.keys(diff) as IndividualActivityName[];
+
+    if (updatedActivities.length > 0) {
+        for (const guildId of state.getGuildsTrackingPlayer(rsn)) {
+            // Construct the pending player updates
+            const updates: PendingPlayerUpdate[] = updatedActivities.map(activity => ({
+                guildId,
+                rsn,
+                type: PlayerUpdateType.Activity,
+                key: activity,
+                baseValue: state.getActivity(rsn, activity),
+                newValue: newScores[activity]
+            }));
+
+            // Construct the message payload
+            if (state.hasTrackingChannel(guildId)) {
+                await sendUpdateMessageRaw([state.getTrackingChannel(guildId)], { embeds: constructActivitiesUpdateEmbeds(updates) });
+            }
+
+            // Prototype logic for storing pending player updates to PG
+            if (guildId in temp.pendingUpdateTestingChannels) {
+                await pgStorageClient.writePendingPlayerUpdates(updates);
+                const testingChannel = temp.pendingUpdateTestingChannels[guildId];
+                await testingChannel.send(`Wrote **${updates.length}** pending **activity** update row(s) for **${state.getDisplayName(rsn)}**`);
+            }
+        }
+    }
+
+    // If not spoofing the diff, update player's activities
+    if (!spoofedDiff) {
+        // Write only updated activities to PG
+        await pgStorageClient.writePlayerActivities(rsn, filterMap(newScores, updatedActivities));
+        state.setActivities(rsn, newScores);
+        state.setLastRefresh(rsn, new Date());
+        await pgStorageClient.updatePlayerRefreshTimestamp(rsn, new Date());
+        if (updatedActivities.length > 0) {
+            await logger.log(`**${rsn}** update: \`${JSON.stringify(diff)}\``, MultiLoggerLevel.Debug);
+            return true;
+        }
+    }
+    return false;
+}
+
+export function constructActivitiesUpdateEmbeds(updates: PendingPlayerUpdate[]): APIEmbed[] {
     // Send a message showing the updated activities
     const getActivityCompletionPhrase = (_activity: string, _scoreGained: number, _newScore: number): string => {
         let quantityText = '';
@@ -866,64 +980,63 @@ export async function updateActivities(rsn: string, newScores: Record<Individual
             return 'N/A';
         }
     };
-    const updatedActivities: IndividualActivityName[] = Object.keys(diff) as IndividualActivityName[];
-    switch (updatedActivities.length) {
-    case 0:
-        break;
+    // TODO: Filter/validate that they're actually activities?
+    // const updatedActivities: IndividualActivityName[] = updates.map(u => u.key) as IndividualActivityName[];
+    switch (updates.length) {
+    case 0: {
+        return [];
+    }
     case 1: {
-        const activity = updatedActivities[0];
-        const scoreGained = diff[activity] ?? 0;
-        const text = `**${state.getDisplayName(rsn)}** ${getActivityPhrase(activity, scoreGained, newScores[activity])}`;
-        await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, activity, { color: ACTIVITY_EMBED_COLOR });
-        break;
+        const { rsn, key: activity, baseValue, newValue } = updates[0];
+        const scoreGained = newValue - baseValue;
+        const text = `**${state.getDisplayName(rsn)}** ${getActivityPhrase(activity, scoreGained, newValue)}`;
+        return [buildUpdateEmbed(text, activity, { color: ACTIVITY_EMBED_COLOR })];
+        // await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, activity, { color: ACTIVITY_EMBED_COLOR });
     }
     default: {
-        const text = updatedActivities.map((activity) => {
-            const scoreGained = diff[activity] ?? 0;
-            return getActivityPhrase(activity, scoreGained, newScores[activity]);
+        const text = updates.map((u) => {
+            const { key: activity, baseValue, newValue } = u;
+            const scoreGained = newValue - baseValue;
+            return getActivityPhrase(activity, scoreGained, newValue);
         }).join('\n');
-        await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn),
-            `**${state.getDisplayName(rsn)}**...\n${text}`,
+        const { rsn, key: firstActivity } = updates[0];
+        return [buildUpdateEmbed(`**${state.getDisplayName(rsn)}**...\n${text}`,
             // Show the first activity as the icon
-            updatedActivities[0],
-            { color: ACTIVITY_EMBED_COLOR });
-        break;
+            firstActivity,
+            { color: ACTIVITY_EMBED_COLOR })];
+        // await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn),
+        //     `**${state.getDisplayName(rsn)}**...\n${text}`,
+        //     // Show the first activity as the icon
+        //     updatedActivities[0],
+        //     { color: ACTIVITY_EMBED_COLOR });
     }
     }
+}
 
-    // Prototype logic for storing pending player updates to PG
-    if (updatedActivities.length > 0) {
-        for (const guildId of state.getGuildsTrackingPlayer(rsn)) {
-            if (guildId in temp.pendingUpdateTestingChannels) {
-                // Construct the pending player updates
-                const updates: PendingPlayerUpdate[] = updatedActivities.map(activity => ({
-                    guildId,
-                    rsn,
-                    type: PlayerUpdateType.Activity,
-                    key: activity,
-                    baseValue: state.getActivity(rsn, activity),
-                    newValue: newScores[activity]
-                }));
-                await pgStorageClient.writePendingPlayerUpdates(updates);
-                const testingChannel = temp.pendingUpdateTestingChannels[guildId];
-                await testingChannel.send(`Wrote **${updates.length}** pending **activity** update row(s) for **${state.getDisplayName(rsn)}**`);
-            }
-        }
+export async function sendPlayerUpdates(channel: TextChannel, updates: PendingPlayerUpdate[]) {
+    if (updates.length === 0) {
+        return;
     }
-
-    // If not spoofing the diff, update player's activities
-    if (!spoofedDiff) {
-        // Write only updated activities to PG
-        await pgStorageClient.writePlayerActivities(rsn, filterMap(newScores, updatedActivities));
-        state.setActivities(rsn, newScores);
-        state.setLastRefresh(rsn, new Date());
-        await pgStorageClient.updatePlayerRefreshTimestamp(rsn, new Date());
-        if (updatedActivities.length > 0) {
-            await logger.log(`**${rsn}** update: \`${JSON.stringify(diff)}\``, MultiLoggerLevel.Debug);
-            return true;
-        }
+    // Validate that all updates are for the same guild and RSN
+    if (updates.some(u => u.guildId !== updates[0].guildId || u.rsn !== updates[0].rsn)) {
+        throw new Error('Tried to send out updates with mixed guilds/RSNs');
     }
-    return false;
+    // Construct and send skill updates
+    const skillUpdates99 = updates.filter(u => u.type === PlayerUpdateType.Skill && u.newValue === 99);
+    for (const u of skillUpdates99) {
+        const payload99 = constructSkill99UpdateMessage(u);
+        await sendUpdateMessageRaw([channel], payload99, { reacts: ['🇬', '🇿'] });
+    }
+    // Construct update embeds
+    const embeds: APIEmbed[] = [];
+    embeds.push(...constructSkillUpdateEmbeds(updates.filter(u => u.type === PlayerUpdateType.Skill && u.newValue !== 99)));
+    embeds.push(...constructBossUpdateEmbeds(updates.filter(u => u.type === PlayerUpdateType.Boss)));
+    embeds.push(...constructClueUpdateEmbeds(updates.filter(u => u.type === PlayerUpdateType.Clue)));
+    embeds.push(...constructActivitiesUpdateEmbeds(updates.filter(u => u.type === PlayerUpdateType.Activity)));
+    // If there are any embeds, send the payload
+    if (embeds.length > 0) {
+        await sendUpdateMessageRaw([channel], { embeds });
+    }
 }
 
 export async function rollBackPlayerStats(rsn: string, data: PlayerHiScores) {

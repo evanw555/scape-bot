@@ -267,8 +267,8 @@ export default class PGStorageClient {
     }
 
     // TODO: Temp logic to see how this is working
-    async fetchAllPendingPlayerUpdates(): Promise<unknown[]> {
-        const queryResult = await this.client.query('SELECT * FROM pending_player_updates;');
+    async fetchAllPendingPlayerUpdates() {
+        const queryResult = await this.client.query<{guild_id: Snowflake, rsn: string, type: PlayerUpdateType, key: PlayerUpdateKey, base_value: number, new_value: number}>('SELECT * FROM pending_player_updates;');
         return queryResult.rows;
     }
 
