@@ -558,7 +558,7 @@ export async function updateLevels(rsn: string, newLevels: Record<IndividualSkil
     }
 
     // Prototype logic for storing pending player updates to PG
-    if (updatedSkills) {
+    if (updatedSkills.length > 0) {
         for (const guildId of state.getGuildsTrackingPlayer(rsn)) {
             if (guildId in temp.pendingUpdateTestingChannels) {
                 // Construct the pending player updates
@@ -572,7 +572,7 @@ export async function updateLevels(rsn: string, newLevels: Record<IndividualSkil
                 }));
                 await pgStorageClient.writePendingPlayerUpdates(updates);
                 const testingChannel = temp.pendingUpdateTestingChannels[guildId];
-                await testingChannel.send(`Wrote **${updates.length}** pending **skill* update row(s) for **${state.getDisplayName(rsn)}**`);
+                await testingChannel.send(`Wrote **${updates.length}** pending **skill** update row(s) for **${state.getDisplayName(rsn)}**`);
             }
         }
     }
@@ -664,7 +664,7 @@ export async function updateKillCounts(rsn: string, newScores: Record<Boss, numb
     }
 
     // Prototype logic for storing pending player updates to PG
-    if (updatedBosses) {
+    if (updatedBosses.length > 0) {
         for (const guildId of state.getGuildsTrackingPlayer(rsn)) {
             if (guildId in temp.pendingUpdateTestingChannels) {
                 // Construct the pending player updates
@@ -678,7 +678,7 @@ export async function updateKillCounts(rsn: string, newScores: Record<Boss, numb
                 }));
                 await pgStorageClient.writePendingPlayerUpdates(updates);
                 const testingChannel = temp.pendingUpdateTestingChannels[guildId];
-                await testingChannel.send(`Wrote **${updates.length}** pending **boss* update row(s) for **${state.getDisplayName(rsn)}**`);
+                await testingChannel.send(`Wrote **${updates.length}** pending **boss** update row(s) for **${state.getDisplayName(rsn)}**`);
             }
         }
     }
@@ -769,7 +769,7 @@ export async function updateClues(rsn: string, newScores: Record<IndividualClueT
     }
 
     // Prototype logic for storing pending player updates to PG
-    if (updatedClues) {
+    if (updatedClues.length > 0) {
         for (const guildId of state.getGuildsTrackingPlayer(rsn)) {
             if (guildId in temp.pendingUpdateTestingChannels) {
                 // Construct the pending player updates
@@ -783,7 +783,7 @@ export async function updateClues(rsn: string, newScores: Record<IndividualClueT
                 }));
                 await pgStorageClient.writePendingPlayerUpdates(updates);
                 const testingChannel = temp.pendingUpdateTestingChannels[guildId];
-                await testingChannel.send(`Wrote **${updates.length}** pending **clue* update row(s) for **${state.getDisplayName(rsn)}**`);
+                await testingChannel.send(`Wrote **${updates.length}** pending **clue** update row(s) for **${state.getDisplayName(rsn)}**`);
             }
         }
     }
@@ -892,7 +892,7 @@ export async function updateActivities(rsn: string, newScores: Record<Individual
     }
 
     // Prototype logic for storing pending player updates to PG
-    if (updatedActivities) {
+    if (updatedActivities.length > 0) {
         for (const guildId of state.getGuildsTrackingPlayer(rsn)) {
             if (guildId in temp.pendingUpdateTestingChannels) {
                 // Construct the pending player updates
@@ -906,7 +906,7 @@ export async function updateActivities(rsn: string, newScores: Record<Individual
                 }));
                 await pgStorageClient.writePendingPlayerUpdates(updates);
                 const testingChannel = temp.pendingUpdateTestingChannels[guildId];
-                await testingChannel.send(`Wrote **${updates.length}** pending **activity* update row(s) for **${state.getDisplayName(rsn)}**`);
+                await testingChannel.send(`Wrote **${updates.length}** pending **activity** update row(s) for **${state.getDisplayName(rsn)}**`);
             }
         }
     }
