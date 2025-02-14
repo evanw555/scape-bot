@@ -2,7 +2,7 @@ import { Boss, BOSSES, INVALID_FORMAT_ERROR, FORMATTED_BOSS_NAMES, getRSNFormat,
 import fs from 'fs';
 import { APIEmbed, ActionRowData, ButtonStyle, ChatInputCommandInteraction, ComponentType, MessageActionRowComponentData, PermissionFlagsBits, PermissionsBitField, Snowflake, TextBasedChannel, TextChannel } from 'discord.js';
 import { addReactsSync, DiscordTimestampFormat, MultiLoggerLevel, naturalJoin, randChoice, toDiscordTimestamp } from 'evanw555.js';
-import { IndividualClueType, IndividualSkillName, IndividualActivityName, PlayerHiScores, NegativeDiffError, CommandsType, SlashCommand, DailyAnalyticsLabel } from './types';
+import { IndividualClueType, IndividualSkillName, IndividualActivityName, PlayerHiScores, NegativeDiffError, CommandsType, SlashCommand, DailyAnalyticsLabel, PendingPlayerUpdate, PlayerUpdateType } from './types';
 import { fetchHiScores, isPlayerNotFoundError } from './hiscores';
 import { AUTH, CONSTANTS, BOSS_EMBED_COLOR, CLUES_NO_ALL, CLUE_EMBED_COLOR, COMPLETE_VERB_BOSSES, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, DOPE_COMPLETE_VERBS, DOPE_KILL_VERBS, GRAY_EMBED_COLOR, RED_EMBED_COLOR, SKILLS_NO_OVERALL, SKILL_EMBED_COLOR, YELLOW_EMBED_COLOR, REQUIRED_PERMISSIONS, REQUIRED_PERMISSION_NAMES, CONFIG, DEFAULT_AXIOS_CONFIG, OTHER_ACTIVITIES, DEFAULT_ACTIVITY_SCORE, ACTIVITY_EMBED_COLOR, OTHER_ACTIVITIES_MAP } from './constants';
 
@@ -10,6 +10,7 @@ import state from './instances/state';
 import logger from './instances/logger';
 import pgStorageClient from './instances/pg-storage-client';
 import timeSlotInstance from './instances/timeslot';
+import temp from './instances/temp';
 
 const validSkills: Set<string> = new Set(CONSTANTS.skills);
 const validClues: Set<string> = new Set(CLUES_NO_ALL);
@@ -329,11 +330,13 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
     }
 
     let activity = false;
+    let processPendingUpdates = false;
 
     // Check if levels have changes and send notifications
     if (state.hasLevels(rsn)) {
         const a = await updateLevels(rsn, data.levelsWithDefaults, options?.spoofedDiff);
         activity = activity || a;
+        processPendingUpdates = processPendingUpdates || a;
     } else {
         // If this player has no levels in the state, prime with initial data (NOT including assumed defaults)
         state.setLevels(rsn, data.levels);
@@ -346,6 +349,7 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
     if (state.hasBosses(rsn)) {
         const a = await updateKillCounts(rsn, data.bossesWithDefaults, options?.spoofedDiff);
         activity = activity || a;
+        processPendingUpdates = processPendingUpdates || a;
     } else {
         // If this player has no bosses in the state, prime with initial data (NOT including assumed defaults)
         state.setBosses(rsn, data.bosses);
@@ -358,6 +362,7 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
     if (state.hasClues(rsn)) {
         const a = await updateClues(rsn, data.cluesWithDefaults, options?.spoofedDiff);
         activity = activity || a;
+        processPendingUpdates = processPendingUpdates || a;
     } else {
         // If this player has no clues in the state, prime with initial data (NOT including assumed defaults)
         state.setClues(rsn, data.clues);
@@ -370,6 +375,7 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
     if (state.hasActivities(rsn)) {
         const a = await updateActivities(rsn, data.activitiesWithDefaults, options?.spoofedDiff);
         activity = activity || a;
+        processPendingUpdates = processPendingUpdates || a;
     } else {
         // If this player has no activities in the state, prime with initial date (NOT including assumed defaults)
         state.setActivities(rsn, data.activities);
@@ -427,6 +433,57 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
     if (activity) {
         timeSlotInstance.incrementPlayer(rsn);
     }
+
+    // Prototype logic for processing pending player updates
+    if (processPendingUpdates) {
+        for (const guildId of state.getGuildsTrackingPlayer(rsn)) {
+            if (guildId in temp.pendingUpdateTestingChannels) {
+                const testingChannel = temp.pendingUpdateTestingChannels[guildId];
+                const updates = (await pgStorageClient.fetchPendingPlayerUpdates(rsn)).filter(u => u.guildId === guildId);
+                if (updates.length > 0) {
+                    // Filter by applying mock rules
+                    const updatesToSend = updates.filter(u => {
+                        const diff = u.to - u.from;
+                        switch (u.type) {
+                        case PlayerUpdateType.Skill: {
+                            if (u.to < 50) {
+                                return diff >= 10;
+                            }
+                            if (u.to < 80) {
+                                return diff >= 5;
+                            }
+                            return diff > 0;
+                        }
+                        case PlayerUpdateType.Boss: {
+                            return diff >= 5;
+                        }
+                        case PlayerUpdateType.Clue: {
+                            return diff > 0;
+                        }
+                        case PlayerUpdateType.Activity: {
+                            return diff > 10;
+                        }
+                        }
+                    });
+                    await testingChannel.send(`**${updates.length}** rows for this RSN+guild, **${updatesToSend.length}** pass the rule set`);
+                    // Send an update for each update that passes the rule
+                    for (const update of updatesToSend) {
+                        await testingChannel.send({
+                            embeds: [{
+                                description: `**${state.getDisplayName(update.rsn)}** has gained **${update.to - update.from}** in **${update.key}** for a total of **${update.to}**`
+                            }]
+                        });
+                        // Delete the update
+                        await pgStorageClient.deletePendingPlayerUpdate(update);
+                    }
+                    const tableContents = await pgStorageClient.fetchAllPendingPlayerUpdates();
+                    await testingChannel.send('Contents of pending player update table:\n```'
+                        + tableContents.map(x => JSON.stringify(x)).join('\n')
+                        + '\n```');
+                }
+            }
+        }
+    }
 }
 
 export async function updateLevels(rsn: string, newLevels: Record<IndividualSkillName, number>, spoofedDiff?: Record<string, number>): Promise<boolean> {
@@ -452,7 +509,7 @@ export async function updateLevels(rsn: string, newLevels: Record<IndividualSkil
     } catch (err) {
         if (err instanceof NegativeDiffError) {
             negativeDiffStrikes[rsn] = (negativeDiffStrikes[rsn] ?? 0) + 1;
-        } else if (err  && err.message) {
+        } else if (err instanceof Error && err.message) {
             await logger.log(`Failed to compute level diff for player ${rsn}: ${err.message}`, MultiLoggerLevel.Error);
         }
         return false;
@@ -470,7 +527,7 @@ export async function updateLevels(rsn: string, newLevels: Record<IndividualSkil
                 + (levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`)
                 + ` in **${skill}** and is now level **99**`,
             skill, {
-                // TODO: Disabling the @everyone tagnow , but make it configurable when we support server settings
+                // TODO: Disabling the @everyone tag now, but make it configurable when we support server settings
                 // header: '@everyone',
                 is99: true,
                 reacts: ['🇬', '🇿']
@@ -498,6 +555,26 @@ export async function updateLevels(rsn: string, newLevels: Record<IndividualSkil
         await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), `**${state.getDisplayName(rsn)}** has gained...\n${text}`, 'overall');
         break;
     }
+    }
+
+    // Prototype logic for storing pending player updates to PG
+    if (updatedSkills) {
+        for (const guildId of state.getGuildsTrackingPlayer(rsn)) {
+            if (guildId in temp.pendingUpdateTestingChannels) {
+                // Construct the pending player updates
+                const updates: PendingPlayerUpdate[] = updatedSkills.map(skill => ({
+                    guildId,
+                    rsn,
+                    type: PlayerUpdateType.Skill,
+                    key: skill,
+                    from: state.getLevel(rsn, skill),
+                    to: newLevels[skill]
+                }));
+                await pgStorageClient.writePendingPlayerUpdates(updates);
+                const testingChannel = temp.pendingUpdateTestingChannels[guildId];
+                await testingChannel.send(`Wrote **${updates.length}** pending **skill* update row(s) for **${state.getDisplayName(rsn)}**`);
+            }
+        }
     }
 
     // If not spoofing the diff, update player's levels
@@ -586,6 +663,26 @@ export async function updateKillCounts(rsn: string, newScores: Record<Boss, numb
     }
     }
 
+    // Prototype logic for storing pending player updates to PG
+    if (updatedBosses) {
+        for (const guildId of state.getGuildsTrackingPlayer(rsn)) {
+            if (guildId in temp.pendingUpdateTestingChannels) {
+                // Construct the pending player updates
+                const updates: PendingPlayerUpdate[] = updatedBosses.map(boss => ({
+                    guildId,
+                    rsn,
+                    type: PlayerUpdateType.Boss,
+                    key: boss,
+                    from: state.getBoss(rsn, boss),
+                    to: newScores[boss]
+                }));
+                await pgStorageClient.writePendingPlayerUpdates(updates);
+                const testingChannel = temp.pendingUpdateTestingChannels[guildId];
+                await testingChannel.send(`Wrote **${updates.length}** pending **boss* update row(s) for **${state.getDisplayName(rsn)}**`);
+            }
+        }
+    }
+
     // If not spoofing the diff, update player's boss scores
     if (!spoofedDiff) {
         // Write only updated bosses to PG
@@ -669,6 +766,26 @@ export async function updateClues(rsn: string, newScores: Record<IndividualClueT
             { color: CLUE_EMBED_COLOR });
         break;
     }
+    }
+
+    // Prototype logic for storing pending player updates to PG
+    if (updatedClues) {
+        for (const guildId of state.getGuildsTrackingPlayer(rsn)) {
+            if (guildId in temp.pendingUpdateTestingChannels) {
+                // Construct the pending player updates
+                const updates: PendingPlayerUpdate[] = updatedClues.map(clue => ({
+                    guildId,
+                    rsn,
+                    type: PlayerUpdateType.Clue,
+                    key: clue,
+                    from: state.getClue(rsn, clue),
+                    to: newScores[clue]
+                }));
+                await pgStorageClient.writePendingPlayerUpdates(updates);
+                const testingChannel = temp.pendingUpdateTestingChannels[guildId];
+                await testingChannel.send(`Wrote **${updates.length}** pending **clue* update row(s) for **${state.getDisplayName(rsn)}**`);
+            }
+        }
     }
 
     // If not spoofing the diff, update player's clue scores
@@ -772,6 +889,26 @@ export async function updateActivities(rsn: string, newScores: Record<Individual
             { color: ACTIVITY_EMBED_COLOR });
         break;
     }
+    }
+
+    // Prototype logic for storing pending player updates to PG
+    if (updatedActivities) {
+        for (const guildId of state.getGuildsTrackingPlayer(rsn)) {
+            if (guildId in temp.pendingUpdateTestingChannels) {
+                // Construct the pending player updates
+                const updates: PendingPlayerUpdate[] = updatedActivities.map(activity => ({
+                    guildId,
+                    rsn,
+                    type: PlayerUpdateType.Activity,
+                    key: activity,
+                    from: state.getActivity(rsn, activity),
+                    to: newScores[activity]
+                }));
+                await pgStorageClient.writePendingPlayerUpdates(updates);
+                const testingChannel = temp.pendingUpdateTestingChannels[guildId];
+                await testingChannel.send(`Wrote **${updates.length}** pending **activity* update row(s) for **${state.getDisplayName(rsn)}**`);
+            }
+        }
     }
 
     // If not spoofing the diff, update player's activities

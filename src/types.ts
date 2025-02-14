@@ -51,6 +51,8 @@ export interface ScapeBotConstants {
 export type IndividualSkillName = Exclude<SkillName, 'overall'>;
 export type IndividualClueType = Exclude<ClueType, 'all'>;
 export type IndividualActivityName = keyof typeof OTHER_ACTIVITIES_MAP;
+/** All possible things that are tracked and updated. */
+export type PlayerUpdateKey = IndividualSkillName | Boss | IndividualClueType | IndividualActivityName;
 
 export interface SerializedGuildState {
     trackingChannelId?: Snowflake,
@@ -130,6 +132,22 @@ export interface PlayerHiScores {
     cluesWithDefaults: Record<IndividualClueType, number>,
     activities: Partial<Record<IndividualActivityName, number>>,
     activitiesWithDefaults: Record<IndividualActivityName, number>
+}
+
+export enum PlayerUpdateType {
+    Skill = 0,
+    Boss = 1,
+    Clue = 2,
+    Activity = 3
+}
+
+export interface PendingPlayerUpdate {
+    guildId: Snowflake,
+    rsn: string,
+    type: PlayerUpdateType,
+    key: PlayerUpdateKey,
+    from: number,
+    to: number
 }
 
 /**
