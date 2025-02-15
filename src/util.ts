@@ -127,7 +127,7 @@ export async function sendUpdateMessageRaw(channels: TextBasedChannel[], payload
                 state.addProblematicTrackingChannel(channel);
             }
             // Log info about this failure
-            let errorMessage = 'Unable to send update message to channel';
+            let errorMessage = `Unable to send update message \`${payload.content?.slice(0, 100) ?? ''}${payload.embeds?.map(e => JSON.stringify(e)).join(',') ?? ''}\` to channel`;
             if (channel instanceof TextChannel) {
                 const textChannel: TextChannel = channel as TextChannel;
                 const guild = textChannel.guild;
@@ -555,8 +555,8 @@ export async function updateLevels(rsn: string, newLevels: Record<IndividualSkil
                     await sendUpdateMessageRaw([state.getTrackingChannel(guildId)], messagePayload99, { reacts: ['🇬', '🇿'] });
                 }
 
-                // Construct and send the update message
-                if (state.hasTrackingChannel(guildId)) {
+                // Construct and send other update messages
+                if (updatesIncomplete.length > 0) {
                     await sendUpdateMessageRaw([state.getTrackingChannel(guildId)], { embeds: constructSkillUpdateEmbeds(updatesIncomplete) });
                 }
             }
