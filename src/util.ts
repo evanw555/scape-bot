@@ -541,7 +541,7 @@ export async function updateLevels(rsn: string, newLevels: Record<IndividualSkil
                 rsn,
                 type: PlayerUpdateType.Skill,
                 key: skill,
-                baseValue: state.getLevel(rsn, skill),
+                baseValue: state.hasLevel(rsn, skill) ? state.getLevel(rsn, skill) : DEFAULT_SKILL_LEVEL,
                 newValue: newLevels[skill]
             }));
 
@@ -669,7 +669,7 @@ export async function updateKillCounts(rsn: string, newScores: Record<Boss, numb
                 rsn,
                 type: PlayerUpdateType.Boss,
                 key: boss,
-                baseValue: state.getBoss(rsn, boss),
+                baseValue: state.hasBoss(rsn, boss) ? state.getBoss(rsn, boss) : DEFAULT_BOSS_SCORE,
                 newValue: newScores[boss]
             }));
 
@@ -793,7 +793,7 @@ export async function updateClues(rsn: string, newScores: Record<IndividualClueT
                 rsn,
                 type: PlayerUpdateType.Clue,
                 key: clue,
-                baseValue: state.getClue(rsn, clue),
+                baseValue: state.hasClue(rsn, clue) ? state.getClue(rsn, clue) : DEFAULT_CLUE_SCORE,
                 newValue: newScores[clue]
             }));
 
@@ -914,7 +914,7 @@ export async function updateActivities(rsn: string, newScores: Record<Individual
                 rsn,
                 type: PlayerUpdateType.Activity,
                 key: activity,
-                baseValue: state.getActivity(rsn, activity),
+                baseValue: state.hasActivity(rsn, activity) ? state.getActivity(rsn, activity) : DEFAULT_ACTIVITY_SCORE,
                 newValue: newScores[activity]
             }));
 
