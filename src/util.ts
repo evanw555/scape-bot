@@ -453,6 +453,11 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
                 const testingChannel = temp.pendingUpdateTestingChannels[guildId]; // state.getTrackingChannel(guildId)
                 const updates = (await pgStorageClient.fetchPendingPlayerUpdates(rsn)).filter(u => u.guildId === guildId);
                 if (updates.length > 0) {
+                    const SKILL_INTERVAL_FIVE_THRESHOLD = 40;
+                    const SKILL_INTERVAL_ONE_THRESHOLD = 70;
+                    const BOSS_INTERVAL = 5;
+                    const CLUE_INTERVAL = 1;
+                    const ACTIVITY_INTERVAL = 10;
                     // Filter by applying mock rules
                     const passesMilestone = (a: number, b: number, interval: number): boolean => {
                         // If the diff is at least the interval, it MUST pass a milestone
@@ -465,22 +470,22 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
                     const updatesToSend = updates.filter(u => {
                         switch (u.type) {
                         case PlayerUpdateType.Skill: {
-                            if (u.newValue < 50) {
-                                return passesMilestone(u.baseValue, u.newValue, 10);
+                            if (u.newValue >= SKILL_INTERVAL_ONE_THRESHOLD) {
+                                return passesMilestone(u.baseValue, u.newValue, 1);
                             }
-                            if (u.newValue < 80) {
+                            if (u.newValue >= SKILL_INTERVAL_FIVE_THRESHOLD) {
                                 return passesMilestone(u.baseValue, u.newValue, 5);
                             }
-                            return passesMilestone(u.baseValue, u.newValue, 1);
+                            return passesMilestone(u.baseValue, u.newValue, 10);
                         }
                         case PlayerUpdateType.Boss: {
-                            return passesMilestone(u.baseValue, u.newValue, 5);
+                            return passesMilestone(u.baseValue, u.newValue, BOSS_INTERVAL);
                         }
                         case PlayerUpdateType.Clue: {
-                            return passesMilestone(u.baseValue, u.newValue, 1);
+                            return passesMilestone(u.baseValue, u.newValue, CLUE_INTERVAL);
                         }
                         case PlayerUpdateType.Activity: {
-                            return passesMilestone(u.baseValue, u.newValue, 10);
+                            return passesMilestone(u.baseValue, u.newValue, ACTIVITY_INTERVAL);
                         }
                         }
                     });
