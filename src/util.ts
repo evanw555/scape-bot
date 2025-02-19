@@ -11,6 +11,7 @@ import logger from './instances/logger';
 import pgStorageClient from './instances/pg-storage-client';
 import timeSlotInstance from './instances/timeslot';
 import temp from './instances/temp';
+import timer from './instances/timer';
 
 const validSkills: Set<string> = new Set(CONSTANTS.skills);
 const validClues: Set<string> = new Set(CLUES_NO_ALL);
@@ -444,6 +445,9 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
 
     // Prototype logic for processing pending player updates
     if (processPendingUpdates) {
+        // Increment player updates counter
+        timer.incrementPlayerUpdates();
+        // TODO: This is currently only triggered for maintainer guilds which have opted in
         for (const guildId of state.getGuildsTrackingPlayer(rsn)) {
             if (guildId in temp.pendingUpdateTestingChannels) { // state.hasTrackingChannel(guildId)
                 const testingChannel = temp.pendingUpdateTestingChannels[guildId]; // state.getTrackingChannel(guildId)

@@ -190,6 +190,8 @@ export const hiddenCommands: HiddenCommandsType = {
                 }, {
                     title: 'Timer Info',
                     description: `\`${timer.getIntervalMeasurementDebugString()}\``
+                        + `\n\`${timer.getPlayerUpdateFrequencyString()}\``
+                        + `\n\`${timer.getIntervalsBetweenUpdatesString()}\``
                 }, {
                     title: 'Queue Info',
                     description: playerQueue.getLabeledDurationStrings()
@@ -275,7 +277,7 @@ export const hiddenCommands: HiddenCommandsType = {
             await pgStorageClient.writeMiscProperty('disabled', 'false');
             state.setDisabled(false);
             // Reset the interval measurement data
-            timer.resetIntervalMeasurement();
+            timer.resetMeasurements();
         },
         text: 'Enables the bot, this should be used after the bot has been disabled due to an incompatible API change'
     },

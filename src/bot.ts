@@ -129,7 +129,7 @@ const timeoutCallbacks = {
         }
         // Reset the interval measurement data
         await logger.log(timer.getIntervalMeasurementDebugString(), MultiLoggerLevel.Warn);
-        timer.resetIntervalMeasurement();
+        timer.resetMeasurements();
         // Log daily analytics
         try {
             await pgStorageClient.writeDailyAnalyticsRow(new Date(), DailyAnalyticsLabel.NumGuilds, client.guilds.cache.size);
