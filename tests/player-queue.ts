@@ -141,24 +141,26 @@ describe('PlayerQueue Tests', () => {
         expect(queue.next()).equals('c');
         expect(queue.next()).equals('b');
 
-        // Bring the AQ up to size 6
+        // Bring the AQ up to size 6 (it is now the only populated queue)
         queue.markAsActive('c');
         queue.markAsActive('d');
         queue.markAsActive('e');
 
-        // Prove that although the AQ size is 6, the counter is still capped at 5
+        // It should now cleanly cycle through all 6 elements without attempting to defer to a lower queue.
+        // The lower queues are all empty, so attempting to fetch from them would yield an "undefined".
         expect(queue.next()).equals('f');
         expect(queue.next()).equals('c');
         expect(queue.next()).equals('d');
         expect(queue.next()).equals('e');
-        expect(queue.next()).equals(undefined);
         expect(queue.next()).equals('a');
         expect(queue.next()).equals('b');
         expect(queue.next()).equals('f');
         expect(queue.next()).equals('c');
         expect(queue.next()).equals('d');
-        expect(queue.next()).equals(undefined);
         expect(queue.next()).equals('e');
+        expect(queue.next()).equals('a');
+        expect(queue.next()).equals('b');
+        expect(queue.next()).equals('f');
     });
 
     it('can alternate between 3 queues', () => {

@@ -97,7 +97,86 @@ describe('PGStorageClient Tests', () => {
         const results1 = await pgStorageClient.fetchAllPlayerActivities();
         expect('player1' in results1).true;
         expect(results1.player1.colosseumGlory).equals(colosseumGloryScore);
-    })
+    });
+
+    it('can read and write pending player updates', async () => {
+        const results = await pgStorageClient.fetchPendingPlayerUpdates('player1');
+        expect(results.length).equals(0);
+
+        // Write some basic entries for 2 guilds
+        await pgStorageClient.writePendingPlayerUpdates([
+            { guildId: '123', rsn: 'player1', type: 0, key: 'fishing', baseValue: 10, newValue: 11 },
+            { guildId: '456', rsn: 'player1', type: 0, key: 'fishing', baseValue: 10, newValue: 11 },
+            { guildId: '456', rsn: 'player2', type: 2, key: 'elite', baseValue: 1, newValue: 2 },
+            { guildId: '789', rsn: 'player3', type: 1, key: 'kalphiteQueen', baseValue: 50, newValue: 64 }
+        ]);
+
+        // Fetch them
+        const results2 = await pgStorageClient.fetchPendingPlayerUpdates('player1');
+        expect(results2.length).equals(2);
+
+        // Append to these pending updates
+        await pgStorageClient.writePendingPlayerUpdates([
+            { guildId: '123', rsn: 'player1', type: 0, key: 'fishing', baseValue: 11, newValue: 13 },
+            { guildId: '456', rsn: 'player1', type: 0, key: 'fishing', baseValue: 11, newValue: 13 }
+        ]);
+
+        // Assert that they coalesced
+        const results3 = await pgStorageClient.fetchPendingPlayerUpdates('player1');
+        expect(results3.length).equals(2);
+        expect(results3.every(r => r.baseValue === 10)).true;
+        expect(results3.every(r => r.newValue === 13)).true;
+
+        // Simulate one update passing that guild's ruleset and being cleared
+        await pgStorageClient.deletePendingPlayerUpdate({ guildId: '123', rsn: 'player1', type: 0, key: 'fishing', baseValue: 10, newValue: 13 });
+        const results4 = await pgStorageClient.fetchPendingPlayerUpdates('player1');
+        expect(results4.length).equals(1);
+        expect(results4[0].guildId === '456');
+
+        // Write a new update for both guilds, only one of which coalesces
+        await pgStorageClient.writePendingPlayerUpdates([
+            { guildId: '123', rsn: 'player1', type: 0, key: 'fishing', baseValue: 13, newValue: 17 },
+            { guildId: '456', rsn: 'player1', type: 0, key: 'fishing', baseValue: 13, newValue: 17 }
+        ]);
+
+        // Assert that these are now different per guild
+        const results5 = await pgStorageClient.fetchPendingPlayerUpdates('player1');
+        expect(results5.length).equals(2);
+        // The first guild's update uses the new base value
+        const guild123Updates = results5.filter(r => r.guildId === '123');
+        expect(guild123Updates.length).equals(1);
+        expect(guild123Updates[0].baseValue).equals(13);
+        expect(guild123Updates[0].newValue).equals(17);
+        // The second guild's update coalesced with the existing one and thus uses the original base value
+        const guild456Updates = results5.filter(r => r.guildId === '456');
+        expect(guild456Updates.length).equals(1);
+        expect(guild456Updates[0].baseValue).equals(10);
+        expect(guild456Updates[0].newValue).equals(17);
+
+        // Now, assume a rollback occurred and write a new update that doesn't cleanly coalesce
+        await pgStorageClient.writePendingPlayerUpdates([
+            { guildId: '123', rsn: 'player1', type: 0, key: 'fishing', baseValue: 12, newValue: 15 },
+            { guildId: '456', rsn: 'player1', type: 0, key: 'fishing', baseValue: 12, newValue: 15 }
+        ]);
+
+        // Assert that the rollback affects different cases correctly
+        const results6 = await pgStorageClient.fetchPendingPlayerUpdates('player1');
+        expect(results6.length).equals(2);
+        // The first guild's update was rolled back beyond its original base value, so the base value should be rolled back as well
+        const guild123Updates2 = results6.filter(r => r.guildId === '123');
+        expect(guild123Updates2.length).equals(1);
+        expect(guild123Updates2[0].baseValue).equals(12);
+        expect(guild123Updates2[0].newValue).equals(15);
+        // The second guild's update was only partially rolled back, so use the original base value to ensure the update is partially coalesced
+        const guild456Updates2 = results6.filter(r => r.guildId === '456');
+        expect(guild456Updates2.length).equals(1);
+        expect(guild456Updates2[0].baseValue).equals(10);
+        expect(guild456Updates2[0].newValue).equals(15);
+
+        // After all this, ensure the other updates remain in the table
+        const results7 = await pgStorageClient.fetchAllPendingPlayerUpdates();
+        expect(results7.length).equals(4);
+    });
 
     it('can add and remove tracked players', async () => {
         await pgStorageClient.deleteTrackedPlayer('12345', 'player1');
