@@ -1,6 +1,6 @@
 import { exec } from 'child_process';
 import { Message, Snowflake, APIEmbed, TextChannel } from 'discord.js';
-import { randInt, randChoice, forEachMessage, MultiLoggerLevel, getPreciseDurationString } from 'evanw555.js';
+import { randInt, randChoice, forEachMessage, MultiLoggerLevel, getPreciseDurationString, toFixed } from 'evanw555.js';
 import { FORMATTED_BOSS_NAMES, BOSSES, Boss, INVALID_FORMAT_ERROR } from 'osrs-json-hiscores';
 import { OTHER_ACTIVITIES, SKILLS_NO_OVERALL, CLUES_NO_ALL, GRAY_EMBED_COLOR, CONSTANTS } from './constants';
 import { fetchHiScores, isPlayerNotFoundError } from './hiscores';
@@ -181,6 +181,9 @@ export const hiddenCommands: HiddenCommandsType = {
                 });
             });
             // Send admin info back to user
+            const numGuilds = msg.client.guilds.cache.size;
+            const numCommunityGuilds = msg.client.guilds.cache.filter(g => g.features?.includes('COMMUNITY')).size;
+            const numNonEnUsGuilds = msg.client.guilds.cache.filter(g => g.preferredLocale !== 'en-US').size;
             const playerQueue = state.getPlayerQueue();
             await msg.channel.send({
                 content: 'Admin Information:',
@@ -215,6 +218,8 @@ export const hiddenCommands: HiddenCommandsType = {
                     title: 'Misc. Information',
                     description: `- **Total XP** populated for **${state.getNumPlayerTotalXp()}** of **${state.getNumGloballyTrackedPlayers()}** players`
                         + `\n- **${state.getNumPlayersOffHiScores()}** players are off the hiscores (**${Math.floor(100 * state.getNumPlayersOffHiScores() / state.getNumGloballyTrackedPlayers())}%**)`
+                        + `\n- **${numCommunityGuilds}** guilds (**${toFixed(100 * numCommunityGuilds / numGuilds)}%**) are community`
+                        + `\n- **${numNonEnUsGuilds}** guilds aren't \`en-US\` (**${toFixed(100 * numNonEnUsGuilds / numGuilds)}%**)`
                 },
                 // TODO: This maybe can be removed since we send these out weekly
                 ...await getAnalyticsTrendsEmbeds()]
