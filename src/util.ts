@@ -1,7 +1,7 @@
 import { Boss, BOSSES, INVALID_FORMAT_ERROR, FORMATTED_BOSS_NAMES, getRSNFormat, HISCORES_ERROR } from 'osrs-json-hiscores';
 import fs from 'fs';
 import { APIEmbed, ActionRowData, ButtonStyle, ChatInputCommandInteraction, ComponentType, MessageActionRowComponentData, MessageCreateOptions, PermissionFlagsBits, PermissionsBitField, Snowflake, TextBasedChannel, TextChannel } from 'discord.js';
-import { addReactsSync, DiscordTimestampFormat, MultiLoggerLevel, naturalJoin, randChoice, toDiscordTimestamp } from 'evanw555.js';
+import { addReactsSync, DiscordTimestampFormat, filterMap, getPercentChangeString, getQuantityWithUnits, groupByProperty, MultiLoggerLevel, naturalJoin, randChoice, toDiscordTimestamp } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName, IndividualActivityName, PlayerHiScores, NegativeDiffError, CommandsType, SlashCommand, DailyAnalyticsLabel, PendingPlayerUpdate, PlayerUpdateType, PlayerUpdateKey } from './types';
 import { fetchHiScores, isPlayerNotFoundError } from './hiscores';
 import { AUTH, CONSTANTS, BOSS_EMBED_COLOR, CLUES_NO_ALL, CLUE_EMBED_COLOR, COMPLETE_VERB_BOSSES, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, DOPE_COMPLETE_VERBS, DOPE_KILL_VERBS, GRAY_EMBED_COLOR, RED_EMBED_COLOR, SKILLS_NO_OVERALL, SKILL_EMBED_COLOR, YELLOW_EMBED_COLOR, REQUIRED_PERMISSIONS, REQUIRED_PERMISSION_NAMES, CONFIG, DEFAULT_AXIOS_CONFIG, OTHER_ACTIVITIES, DEFAULT_ACTIVITY_SCORE, ACTIVITY_EMBED_COLOR, OTHER_ACTIVITIES_MAP } from './constants';
@@ -213,32 +213,6 @@ export function computeDiff<T extends string>(before: Partial<Record<T, number>>
     return diff;
 }
 
-/**
- * Returns a new map including key-value pairs from the input map,
- * but with entries omitted if their value matches the blacklisted value parameter.
- * @param input input map
- * @param blacklistedValue value used to determine which entries to omit
- */
-export function filterValueFromMap<T>(input: Record<string, T>, blacklistedValue: T): Record<string, T> {
-    const output: Record<string, T> = {};
-    Object.keys(input).forEach((key) => {
-        if (input[key] !== blacklistedValue) {
-            output[key] = input[key];
-        }
-    });
-    return output;
-}
-
-export function filterMap<T>(input: Record<string, T>, keyWhitelist: string[]): Record<string, T> {
-    const result: Record<string, T> = {};
-    for (const key of keyWhitelist) {
-        if (key in input) {
-            result[key] = input[key];
-        }
-    }
-    return result;
-}
-
 export function toSortedSkillsNoOverall(skills: string[]): IndividualSkillName[] {
     const skillSubset: Set<string> = new Set(skills);
     return SKILLS_NO_OVERALL.filter((skill: IndividualSkillName) => skillSubset.has(skill));
@@ -447,11 +421,24 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
     if (processPendingUpdates) {
         // Increment player updates counter
         timer.incrementPlayerUpdates();
-        // TODO: This is currently only triggered for maintainer guilds which have opted in
-        for (const guildId of state.getGuildsTrackingPlayer(rsn)) {
+        // Fetch all pending updates for this player
+        const allUpdates = await pgStorageClient.fetchPendingPlayerUpdates(rsn);
+        // Group each update by guild ID
+        const updatesByGuild = groupByProperty(allUpdates, 'guildId');
+        for (const [guildId, updates] of Object.entries(updatesByGuild)) {
+            // If this guild isn't actually tracking this player, delete the update and continue
+            if (!state.isTrackingPlayer(guildId, rsn)) {
+                for (const update of updates) {
+                    await pgStorageClient.deletePendingPlayerUpdate(update);
+                }
+                // TODO: Temp logging to see how this is working
+                await logger.log(`Deleted **${updates.length}** pending update(s) for player **${state.getDisplayName(rsn)}** not tracked by guild \`${guildId}\``, MultiLoggerLevel.Warn);
+                continue;
+            }
+            // TODO: This is currently only triggered for maintainer guilds which have opted in
+            // TODO: Once this is enabled, use the guild's actual tracking channel
             if (guildId in temp.pendingUpdateTestingChannels) { // state.hasTrackingChannel(guildId)
                 const testingChannel = temp.pendingUpdateTestingChannels[guildId]; // state.getTrackingChannel(guildId)
-                const updates = (await pgStorageClient.fetchPendingPlayerUpdates(rsn)).filter(u => u.guildId === guildId);
                 if (updates.length > 0) {
                     const SKILL_INTERVAL_FIVE_THRESHOLD = 40;
                     const SKILL_INTERVAL_ONE_THRESHOLD = 70;
@@ -582,7 +569,7 @@ export async function updateLevels(rsn: string, newLevels: Record<IndividualSkil
     // If not spoofing the diff, update player's levels
     if (!spoofedDiff) {
         // Write only updated skills to PG
-        await pgStorageClient.writePlayerLevels(rsn, filterMap(newLevels, updatedSkills));
+        await pgStorageClient.writePlayerLevels(rsn, filterMap(newLevels, { keyWhitelist: updatedSkills }));
         state.setLevels(rsn, newLevels);
         state.setLastRefresh(rsn, new Date());
         await pgStorageClient.updatePlayerRefreshTimestamp(rsn, new Date());
@@ -699,7 +686,7 @@ export async function updateKillCounts(rsn: string, newScores: Record<Boss, numb
     // If not spoofing the diff, update player's boss scores
     if (!spoofedDiff) {
         // Write only updated bosses to PG
-        await pgStorageClient.writePlayerBosses(rsn, filterMap(newScores, updatedBosses));
+        await pgStorageClient.writePlayerBosses(rsn, filterMap(newScores, { keyWhitelist: updatedBosses }));
         state.setBosses(rsn, newScores);
         state.setLastRefresh(rsn, new Date());
         await pgStorageClient.updatePlayerRefreshTimestamp(rsn, new Date());
@@ -823,7 +810,7 @@ export async function updateClues(rsn: string, newScores: Record<IndividualClueT
     // If not spoofing the diff, update player's clue scores
     if (!spoofedDiff) {
         // Write only updated clues to PG
-        await pgStorageClient.writePlayerClues(rsn, filterMap(newScores, updatedClues));
+        await pgStorageClient.writePlayerClues(rsn, filterMap(newScores, { keyWhitelist: updatedClues }));
         state.setClues(rsn, newScores);
         state.setLastRefresh(rsn, new Date());
         await pgStorageClient.updatePlayerRefreshTimestamp(rsn, new Date());
@@ -944,7 +931,7 @@ export async function updateActivities(rsn: string, newScores: Record<Individual
     // If not spoofing the diff, update player's activities
     if (!spoofedDiff) {
         // Write only updated activities to PG
-        await pgStorageClient.writePlayerActivities(rsn, filterMap(newScores, updatedActivities));
+        await pgStorageClient.writePlayerActivities(rsn, filterMap(newScores, { keyWhitelist: updatedActivities }));
         state.setActivities(rsn, newScores);
         state.setLastRefresh(rsn, new Date());
         await pgStorageClient.updatePlayerRefreshTimestamp(rsn, new Date());
@@ -1120,39 +1107,6 @@ export async function purgeUntrackedPlayers(rsns: string[], label: string) {
                 + `purged rows: \`${JSON.stringify(purgeResults)}\``, MultiLoggerLevel.Warn);
         }
     }
-}
-
-// TODO: Move to common library
-export function getQuantityWithUnits(quantity: number, fractionDigits = 1): string {
-    if (quantity < 1000) {
-        return quantity.toString();
-    } else if (quantity < 1000000) {
-        return (quantity / 1000).toFixed(fractionDigits) + 'k';
-    } else {
-        return (quantity / 1000000).toFixed(fractionDigits) + 'm';
-    }
-}
-
-// TODO: Move to common library
-export function getUnambiguousQuantitiesWithUnits(quantities: number[]): string[] {
-    const n = quantities.length;
-    const result: string[] = new Array(n).fill('');
-    const complete: boolean[] = new Array(n).fill(false);
-    for (let digits = 1; digits <= 3; digits++) {
-        // One pass to regenerate each incomplete string with a certain number of digits
-        for (let i = 0; i < n; i++) {
-            if (!complete[i]) {
-                result[i] = getQuantityWithUnits(quantities[i], digits);
-            }
-        }
-        // Second pass to mark all the unique ones as complete
-        for (let i = 0; i < n; i++) {
-            const formatted = result[i];
-            const unique = result.filter(x => x === formatted).length === 1;
-            complete[i] = unique;
-        }
-    }
-    return result;
 }
 
 export function getNextFridayEvening(): Date {
@@ -1386,12 +1340,6 @@ export function getHelpText(commands: CommandsType, isAdmin = false, hasPrivileg
     return `\`\`\`asciidoc\n${innerText}\`\`\``;
 }
 
-// TODO: Move to common library?
-export function getPercentChangeString(before: number, after: number): string {
-    const diff = after - before;
-    return `${diff < 0 ? '' : '+'}${(100 * diff / before).toFixed(1)}`;
-}
-
 export async function getAnalyticsTrends() {
     const lastWeek = new Date();
     lastWeek.setDate(lastWeek.getDate() - 7);
@@ -1437,13 +1385,13 @@ export async function getAnalyticsTrendsEmbeds(): Promise<APIEmbed[]> {
     return [{
         title: 'Num Players',
         description: `__Today__: **${trends.players.today}**\n`
-            + `__Last Week__: **${trends.players.lastWeek}** (${trends.players.weeklyChange}%)\n`
-            + `__Last Month__: **${trends.players.lastMonth}** (${trends.players.monthlyChange}%)`
+            + `__Last Week__: **${trends.players.lastWeek}** (${trends.players.weeklyChange})\n`
+            + `__Last Month__: **${trends.players.lastMonth}** (${trends.players.monthlyChange})`
     }, {
         title: 'Num Guilds',
         description: `__Today__: **${trends.guilds.today}**\n`
-        + `__Last Week__: **${trends.guilds.lastWeek}** (${trends.guilds.weeklyChange}%)\n`
-        + `__Last Month__: **${trends.guilds.lastMonth}** (${trends.guilds.monthlyChange}%)`
+        + `__Last Week__: **${trends.guilds.lastWeek}** (${trends.guilds.weeklyChange})\n`
+        + `__Last Month__: **${trends.guilds.lastMonth}** (${trends.guilds.monthlyChange})`
     }];
 }
 
@@ -1452,12 +1400,12 @@ export async function getAnalyticsTrendsString(): Promise<string> {
     const trends = await getAnalyticsTrends();
     return '__Num Players__\n'
         + `Today: **${trends.players.today}**\n`
-        + `Last Week: **${trends.players.lastWeek}** (${trends.players.weeklyChange}%)\n`
-        + `Last Month: **${trends.players.lastMonth}** (${trends.players.monthlyChange}%)\n`
+        + `Last Week: **${trends.players.lastWeek}** (${trends.players.weeklyChange})\n`
+        + `Last Month: **${trends.players.lastMonth}** (${trends.players.monthlyChange})\n`
         + '__Num Guilds__\n'
         + `Today: **${trends.guilds.today}**\n`
-        + `Last Week: **${trends.guilds.lastWeek}** (${trends.guilds.weeklyChange}%)\n`
-        + `Last Month: **${trends.guilds.lastMonth}** (${trends.guilds.monthlyChange}%)`;
+        + `Last Week: **${trends.guilds.lastWeek}** (${trends.guilds.weeklyChange})\n`
+        + `Last Month: **${trends.guilds.lastMonth}** (${trends.guilds.monthlyChange})`;
 }
 
 export function resolveHiScoresUrlTemplate(): string {
