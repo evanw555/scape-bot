@@ -1,11 +1,11 @@
 import { exec } from 'child_process';
 import { Message, Snowflake, APIEmbed, TextChannel } from 'discord.js';
-import { randInt, randChoice, forEachMessage, MultiLoggerLevel, getPreciseDurationString, toFixed, getUnambiguousQuantitiesWithUnits } from 'evanw555.js';
+import { randInt, randChoice, forEachMessage, MultiLoggerLevel, getPreciseDurationString, toFixed } from 'evanw555.js';
 import { FORMATTED_BOSS_NAMES, BOSSES, Boss, INVALID_FORMAT_ERROR } from 'osrs-json-hiscores';
 import { OTHER_ACTIVITIES, SKILLS_NO_OVERALL, CLUES_NO_ALL, GRAY_EMBED_COLOR, CONSTANTS } from './constants';
 import { fetchHiScores, isPlayerNotFoundError } from './hiscores';
 import { HiddenCommandsType, DailyAnalyticsLabel, PlayerHiScores, IndividualSkillName, IndividualClueType, IndividualActivityName } from './types';
-import { sendUpdateMessage, isValidBoss, updatePlayer, sanitizeRSN, purgeUntrackedPlayers, fetchDisplayName, createWarningEmbed, getHelpText, getAnalyticsTrendsEmbeds, resolveHiScoresUrlTemplate } from './util';
+import { sendUpdateMessage, isValidBoss, updatePlayer, sanitizeRSN, purgeUntrackedPlayers, fetchDisplayName, createWarningEmbed, getHelpText, getAnalyticsTrendsEmbeds, getUnambiguousQuantitiesWithUnits, resolveHiScoresUrlTemplate } from './util';
 
 import state from './instances/state';
 import timer from './instances/timer';

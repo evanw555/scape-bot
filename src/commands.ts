@@ -181,7 +181,6 @@ const slashCommands: SlashCommandsType = {
             if (state.isTrackingPlayer(guildId, rsn)) {
                 await pgStorageClient.deleteTrackedPlayer(guildId, rsn);
                 state.removeTrackedPlayer(guildId, rsn);
-                // TODO: Should delete PPU rows matching this RSN+guildID combo
                 await interaction.reply(`No longer tracking player **${rsn}**.\nYou can still use **/check** to see this player's hiscores.`);
                 await logger.log(`\`${interaction.user.tag}\` removed player **${rsn}** (**${state.getNumTrackedPlayers(guildId)}** in guild)`, MultiLoggerLevel.Warn);
                 // If this player is now globally untracked, purge untracked player data
@@ -206,7 +205,6 @@ const slashCommands: SlashCommandsType = {
                 await pgStorageClient.deleteTrackedPlayer(guildId, rsn);
                 state.removeTrackedPlayer(guildId, rsn);
             }
-            // TODO: Should delete all PPU rows for this guild
             // If some of the removed players are now globally untracked, purge untracked player data
             await purgeUntrackedPlayers(playersToRemove, '/clear');
             await interaction.editReply('No longer tracking any players.\nUse **/track** to track more players.');
