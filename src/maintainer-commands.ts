@@ -1,5 +1,5 @@
 import { exec } from 'child_process';
-import { Message, Snowflake, APIEmbed, TextChannel } from 'discord.js';
+import { Message, Snowflake, APIEmbed } from 'discord.js';
 import { randInt, randChoice, forEachMessage, MultiLoggerLevel, getPreciseDurationString, toFixed, getUnambiguousQuantitiesWithUnits } from 'evanw555.js';
 import { FORMATTED_BOSS_NAMES, BOSSES, Boss, INVALID_FORMAT_ERROR } from 'osrs-json-hiscores';
 import { OTHER_ACTIVITIES, SKILLS_NO_OVERALL, CLUES_NO_ALL, GRAY_EMBED_COLOR, CONSTANTS } from './constants';
@@ -14,7 +14,6 @@ import infoLog from './instances/info-log';
 import logger from './instances/logger';
 import loggerIndices from './instances/logger-indices';
 import pgStorageClient from './instances/pg-storage-client';
-import temp from './instances/temp';
 
 const validSkills = new Set<string>(CONSTANTS.skills);
 
@@ -158,14 +157,6 @@ export const hiddenCommands: HiddenCommandsType = {
                 // Format all the XP quantities first to ensure they're mutually unambiguous
                 const formattedValues = getUnambiguousQuantitiesWithUnits(players.map(rsn => diffs[rsn] ?? 0));
                 await msg.reply('__Current weekly XP standings__:\n' + players.filter(rsn => diffs[rsn]).map((rsn, i) => `${i + 1}. **${state.getDisplayName(rsn)}** _${formattedValues[i]}_`).join('\n'));
-                return;
-            } else if (subcommand === 'pending_player_updates') {
-                if (msg.guildId && (msg.channel instanceof TextChannel)) {
-                    temp.pendingUpdateTestingChannels[msg.guildId] = msg.channel;
-                    await msg.reply('Player updates using the prototype `pending_player_updates` logic will be sent here! Use this command again upon reboot.');
-                } else {
-                    await msg.reply('Either the guild ID is null or this isn\'t a text channel');
-                }
                 return;
             }
             // Get host uptime info

@@ -10,7 +10,6 @@ import state from './instances/state';
 import logger from './instances/logger';
 import pgStorageClient from './instances/pg-storage-client';
 import timeSlotInstance from './instances/timeslot';
-import temp from './instances/temp';
 import timer from './instances/timer';
 
 const validSkills: Set<string> = new Set(CONSTANTS.skills);
@@ -435,64 +434,83 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
                 await logger.log(`Deleted **${updates.length}** pending update(s) for player **${state.getDisplayName(rsn)}** not tracked by guild \`${guildId}\``, MultiLoggerLevel.Warn);
                 continue;
             }
-            // TODO: This is currently only triggered for maintainer guilds which have opted in
-            // TODO: Once this is enabled, use the guild's actual tracking channel
-            if (guildId in temp.pendingUpdateTestingChannels) { // state.hasTrackingChannel(guildId)
-                const testingChannel = temp.pendingUpdateTestingChannels[guildId]; // state.getTrackingChannel(guildId)
-                if (updates.length > 0) {
-                    const SKILL_INTERVAL_FIVE_THRESHOLD = 40;
-                    const SKILL_INTERVAL_ONE_THRESHOLD = 70;
-                    const BOSS_INTERVAL = 5;
-                    const CLUE_INTERVAL = 1;
-                    const ACTIVITY_INTERVAL = 10;
-                    // Filter by applying mock rules
-                    const passesMilestone = (a: number, b: number, interval: number): boolean => {
-                        // If the diff is at least the interval, it MUST pass a milestone
-                        if (b - a >= interval) {
-                            return true;
-                        }
-                        // Otherwise, it passes if the new value is greater yet its mod is lower
-                        return b > a && ((b % interval) < (a % interval));
-                    };
-                    const updatesToSend = updates.filter(u => {
-                        switch (u.type) {
-                        case PlayerUpdateType.Skill: {
-                            if (u.newValue >= SKILL_INTERVAL_ONE_THRESHOLD) {
-                                return passesMilestone(u.baseValue, u.newValue, 1);
-                            }
-                            if (u.newValue >= SKILL_INTERVAL_FIVE_THRESHOLD) {
-                                return passesMilestone(u.baseValue, u.newValue, 5);
-                            }
-                            return passesMilestone(u.baseValue, u.newValue, 10);
-                        }
-                        case PlayerUpdateType.Boss: {
-                            return passesMilestone(u.baseValue, u.newValue, BOSS_INTERVAL);
-                        }
-                        case PlayerUpdateType.Clue: {
-                            return passesMilestone(u.baseValue, u.newValue, CLUE_INTERVAL);
-                        }
-                        case PlayerUpdateType.Activity: {
-                            return passesMilestone(u.baseValue, u.newValue, ACTIVITY_INTERVAL);
-                        }
-                        }
-                    });
-                    await testingChannel.send(`**${updates.length}** rows for this RSN+guild, **${updatesToSend.length}** pass the rule set`);
-                    // Send an update for each update that passes the rule
-                    await sendPlayerUpdates(testingChannel, updatesToSend);
+            // If the guild has no tracking channel, save the pending update for once it's set
+            if (!state.hasTrackingChannel(guildId)) {
+                continue;
+            }
+            const trackingChannel = state.getTrackingChannel(guildId);
+            // This should theoretically never be empty, but check just to be safe
+            if (updates.length > 0) {
+                // Filter all pending updates using the guild's rules
+                const updatesToSend = filterUpdatesForGuild(updates);
+                if (updatesToSend.length > 0) {
+                    // Construct messages for the filtered updates and send them out
+                    await sendPlayerUpdates(trackingChannel, updatesToSend);
                     // Delete all the updates
                     // TODO: Can we batch this?
                     // TODO: Can we only delete updates that are actually sent out?
                     for (const update of updatesToSend) {
                         await pgStorageClient.deletePendingPlayerUpdate(update);
                     }
-                    const tableContents = await pgStorageClient.fetchAllPendingPlayerUpdates();
-                    await testingChannel.send('Contents of pending player update table:\n```'
-                        + tableContents.map(x => `${x.guild_id} ${x.rsn.padEnd(12)} ${x.type} ${x.key.slice(0, 12).padEnd(12)} ${x.base_value} ${x.new_value}`).join('\n').slice(0, 1900)
-                        + '\n```');
+                    await logger.log(`Sent **${updatesToSend.length}** update(s) for **${state.getDisplayName(rsn)}** (**${updates.length}** in PG)`, MultiLoggerLevel.Debug);
                 }
             }
         }
     }
+}
+
+/**
+ * Given a list of pending player updates, filter it by applying a guild's config rules to it.
+ * @param updates The unfiltered list of pending player updates
+ * @returns The filtered list of pending player updates
+ */
+export function filterUpdatesForGuild(updates: PendingPlayerUpdate[]): PendingPlayerUpdate[] {
+    // TODO: Actually read from a guild's settings once that's set up
+    const SKILL_INTERVAL_FIVE_THRESHOLD = 1; // 40;
+    const SKILL_INTERVAL_ONE_THRESHOLD = 1; // 70;
+    const BOSS_INTERVAL = 1; // 5;
+    const CLUE_INTERVAL = 1;
+    const ACTIVITY_INTERVAL = 1; // 10;
+    // Filter by applying mock rules
+    return updates.filter(u => {
+        switch (u.type) {
+        case PlayerUpdateType.Skill: {
+            if (u.newValue >= SKILL_INTERVAL_ONE_THRESHOLD) {
+                return diffPassesMilestone(u.baseValue, u.newValue, 1);
+            }
+            if (u.newValue >= SKILL_INTERVAL_FIVE_THRESHOLD) {
+                return diffPassesMilestone(u.baseValue, u.newValue, 5);
+            }
+            return diffPassesMilestone(u.baseValue, u.newValue, 10);
+        }
+        case PlayerUpdateType.Boss: {
+            return diffPassesMilestone(u.baseValue, u.newValue, BOSS_INTERVAL);
+        }
+        case PlayerUpdateType.Clue: {
+            return diffPassesMilestone(u.baseValue, u.newValue, CLUE_INTERVAL);
+        }
+        case PlayerUpdateType.Activity: {
+            return diffPassesMilestone(u.baseValue, u.newValue, ACTIVITY_INTERVAL);
+        }
+        }
+    });
+}
+
+/**
+ * Given some update's "before" score and "after" score, determine if the diff passes a milestone.
+ * This is the generic filtering function used to determine is one particular update should be sent out.
+ * @param a The "before" score
+ * @param b The "after" score
+ * @param interval The score diff threshold
+ * @returns True if the provided diff passes a milestone using the given interval
+ */
+export function diffPassesMilestone(a: number, b: number, interval: number): boolean {
+    // If the diff is at least the interval, it MUST pass a milestone
+    if (b - a >= interval) {
+        return true;
+    }
+    // Otherwise, it passes if the new value is greater yet its mod is lower
+    return b > a && ((b % interval) < (a % interval));
 }
 
 export async function updateLevels(rsn: string, newLevels: Record<IndividualSkillName, number>, spoofedDiff?: Record<string, number>): Promise<boolean> {
@@ -541,28 +559,9 @@ export async function updateLevels(rsn: string, newLevels: Record<IndividualSkil
                 newValue: newLevels[skill]
             }));
 
-            const updates99 = updates.filter(u => u.newValue === 99);
-            const updatesIncomplete = updates.filter(u => u.newValue !== 99);
-
-            if (state.hasTrackingChannel(guildId)) {
-                // Construct the 99 message payload
-                for (const update of updates99) {
-                    const messagePayload99 = constructSkill99UpdateMessage(update);
-                    await sendUpdateMessageRaw([state.getTrackingChannel(guildId)], messagePayload99, { reacts: ['🇬', '🇿'] });
-                }
-
-                // Construct and send other update messages
-                if (updatesIncomplete.length > 0) {
-                    await sendUpdateMessageRaw([state.getTrackingChannel(guildId)], { embeds: constructSkillUpdateEmbeds(updatesIncomplete) });
-                }
-            }
-
-            // Prototype logic for storing pending player updates to PG
-            if (guildId in temp.pendingUpdateTestingChannels) {
-                await pgStorageClient.writePendingPlayerUpdates(updates);
-                const testingChannel = temp.pendingUpdateTestingChannels[guildId];
-                await testingChannel.send(`Wrote **${updates.length}** pending **skill** update row(s) for **${state.getDisplayName(rsn)}**`);
-            }
+            // Store pending player updates to PG
+            await pgStorageClient.writePendingPlayerUpdates(updates);
+            // await testingChannel.send(`Wrote **${updates.length}** pending **skill** update row(s) for **${state.getDisplayName(rsn)}**`);
         }
     }
 
@@ -669,17 +668,9 @@ export async function updateKillCounts(rsn: string, newScores: Record<Boss, numb
                 newValue: newScores[boss]
             }));
 
-            // Construct and send the update message
-            if (state.hasTrackingChannel(guildId)) {
-                await sendUpdateMessageRaw([state.getTrackingChannel(guildId)], { embeds: constructBossUpdateEmbeds(updates) });
-            }
-
-            // Prototype logic for storing pending player updates to PG
-            if (guildId in temp.pendingUpdateTestingChannels) {
-                await pgStorageClient.writePendingPlayerUpdates(updates);
-                const testingChannel = temp.pendingUpdateTestingChannels[guildId];
-                await testingChannel.send(`Wrote **${updates.length}** pending **boss** update row(s) for **${state.getDisplayName(rsn)}**`);
-            }
+            // Store pending player updates to PG
+            await pgStorageClient.writePendingPlayerUpdates(updates);
+            // await testingChannel.send(`Wrote **${updates.length}** pending **boss** update row(s) for **${state.getDisplayName(rsn)}**`);
         }
     }
 
@@ -793,17 +784,9 @@ export async function updateClues(rsn: string, newScores: Record<IndividualClueT
                 newValue: newScores[clue]
             }));
 
-            // Construct the message payload
-            if (state.hasTrackingChannel(guildId)) {
-                await sendUpdateMessageRaw([state.getTrackingChannel(guildId)], { embeds: constructClueUpdateEmbeds(updates) });
-            }
-
-            // Prototype logic for storing pending player updates to PG
-            if (guildId in temp.pendingUpdateTestingChannels) {
-                await pgStorageClient.writePendingPlayerUpdates(updates);
-                const testingChannel = temp.pendingUpdateTestingChannels[guildId];
-                await testingChannel.send(`Wrote **${updates.length}** pending **clue** update row(s) for **${state.getDisplayName(rsn)}**`);
-            }
+            // Store pending player updates to PG
+            await pgStorageClient.writePendingPlayerUpdates(updates);
+            // await testingChannel.send(`Wrote **${updates.length}** pending **clue** update row(s) for **${state.getDisplayName(rsn)}**`);
         }
     }
 
@@ -914,17 +897,9 @@ export async function updateActivities(rsn: string, newScores: Record<Individual
                 newValue: newScores[activity]
             }));
 
-            // Construct the message payload
-            if (state.hasTrackingChannel(guildId)) {
-                await sendUpdateMessageRaw([state.getTrackingChannel(guildId)], { embeds: constructActivitiesUpdateEmbeds(updates) });
-            }
-
-            // Prototype logic for storing pending player updates to PG
-            if (guildId in temp.pendingUpdateTestingChannels) {
-                await pgStorageClient.writePendingPlayerUpdates(updates);
-                const testingChannel = temp.pendingUpdateTestingChannels[guildId];
-                await testingChannel.send(`Wrote **${updates.length}** pending **activity** update row(s) for **${state.getDisplayName(rsn)}**`);
-            }
+            // Store pending player updates to PG
+            await pgStorageClient.writePendingPlayerUpdates(updates);
+            // await testingChannel.send(`Wrote **${updates.length}** pending **activity** update row(s) for **${state.getDisplayName(rsn)}**`);
         }
     }
 
