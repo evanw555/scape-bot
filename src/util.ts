@@ -931,22 +931,24 @@ export function constructActivitiesUpdateEmbeds(updates: PendingPlayerUpdate[]):
         } else {
             quantityText = `**${_scoreGained}** more`;
         }
-        return quantityText + ` **${_activity}** for a total of **${_newScore}**`;
+        return quantityText + ` ${_activity} for a total of **${_newScore}**`;
     };
     const getActivityPhrase = (_activity: string, _scoreGained: number, _newScore: number): string => {
         switch (_activity) {
         case 'leaguePoints':
-            return `has earned ${getActivityCompletionPhrase(getActivityName(_activity), _scoreGained, _newScore)}`;
+            return `has earned ${getActivityCompletionPhrase(`**${getActivityName(_activity)}**`, _scoreGained, _newScore)}`;
         case 'lastManStanding':
             return `has a score of **${_newScore}** in **Last Man Standing**`;
         case 'pvpArena':
-            return  `has a score of **${_newScore}** in the **PvP Arena**`;
+            return `has a score of **${_newScore}** in the **PvP Arena**`;
         case 'soulWarsZeal':
-            return `has earned ${getActivityCompletionPhrase(getActivityName(_activity), _scoreGained, _newScore)}`;
+            return `has earned ${getActivityCompletionPhrase(`**${getActivityName(_activity)}**`, _scoreGained, _newScore)}`;
         case 'riftsClosed':
             return `closed another ${_scoreGained === 1 ? '' : `**${_scoreGained}** `}**${_scoreGained === 1 ? 'rift' : 'rifts'}** for a total of **${_newScore}**`;
         case 'colosseumGlory':
-            return `has earned ${getActivityCompletionPhrase(getActivityName(_activity), _scoreGained, _newScore)}`;
+            return `has earned ${getActivityCompletionPhrase(`**${getActivityName(_activity)}**`, _scoreGained, _newScore)}`;
+        case 'collectionsLogged':
+            return `has filled ${getActivityCompletionPhrase('**Collection Log** slot' + (_scoreGained === 1 ? '' : 's'), _scoreGained, _newScore)}`;
         default:
             return 'N/A';
         }
