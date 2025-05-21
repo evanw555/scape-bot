@@ -159,3 +159,10 @@ export enum DailyAnalyticsLabel {
 }
 
 export class NegativeDiffError extends Error {}
+
+export enum GuildSetting {
+    BossBroadcastInterval = 0,
+    ClueBroadcastInterval = 1,
+    MinigameBroadcastInterval = 2,
+    WeeklyRankingMaxCount = 3
+}

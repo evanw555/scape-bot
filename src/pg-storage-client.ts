@@ -3,13 +3,13 @@ import { MultiLoggerLevel } from 'evanw555.js';
 import { Boss } from 'osrs-json-hiscores';
 import { Client, ClientConfig } from 'pg';
 import format from 'pg-format';
-import { IndividualSkillName, IndividualClueType, IndividualActivityName, MiscPropertyName, DailyAnalyticsLabel, PendingPlayerUpdate, PlayerUpdateType, PlayerUpdateKey } from './types';
+import { IndividualSkillName, IndividualClueType, IndividualActivityName, MiscPropertyName, DailyAnalyticsLabel, PendingPlayerUpdate, PlayerUpdateType, PlayerUpdateKey, GuildSetting } from './types';
 
 import logger from './instances/logger';
 
 type TableName = 'weekly_xp_snapshots' | 'weekly_xp_snapshot_timestamps' | 'player_total_xp' | 'player_levels' | 'player_bosses' | 'player_clues'
 | 'player_activities' | 'pending_player_updates' | 'tracked_players' | 'tracking_channels' | 'player_hiscore_status' | 'player_display_names'
-| 'player_activity_timestamps' | 'player_refresh_timestamps' | 'bot_counters' | 'privileged_roles' | 'daily_analytics' | 'misc_properties';
+| 'player_activity_timestamps' | 'player_refresh_timestamps' | 'bot_counters' | 'privileged_roles' | 'daily_analytics' | 'misc_properties' | 'guild_settings';
 
 export default class PGStorageClient {
     private static readonly TABLES: Record<TableName, string> = {
@@ -31,7 +31,8 @@ export default class PGStorageClient {
         'bot_counters': 'CREATE TABLE bot_counters (user_id BIGINT PRIMARY KEY, counter INTEGER);',
         'privileged_roles': 'CREATE TABLE privileged_roles (guild_id BIGINT PRIMARY KEY, role_id BIGINT);',
         'daily_analytics': 'CREATE TABLE daily_analytics (date DATE, label SMALLINT, value INTEGER, PRIMARY KEY (date, label));',
-        'misc_properties': 'CREATE TABLE misc_properties (name VARCHAR(32) PRIMARY KEY, value VARCHAR(2048));'
+        'misc_properties': 'CREATE TABLE misc_properties (name VARCHAR(32) PRIMARY KEY, value VARCHAR(2048));',
+        'guild_settings': 'CREATE TABLE guild_settings (guild_id BIGINT, setting SMALLINT, value SMALLINT, PRIMARY KEY (guild_id, setting));'
     };
 
     // List of tables that should be purged if the player corresponding to a row is missing from tracked_players
@@ -55,7 +56,8 @@ export default class PGStorageClient {
         'pending_player_updates',
         'tracked_players',
         'tracking_channels',
-        'privileged_roles'
+        'privileged_roles',
+        'guild_settings'
     ];
 
     private readonly client: Client;
@@ -496,5 +498,21 @@ export default class PGStorageClient {
         // Else, write the default value and return
         await this.writeMiscProperty(name, defaultValue);
         return defaultValue;
+    }
+
+    async fetchAllGuildSettings(): Promise<Record<string, Partial<Record<number, number>>>> {
+        const result: Record<string, Partial<Record<GuildSetting, number>>> = {};
+        const queryResult = await this.client.query<{guild_id: string, setting: GuildSetting, value: number}>('SELECT * FROM guild_settings');
+        for (const row of queryResult.rows) {
+            if (!result[row.guild_id]) {
+                result[row.guild_id] = {};
+            }
+            result[row.guild_id][row.setting] = parseInt(row.value.toString());
+        }
+        return result;
+    }
+
+    async writeGuildSetting(guildId: Snowflake, setting: GuildSetting, value: number): Promise<void> {
+        await this.client.query('INSERT INTO guild_settings VALUES ($1, $2, $3) ON CONFLICT (guild_id, setting) DO UPDATE SET value = EXCLUDED.value;', [guildId, setting, value]);
     }
 }
