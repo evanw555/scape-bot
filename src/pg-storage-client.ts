@@ -3,7 +3,7 @@ import { MultiLoggerLevel } from 'evanw555.js';
 import { Boss } from 'osrs-json-hiscores';
 import { Client, ClientConfig } from 'pg';
 import format from 'pg-format';
-import { IndividualSkillName, IndividualClueType, IndividualActivityName, MiscPropertyName, DailyAnalyticsLabel, PendingPlayerUpdate, PlayerUpdateType, PlayerUpdateKey, GuildSetting } from './types';
+import { IndividualSkillName, IndividualClueType, IndividualActivityName, MiscPropertyName, DailyAnalyticsLabel, PendingPlayerUpdate, PlayerUpdateType, PlayerUpdateKey, GuildSetting, GuildSettingsMap } from './types';
 
 import logger from './instances/logger';
 
@@ -30,9 +30,9 @@ export default class PGStorageClient {
         'player_refresh_timestamps': 'CREATE TABLE player_refresh_timestamps (rsn VARCHAR(12) PRIMARY KEY, timestamp TIMESTAMPTZ);',
         'bot_counters': 'CREATE TABLE bot_counters (user_id BIGINT PRIMARY KEY, counter INTEGER);',
         'privileged_roles': 'CREATE TABLE privileged_roles (guild_id BIGINT PRIMARY KEY, role_id BIGINT);',
+        'guild_settings': 'CREATE TABLE guild_settings (guild_id BIGINT, setting SMALLINT, value SMALLINT, PRIMARY KEY (guild_id, setting));',
         'daily_analytics': 'CREATE TABLE daily_analytics (date DATE, label SMALLINT, value INTEGER, PRIMARY KEY (date, label));',
-        'misc_properties': 'CREATE TABLE misc_properties (name VARCHAR(32) PRIMARY KEY, value VARCHAR(2048));',
-        'guild_settings': 'CREATE TABLE guild_settings (guild_id BIGINT, setting SMALLINT, value SMALLINT, PRIMARY KEY (guild_id, setting));'
+        'misc_properties': 'CREATE TABLE misc_properties (name VARCHAR(32) PRIMARY KEY, value VARCHAR(2048));'
     };
 
     // List of tables that should be purged if the player corresponding to a row is missing from tracked_players
@@ -500,8 +500,8 @@ export default class PGStorageClient {
         return defaultValue;
     }
 
-    async fetchAllGuildSettings(): Promise<Record<string, Partial<Record<number, number>>>> {
-        const result: Record<string, Partial<Record<GuildSetting, number>>> = {};
+    async fetchAllGuildSettings(): Promise<Record<string, GuildSettingsMap>> {
+        const result: Record<string, GuildSettingsMap> = {};
         const queryResult = await this.client.query<{guild_id: string, setting: GuildSetting, value: number}>('SELECT * FROM guild_settings');
         for (const row of queryResult.rows) {
             if (!result[row.guild_id]) {

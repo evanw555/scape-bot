@@ -1,7 +1,7 @@
 import { APIRole, Role, Snowflake, TextChannel } from 'discord.js';
 import { Boss } from 'osrs-json-hiscores';
 import { MultiLoggerLevel } from 'evanw555.js';
-import { IndividualClueType, IndividualSkillName, IndividualActivityName, GuildSetting } from './types';
+import { IndividualClueType, IndividualSkillName, IndividualActivityName, GuildSetting, GuildSettingsMap } from './types';
 import { ACTIVE_THRESHOLD_MILLIS, INACTIVE_THRESHOLD_MILLIES } from './constants';
 import PlayerQueue from './player-queue';
 
@@ -311,7 +311,7 @@ export default class State {
         return guildId in this._settingsByGuild;
     }
 
-    setGuildSettings(guildId: string, settings: Partial<Record<GuildSetting, number>>): void {
+    setGuildSettings(guildId: string, settings: GuildSettingsMap): void {
         this._settingsByGuild[guildId] = settings;
     }
 

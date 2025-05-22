@@ -166,3 +166,5 @@ export enum GuildSetting {
     MinigameBroadcastInterval = 2,
     WeeklyRankingMaxCount = 3
 }
+
+export type GuildSettingsMap = Partial<Record<GuildSetting, number>>;
