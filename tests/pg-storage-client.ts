@@ -1,7 +1,7 @@
 import { expect } from 'chai';
 import { randInt } from 'evanw555.js';
 import PGStorageClient from '../src/pg-storage-client';
-import { MiscPropertyName } from '../src/types';
+import { GuildSetting, MiscPropertyName } from '../src/types';
 
 describe('PGStorageClient Tests', () => {
     /*
@@ -290,6 +290,16 @@ describe('PGStorageClient Tests', () => {
 
         // Missing properties should simply be returned as an explicit null
         expect(await pgStorageClient.fetchMiscProperty('invalid_property_name' as MiscPropertyName)).is.null;
+    });
+
+    it('can read and write guild settings', async () => {
+        const setting = GuildSetting.BossBroadcastInterval;
+        const settingValue = 1;
+        await pgStorageClient.writeGuildSetting('12345', GuildSetting.BossBroadcastInterval, settingValue);
+        const results = await pgStorageClient.fetchAllGuildSettings();
+        expect('12345' in results).true;
+        expect(setting in results['12345']).true;
+        expect(results['12345'][GuildSetting.BossBroadcastInterval]).equals(settingValue);
     });
 
     it('can purge untracked players from other tables', async () => {

@@ -1,7 +1,7 @@
 import { APIRole, Role, Snowflake, TextChannel } from 'discord.js';
 import { Boss } from 'osrs-json-hiscores';
 import { MultiLoggerLevel } from 'evanw555.js';
-import { IndividualClueType, IndividualSkillName, IndividualActivityName } from './types';
+import { IndividualClueType, IndividualSkillName, IndividualActivityName, GuildSetting, GuildSettingsMap } from './types';
 import { ACTIVE_THRESHOLD_MILLIS, INACTIVE_THRESHOLD_MILLIES } from './constants';
 import PlayerQueue from './player-queue';
 
@@ -28,6 +28,7 @@ export default class State {
 
     private readonly _trackingChannelsByGuild: Record<Snowflake, TextChannel>;
     private readonly _privilegedRolesByGuild: Record<Snowflake, Role | APIRole>;
+    private readonly _settingsByGuild: Record<Snowflake, Partial<Record<GuildSetting, number>>>;
 
     // This property is volatile and not saved to PG
     private readonly _problematicTrackingChannels: Set<TextChannel>;
@@ -67,6 +68,7 @@ export default class State {
         this._playersByGuild = {};
         this._trackingChannelsByGuild = {};
         this._privilegedRolesByGuild = {};
+        this._settingsByGuild = {};
         this._problematicTrackingChannels = new Set();
     }
 
@@ -303,6 +305,14 @@ export default class State {
 
     hasPrivilegedRole(guildId: Snowflake): boolean {
         return guildId in this._privilegedRolesByGuild;
+    }
+
+    hasGuildSettings(guildId: string): boolean {
+        return guildId in this._settingsByGuild;
+    }
+
+    setGuildSettings(guildId: string, settings: GuildSettingsMap): void {
+        this._settingsByGuild[guildId] = settings;
     }
 
     /**
