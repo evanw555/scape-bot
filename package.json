@@ -1,6 +1,6 @@
 {
     "name": "scape-bot",
-    "version": "0.3.1",
+    "version": "0.3.2",
     "description": "A Discord bot for tracking experience gains and skilling tasks.",
     "main": "build/bot.js",
     "author": "Evan Williams",
@@ -20,7 +20,7 @@
         "chai": "^4.3.6",
         "discord.js": "14.10.2",
         "evanw555.js": "evanw555/evanw555.js",
-        "osrs-json-hiscores": "^2.21.1",
+        "osrs-json-hiscores": "^2.22.0",
         "pg": "^8.8.0",
         "pg-format": "^1.0.4"
     },
