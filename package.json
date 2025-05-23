@@ -16,7 +16,7 @@
         "deploy-commands": "node bin/deploy-commands.js"
     },
     "dependencies": {
-        "axios": "^1.7.7",
+        "axios": "^1.9.0",
         "chai": "^4.3.6",
         "discord.js": "14.10.2",
         "evanw555.js": "evanw555/evanw555.js",
