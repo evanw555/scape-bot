@@ -1,6 +1,6 @@
 import { BOSSES, CLUES } from 'osrs-json-hiscores';
 import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel, ActivityType, Snowflake, PermissionFlagsBits, MessageCreateOptions, GuildResolvable } from 'discord.js';
-import { DailyAnalyticsLabel, TimeoutType } from './types';
+import { DailyAnalyticsLabel, GuildSetting, TimeoutType } from './types';
 import { sendUpdateMessage, getThumbnail, getNextFridayEvening, updatePlayer, getNextEvening, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers, getHelpComponents, readDir, getAnalyticsTrendsString } from './util';
 import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel, naturalJoin, getPreciseDurationString, toDiscordTimestamp, DiscordTimestampFormat, getQuantityWithUnits, getUnambiguousQuantitiesWithUnits } from 'evanw555.js';
 import CommandReader from './command-reader';
@@ -437,8 +437,11 @@ const weeklyTotalXpUpdate = async () => {
     for (const guildId of state.getAllRelevantGuilds()) {
         if (state.hasTrackingChannel(guildId)) {
             try {
-                // Get the top 3 XP earners for this guild
-                const winners: string[] = sortedPlayers.filter(rsn => state.isTrackingPlayer(guildId, rsn)).slice(0, 3);
+                // Determine how many XP earners this guild is configured to show
+                const maxRankings = state.getGuildSettingWithDefault(guildId, GuildSetting.WeeklyRankingMaxCount);
+
+                // Get the top XP earners for this guild
+                const winners: string[] = sortedPlayers.filter(rsn => state.isTrackingPlayer(guildId, rsn)).slice(0, maxRankings);
 
                 // Only send out a message if there are any XP earners
                 if (winners.length !== 0) {
@@ -451,7 +454,8 @@ const weeklyTotalXpUpdate = async () => {
                         embeds: winners.map((rsn, i) => {
                             return {
                                 description: `**${state.getDisplayName(rsn)}** with **${formattedValues[i]} XP**`,
-                                thumbnail: getThumbnail(medalNames[i])
+                                // TODO: Just use bronze for rankings 3+, but add support for different icons
+                                thumbnail: getThumbnail(medalNames[i] ?? 'bronze')
                             };
                         })
                     });

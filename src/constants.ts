@@ -90,14 +90,14 @@ export const DEFAULT_AXIOS_CONFIG: { timeout: number } = {
     timeout: 30000
 };
 
-export const FORMATTED_GUILD_SETTINGS = {
+export const FORMATTED_GUILD_SETTINGS: Record<GuildSetting, string> = {
     [GuildSetting.BossBroadcastInterval]: 'Boss kills broadcast interval',
     [GuildSetting.ClueBroadcastInterval]: 'Clue completions broadcast interval',
     [GuildSetting.MinigameBroadcastInterval]: 'Minigame completions broadcast interval',
     [GuildSetting.WeeklyRankingMaxCount]: 'Number of players in the weekly ranking'
 } as const;
 
-export const DEFAULT_GUILD_SETTINGS = {
+export const DEFAULT_GUILD_SETTINGS: Record<GuildSetting, number> = {
     [GuildSetting.BossBroadcastInterval]: 1,
     [GuildSetting.ClueBroadcastInterval]: 1,
     [GuildSetting.MinigameBroadcastInterval]: 1,

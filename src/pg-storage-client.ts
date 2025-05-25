@@ -9,7 +9,7 @@ import logger from './instances/logger';
 
 type TableName = 'weekly_xp_snapshots' | 'weekly_xp_snapshot_timestamps' | 'player_total_xp' | 'player_levels' | 'player_bosses' | 'player_clues'
 | 'player_activities' | 'pending_player_updates' | 'tracked_players' | 'tracking_channels' | 'player_hiscore_status' | 'player_display_names'
-| 'player_activity_timestamps' | 'player_refresh_timestamps' | 'bot_counters' | 'privileged_roles' | 'daily_analytics' | 'misc_properties' | 'guild_settings';
+| 'player_activity_timestamps' | 'player_refresh_timestamps' | 'bot_counters' | 'privileged_roles' | 'guild_settings' | 'daily_analytics' | 'misc_properties';
 
 export default class PGStorageClient {
     private static readonly TABLES: Record<TableName, string> = {
@@ -447,6 +447,22 @@ export default class PGStorageClient {
         await this.client.query('INSERT INTO privileged_roles VALUES ($1, $2) ON CONFLICT (guild_id) DO UPDATE SET role_id = EXCLUDED.role_id;', [guildId, roleId]);
     }
 
+    async fetchAllGuildSettings(): Promise<Record<string, GuildSettingsMap>> {
+        const result: Record<string, GuildSettingsMap> = {};
+        const queryResult = await this.client.query<{guild_id: string, setting: GuildSetting, value: number}>('SELECT * FROM guild_settings');
+        for (const row of queryResult.rows) {
+            if (!result[row.guild_id]) {
+                result[row.guild_id] = {};
+            }
+            result[row.guild_id][row.setting] = parseInt(row.value.toString());
+        }
+        return result;
+    }
+
+    async writeGuildSetting(guildId: Snowflake, setting: GuildSetting, value: number): Promise<void> {
+        await this.client.query('INSERT INTO guild_settings VALUES ($1, $2, $3) ON CONFLICT (guild_id, setting) DO UPDATE SET value = EXCLUDED.value;', [guildId, setting, value]);
+    }
+
     // TODO: Update this to make the return type better. Idk what it should actually be... Maybe a list?
     async fetchDailyAnalyticsForLabel(label: DailyAnalyticsLabel): Promise<Record<string, number>> {
         const result: Record<string, number> = {};
@@ -498,21 +514,5 @@ export default class PGStorageClient {
         // Else, write the default value and return
         await this.writeMiscProperty(name, defaultValue);
         return defaultValue;
-    }
-
-    async fetchAllGuildSettings(): Promise<Record<string, GuildSettingsMap>> {
-        const result: Record<string, GuildSettingsMap> = {};
-        const queryResult = await this.client.query<{guild_id: string, setting: GuildSetting, value: number}>('SELECT * FROM guild_settings');
-        for (const row of queryResult.rows) {
-            if (!result[row.guild_id]) {
-                result[row.guild_id] = {};
-            }
-            result[row.guild_id][row.setting] = parseInt(row.value.toString());
-        }
-        return result;
-    }
-
-    async writeGuildSetting(guildId: Snowflake, setting: GuildSetting, value: number): Promise<void> {
-        await this.client.query('INSERT INTO guild_settings VALUES ($1, $2, $3) ON CONFLICT (guild_id, setting) DO UPDATE SET value = EXCLUDED.value;', [guildId, setting, value]);
     }
 }

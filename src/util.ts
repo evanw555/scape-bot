@@ -2,7 +2,7 @@ import { Boss, BOSSES, INVALID_FORMAT_ERROR, FORMATTED_BOSS_NAMES, getRSNFormat,
 import fs from 'fs';
 import { APIEmbed, ActionRowData, ButtonStyle, ChatInputCommandInteraction, ComponentType, MessageActionRowComponentData, MessageCreateOptions, PermissionFlagsBits, PermissionsBitField, Snowflake, TextBasedChannel, TextChannel } from 'discord.js';
 import { addReactsSync, DiscordTimestampFormat, filterMap, getPercentChangeString, getQuantityWithUnits, groupByProperty, MultiLoggerLevel, naturalJoin, randChoice, toDiscordTimestamp } from 'evanw555.js';
-import { IndividualClueType, IndividualSkillName, IndividualActivityName, PlayerHiScores, NegativeDiffError, CommandsType, SlashCommand, DailyAnalyticsLabel, PendingPlayerUpdate, PlayerUpdateType, PlayerUpdateKey } from './types';
+import { IndividualClueType, IndividualSkillName, IndividualActivityName, PlayerHiScores, NegativeDiffError, CommandsType, SlashCommand, DailyAnalyticsLabel, PendingPlayerUpdate, PlayerUpdateType, PlayerUpdateKey, GuildSetting } from './types';
 import { fetchHiScores, isPlayerNotFoundError } from './hiscores';
 import { AUTH, CONSTANTS, BOSS_EMBED_COLOR, CLUES_NO_ALL, CLUE_EMBED_COLOR, COMPLETE_VERB_BOSSES, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, DOPE_COMPLETE_VERBS, DOPE_KILL_VERBS, GRAY_EMBED_COLOR, RED_EMBED_COLOR, SKILLS_NO_OVERALL, SKILL_EMBED_COLOR, YELLOW_EMBED_COLOR, REQUIRED_PERMISSIONS, REQUIRED_PERMISSION_NAMES, CONFIG, DEFAULT_AXIOS_CONFIG, OTHER_ACTIVITIES, DEFAULT_ACTIVITY_SCORE, ACTIVITY_EMBED_COLOR, OTHER_ACTIVITIES_MAP } from './constants';
 
@@ -465,12 +465,20 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
  * @returns The filtered list of pending player updates
  */
 export function filterUpdatesForGuild(updates: PendingPlayerUpdate[]): PendingPlayerUpdate[] {
+    if (updates.length === 0) {
+        return [];
+    }
+    // Validate that these are all for the same guild
+    const guildId = updates[0].guildId;
+    if (updates.some(u => u.guildId !== guildId)) {
+        throw new Error('Cannot filter updates for multiple guilds using one guild\'s rules');
+    }
     // TODO: Actually read from a guild's settings once that's set up
     const SKILL_INTERVAL_FIVE_THRESHOLD = 1; // 40;
     const SKILL_INTERVAL_ONE_THRESHOLD = 1; // 70;
-    const BOSS_INTERVAL = 1; // 5;
-    const CLUE_INTERVAL = 1;
-    const ACTIVITY_INTERVAL = 1; // 10;
+    const BOSS_INTERVAL = state.getGuildSettingWithDefault(guildId, GuildSetting.BossBroadcastInterval);
+    const CLUE_INTERVAL = state.getGuildSettingWithDefault(guildId, GuildSetting.ClueBroadcastInterval);
+    const ACTIVITY_INTERVAL = state.getGuildSettingWithDefault(guildId, GuildSetting.MinigameBroadcastInterval);
     // Filter by applying mock rules
     return updates.filter(u => {
         switch (u.type) {

@@ -2,7 +2,7 @@ import { APIRole, Role, Snowflake, TextChannel } from 'discord.js';
 import { Boss } from 'osrs-json-hiscores';
 import { MultiLoggerLevel } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName, IndividualActivityName, GuildSetting, GuildSettingsMap } from './types';
-import { ACTIVE_THRESHOLD_MILLIS, INACTIVE_THRESHOLD_MILLIES } from './constants';
+import { ACTIVE_THRESHOLD_MILLIS, DEFAULT_GUILD_SETTINGS, INACTIVE_THRESHOLD_MILLIES } from './constants';
 import PlayerQueue from './player-queue';
 
 import logger from './instances/logger';
@@ -307,12 +307,36 @@ export default class State {
         return guildId in this._privilegedRolesByGuild;
     }
 
+    getGuildSettings(guildId: string): GuildSettingsMap {
+        if (!this.hasGuildSettings(guildId)) {
+            throw new Error('Guild settings do not exist');
+        }
+        return this._settingsByGuild[guildId];
+    }
+
     hasGuildSettings(guildId: string): boolean {
         return guildId in this._settingsByGuild;
     }
 
     setGuildSettings(guildId: string, settings: GuildSettingsMap): void {
         this._settingsByGuild[guildId] = settings;
+    }
+
+    /**
+     * For a given guild ID and setting name, return the configured value if it exists (else return the default value for that setting).
+     * @param guildId Guild whose settings we're checking
+     * @param setting Setting to check
+     * @returns Value of the setting for this guild (or the default value)
+     */
+    getGuildSettingWithDefault(guildId: string, setting: GuildSetting): number {
+        if (this.hasGuildSettings(guildId)) {
+            const settings = this.getGuildSettings(guildId);
+            const value = settings[setting];
+            if (value !== undefined) {
+                return value;
+            }
+        }
+        return DEFAULT_GUILD_SETTINGS[setting];
     }
 
     /**
