@@ -74,6 +74,7 @@ export const COMPLETE_VERB_BOSSES: Set<Boss> = new Set<Boss>([
     'chambersOfXeric',
     'chambersOfXericChallengeMode',
     'gauntlet',
+    'corruptedGauntlet',
     'theatreOfBlood',
     'theatreOfBloodHardMode',
     'tombsOfAmascut',
