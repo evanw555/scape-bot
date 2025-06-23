@@ -198,10 +198,7 @@ class CommandHandler {
         return data;
     }
 
-    async handleChatInputCommand(interaction: Interaction) {
-        if (!interaction.isChatInputCommand()) {
-            return;
-        }
+    async handleChatInputCommand(interaction: ChatInputCommandInteraction) {
         if (!this.isValidCommand(interaction.commandName)) {
             await interaction.reply((`**${interaction.commandName}** is not a valid command, use **/help** to see a list of commands`));
             return;

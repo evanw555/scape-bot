@@ -63,7 +63,7 @@ export type MiscPropertyName = 'timestamp' | 'disabled' | 'auditCounters' | type
 
 export type BuiltSlashCommand = SlashCommandBuilder | Omit<SlashCommandBuilder, 'addSubcommand' | 'addSubcommandGroup'>;
 
-export type SlashCommandName = 'help' | 'ping' | 'info' | 'track' | 'remove' | 'clear' | 'list' | 'check' | 'channel' | 'kc' | 'details' | 'role';
+export type SlashCommandName = 'help' | 'ping' | 'info' | 'track' | 'remove' | 'clear' | 'list' | 'check' | 'channel' | 'kc' | 'details' | 'role' | 'settings';
 
 export type HiddenCommandName = 'help' | 'log' | 'thumbnail' | 'thumbnail99' | 'spoof' | 'spoofverbose' | 'admin' | 'kill' | 'enable' | 'rollback' | 'removeglobal' | 'logger' | 'player' | 'refresh' | 'guildnotify' | 'hiscoresurl';
 
@@ -161,10 +161,12 @@ export enum DailyAnalyticsLabel {
 export class NegativeDiffError extends Error {}
 
 export enum GuildSetting {
-    BossBroadcastInterval = 0,
-    ClueBroadcastInterval = 1,
-    MinigameBroadcastInterval = 2,
-    WeeklyRankingMaxCount = 3
+    SkillBroadcastAllThreshold = 0,
+    SkillBroadcastFiveThreshold = 1,
+    BossBroadcastInterval = 2,
+    ClueBroadcastInterval = 3,
+    MinigameBroadcastInterval = 4,
+    WeeklyRankingMaxCount = 5
 }
 
 export type GuildSettingsMap = Partial<Record<GuildSetting, number>>;

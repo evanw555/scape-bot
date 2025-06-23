@@ -92,6 +92,8 @@ export const DEFAULT_AXIOS_CONFIG: { timeout: number } = {
 };
 
 export const FORMATTED_GUILD_SETTINGS: Record<GuildSetting, string> = {
+    [GuildSetting.SkillBroadcastAllThreshold]: 'Report every skill update above this level',
+    [GuildSetting.SkillBroadcastFiveThreshold]: 'Report every 5 levels above this level',
     [GuildSetting.BossBroadcastInterval]: 'Boss kills broadcast interval',
     [GuildSetting.ClueBroadcastInterval]: 'Clue completions broadcast interval',
     [GuildSetting.MinigameBroadcastInterval]: 'Minigame completions broadcast interval',
@@ -99,8 +101,72 @@ export const FORMATTED_GUILD_SETTINGS: Record<GuildSetting, string> = {
 } as const;
 
 export const DEFAULT_GUILD_SETTINGS: Record<GuildSetting, number> = {
+    [GuildSetting.SkillBroadcastAllThreshold]: 1,
+    [GuildSetting.SkillBroadcastFiveThreshold]: 1,
     [GuildSetting.BossBroadcastInterval]: 1,
     [GuildSetting.ClueBroadcastInterval]: 1,
     [GuildSetting.MinigameBroadcastInterval]: 1,
     [GuildSetting.WeeklyRankingMaxCount]: 3
 } as const;
+
+// TODO: How to cleanly cast the type?
+export const ALL_GUILD_SETTINGS: GuildSetting[] = Object.keys(FORMATTED_GUILD_SETTINGS).map(e => parseInt(e)) as GuildSetting[];
+
+export const GUILD_SETTING_OPTIONS: Record<GuildSetting, Record<number, string>> = {
+    [GuildSetting.SkillBroadcastAllThreshold]: {
+        1: 'Always report every level',
+        10: 'After level 10',
+        20: 'After level 20',
+        30: 'After level 30',
+        40: 'After level 40',
+        50: 'After level 50',
+        60: 'After level 60',
+        70: 'After level 70',
+        80: 'After level 80',
+        90: 'After level 90',
+        99: 'Only on reaching 99'
+    },
+    [GuildSetting.SkillBroadcastFiveThreshold]: {
+        1: 'Always report every 5 levels',
+        10: 'After level 10',
+        20: 'After level 20',
+        30: 'After level 30',
+        40: 'After level 40',
+        50: 'After level 50',
+        60: 'After level 60',
+        70: 'After level 70',
+        80: 'After level 80',
+        90: 'After level 90'
+    },
+    [GuildSetting.BossBroadcastInterval]: {
+        0: 'Disabled (no boss updates)',
+        1: 'Every kill',
+        2: 'Every 2 kills',
+        5: 'Every 5 kills',
+        10: 'Every 10 kills',
+        25: 'Every 25 kills'
+    },
+    [GuildSetting.ClueBroadcastInterval]: {
+        0: 'Disabled (no clue updates)',
+        1: 'Every clue',
+        2: 'Every 2 clues',
+        5: 'Every 5 clues',
+        10: 'Every 10 clues',
+        25: 'Every 25 clues'
+    },
+    [GuildSetting.MinigameBroadcastInterval]: {
+        0: 'Disabled (no minigame/activity updates)',
+        1: 'Every activity completion',
+        2: 'Every 2 completions',
+        5: 'Every 5 completions',
+        10: 'Every 10 completions',
+        25: 'Every 25 completions'
+    },
+    [GuildSetting.WeeklyRankingMaxCount]: {
+        0: 'Disabled (no weekly XP update)',
+        3: 'Top 3 players',
+        4: 'Top 4 players',
+        5: 'Top 5 players',
+        10: 'Top 10 players'
+    }
+};

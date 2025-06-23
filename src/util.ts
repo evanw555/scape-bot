@@ -474,8 +474,8 @@ export function filterUpdatesForGuild(updates: PendingPlayerUpdate[]): PendingPl
         throw new Error('Cannot filter updates for multiple guilds using one guild\'s rules');
     }
     // TODO: Actually read from a guild's settings once that's set up
-    const SKILL_INTERVAL_FIVE_THRESHOLD = 1; // 40;
-    const SKILL_INTERVAL_ONE_THRESHOLD = 1; // 70;
+    const SKILL_INTERVAL_FIVE_THRESHOLD = state.getGuildSettingWithDefault(guildId, GuildSetting.SkillBroadcastFiveThreshold);
+    const SKILL_INTERVAL_ONE_THRESHOLD = state.getGuildSettingWithDefault(guildId, GuildSetting.SkillBroadcastAllThreshold);
     const BOSS_INTERVAL = state.getGuildSettingWithDefault(guildId, GuildSetting.BossBroadcastInterval);
     const CLUE_INTERVAL = state.getGuildSettingWithDefault(guildId, GuildSetting.ClueBroadcastInterval);
     const ACTIVITY_INTERVAL = state.getGuildSettingWithDefault(guildId, GuildSetting.MinigameBroadcastInterval);
@@ -492,12 +492,21 @@ export function filterUpdatesForGuild(updates: PendingPlayerUpdate[]): PendingPl
             return diffPassesMilestone(u.baseValue, u.newValue, 10);
         }
         case PlayerUpdateType.Boss: {
+            if (BOSS_INTERVAL === 0) {
+                return false;
+            }
             return diffPassesMilestone(u.baseValue, u.newValue, BOSS_INTERVAL);
         }
         case PlayerUpdateType.Clue: {
+            if (CLUE_INTERVAL === 0) {
+                return false;
+            }
             return diffPassesMilestone(u.baseValue, u.newValue, CLUE_INTERVAL);
         }
         case PlayerUpdateType.Activity: {
+            if (BOSS_INTERVAL === 0) {
+                return false;
+            }
             return diffPassesMilestone(u.baseValue, u.newValue, ACTIVITY_INTERVAL);
         }
         }
@@ -513,6 +522,10 @@ export function filterUpdatesForGuild(updates: PendingPlayerUpdate[]): PendingPl
  * @returns True if the provided diff passes a milestone using the given interval
  */
 export function diffPassesMilestone(a: number, b: number, interval: number): boolean {
+    // If the interval is zero, it should never pass
+    if (interval === 0) {
+        return false;
+    }
     // If the diff is at least the interval, it MUST pass a milestone
     if (b - a >= interval) {
         return true;

@@ -1,11 +1,11 @@
-import { ApplicationCommandOptionType, AttachmentBuilder, ChatInputCommandInteraction, Guild, PermissionFlagsBits, TextChannel } from 'discord.js';
+import { ApplicationCommandOptionType, AttachmentBuilder, ChatInputCommandInteraction, ComponentType, Guild, PermissionFlagsBits, TextChannel } from 'discord.js';
 import { Boss, BOSSES } from 'osrs-json-hiscores';
 import { MultiLoggerLevel, naturalJoin } from 'evanw555.js';
 import { PlayerHiScores, SlashCommandsType } from './types';
 import { replyUpdateMessage, updatePlayer, getBossName, generateDetailsContentString, sanitizeRSN, botHasRequiredPermissionsInChannel, validateRSN, getMissingRequiredChannelPermissionNames, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers, getHelpComponents, getHelpText, resolveHiScoresUrlTemplate } from './util';
 import { fetchHiScores, isPlayerNotFoundError } from './hiscores';
 import CommandHandler from './command-handler';
-import { AUTH, CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, BOSS_CHOICES, INVALID_TEXT_CHANNEL, SKILL_EMBED_COLOR, OTHER_ACTIVITIES, OTHER_ACTIVITIES_MAP } from './constants';
+import { AUTH, CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, BOSS_CHOICES, INVALID_TEXT_CHANNEL, SKILL_EMBED_COLOR, OTHER_ACTIVITIES, OTHER_ACTIVITIES_MAP, ALL_GUILD_SETTINGS, FORMATTED_GUILD_SETTINGS, GUILD_SETTING_OPTIONS } from './constants';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -424,6 +424,44 @@ const slashCommands: SlashCommandsType = {
             return true;
         },
         text: 'Sets a non-admin server role that can use commands like /track, /remove, and more',
+        admin: true
+    },
+    settings: {
+        execute: async (interaction) => {
+            // TODO: Temp logic to make this inaccessible while in development
+            if (!state.isMaintainer(interaction.user.id)) {
+                await interaction.reply({
+                    content: 'This command is still under construction. Please check back later.',
+                    ephemeral: true
+                });
+                return false;
+            }
+            const guild = getInteractionGuild(interaction);
+            // Collect all current setting values
+            const currentSettingsString = ALL_GUILD_SETTINGS.map(setting => `**${FORMATTED_GUILD_SETTINGS[setting]}:** ${(GUILD_SETTING_OPTIONS[setting] ?? {})[state.getGuildSettingWithDefault(guild.id, setting)]}`)
+                .join('\n');
+            // Show the root settings menu
+            await interaction.reply({
+                embeds: [{
+                    title: 'ScapeBot Settings',
+                    description: 'ScapeBot is configured in your guild with the following settings:\n' + currentSettingsString
+                }],
+                components: [{
+                    type: ComponentType.ActionRow,
+                    components: [{
+                        type: ComponentType.StringSelect,
+                        placeholder: 'Click to adjust settings',
+                        custom_id: 'settings:selectSetting',
+                        min_values: 1,
+                        max_values: 1,
+                        options: ALL_GUILD_SETTINGS.map(setting => ({ label: FORMATTED_GUILD_SETTINGS[setting], value: setting.toString() }))
+                    }]
+                }],
+                ephemeral: true
+            });
+            return true;
+        },
+        text: 'Changes settings for ScapeBot in this guild',
         admin: true
     }
 };
