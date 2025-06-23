@@ -800,7 +800,7 @@ client.on('interactionCreate', async (interaction) => {
             });
             return;
         }
-        if (customId === 'settings:selectSettings') {
+        if (customId === 'settings:selectSetting') {
             if (interaction.isStringSelectMenu()) {
                 const value = interaction.values[0];
                 const setting = parseInt(value) as GuildSetting;
