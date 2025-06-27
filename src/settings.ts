@@ -73,10 +73,12 @@ class SettingsInteractionHandler {
             await interaction.update(this.getSkillSettingsPayload(guildId));
         } else if (customId === 'settings:selectSkillAllThreshold') {
             if (!interaction.isStringSelectMenu()) {
+                await interaction.reply({ ephemeral: true, content: 'Failed: is NOT string select menu'});
                 return;
             }
             const value = parseInt(interaction.values[0]);
             if (isNaN(value)) {
+                await interaction.reply({ ephemeral: true, content: `Failed: selected value \`${interaction.values[0]}\` is NaN`});
                 return;
             }
             // TODO: Update in PG too
@@ -89,10 +91,12 @@ class SettingsInteractionHandler {
             await interaction.update(this.getSkillSettingsPayload(guildId));
         } else if (customId === 'settings:selectSkillFiveThreshold') {
             if (!interaction.isStringSelectMenu()) {
+                await interaction.reply({ ephemeral: true, content: 'Failed: is NOT string select menu'});
                 return;
             }
             const value = parseInt(interaction.values[0]);
             if (isNaN(value)) {
+                await interaction.reply({ ephemeral: true, content: `Failed: selected value \`${interaction.values[0]}\` is NaN`});
                 return;
             }
             // TODO: Update in PG too
