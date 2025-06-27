@@ -322,6 +322,11 @@ export default class State {
         this._settingsByGuild[guildId] = settings;
     }
 
+    setGuildSetting(guildId: Snowflake, setting: GuildSetting, value: number) {
+        // TODO: Error if the map doesn't exist
+        this._settingsByGuild[guildId][setting] = value;
+    }
+
     /**
      * For a given guild ID and setting name, return the configured value if it exists (else return the default value for that setting).
      * @param guildId Guild whose settings we're checking

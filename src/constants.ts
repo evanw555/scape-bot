@@ -114,6 +114,7 @@ export const ALL_GUILD_SETTINGS: GuildSetting[] = Object.keys(FORMATTED_GUILD_SE
 
 export const GUILD_SETTING_OPTIONS: Record<GuildSetting, Record<number, string>> = {
     [GuildSetting.SkillBroadcastAllThreshold]: {
+        0: 'Disabled (no skill updates)',
         1: 'Always report every level',
         10: 'After level 10',
         20: 'After level 20',
@@ -127,6 +128,7 @@ export const GUILD_SETTING_OPTIONS: Record<GuildSetting, Record<number, string>>
         99: 'Only on reaching 99'
     },
     [GuildSetting.SkillBroadcastFiveThreshold]: {
+        0: 'Disabled (no skill updates)',
         1: 'Always report every 5 levels',
         10: 'After level 10',
         20: 'After level 20',

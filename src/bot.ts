@@ -1,5 +1,5 @@
 import { BOSSES, CLUES } from 'osrs-json-hiscores';
-import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel, ActivityType, Snowflake, PermissionFlagsBits, MessageCreateOptions, GuildResolvable, ComponentType } from 'discord.js';
+import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel, ActivityType, Snowflake, PermissionFlagsBits, MessageCreateOptions, GuildResolvable } from 'discord.js';
 import { DailyAnalyticsLabel, GuildSetting, TimeoutType } from './types';
 import { sendUpdateMessage, getThumbnail, getNextFridayEvening, updatePlayer, getNextEvening, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers, getHelpComponents, readDir, getAnalyticsTrendsString } from './util';
 import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel, naturalJoin, getPreciseDurationString, toDiscordTimestamp, DiscordTimestampFormat, getQuantityWithUnits, getUnambiguousQuantitiesWithUnits } from 'evanw555.js';
@@ -8,7 +8,7 @@ import CommandHandler from './command-handler';
 import commands from './commands';
 import TimeoutStorage from './timeout-storage';
 
-import { AUTH, CONFIG, FORMATTED_GUILD_SETTINGS, GUILD_SETTING_OPTIONS, INACTIVE_THRESHOLD_MILLIES, OTHER_ACTIVITIES, RED_EMBED_COLOR, SKILLS_NO_OVERALL, TIMEOUTS_PROPERTY } from './constants';
+import { AUTH, CONFIG, INACTIVE_THRESHOLD_MILLIES, OTHER_ACTIVITIES, RED_EMBED_COLOR, SKILLS_NO_OVERALL, TIMEOUTS_PROPERTY } from './constants';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -16,10 +16,13 @@ import loggerIndices from './instances/logger-indices';
 import pgStorageClient from './instances/pg-storage-client';
 import timeSlotInstance from './instances/timeslot';
 import timer from './instances/timer';
+import SettingsInteractionHandler from './settings';
 
 // TODO: Deprecate CommandReader in favor of CommandHandler
 const commandReader: CommandReader = new CommandReader();
 const commandHandler: CommandHandler = new CommandHandler(commands);
+// TODO: May have to store this as a global instance so the slash command handler can reuse the root menu code
+const settingsInteractionHandler: SettingsInteractionHandler = new SettingsInteractionHandler();
 
 export async function sendRestartMessage(downtimeMillis: number): Promise<void> {
     let text = `ScapeBot online after **${getDurationString(downtimeMillis)}** of downtime. `
@@ -791,60 +794,10 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.isChatInputCommand()) {
         await commandHandler.handleChatInputCommand(interaction);
     } else if (interaction.isMessageComponent()) {
-        // TODO: Handle component interactions somewhere else
-        const customId = interaction.customId;
-        if (!state.isMaintainer(interaction.user.id)) {
-            await interaction.reply({
-                content: 'You can\'t do that',
-                ephemeral: true
-            });
-            return;
-        }
-        if (customId === 'settings:selectSetting') {
-            if (interaction.isStringSelectMenu()) {
-                const value = interaction.values[0];
-                const setting = parseInt(value) as GuildSetting;
-                if (setting in FORMATTED_GUILD_SETTINGS) {
-                    await interaction.update({
-                        content: `You are editing the **${FORMATTED_GUILD_SETTINGS[setting]}** setting`,
-                        components: [{
-                            type: ComponentType.ActionRow,
-                            components: [{
-                                type: ComponentType.StringSelect,
-                                custom_id: `settings:set:${setting}`,
-                                min_values: 1,
-                                max_values: 1,
-                                placeholder: 'Select setting value...',
-                                options: Object.entries(GUILD_SETTING_OPTIONS[setting]).map(([settingValue, description]) => ({ label: description, value: settingValue }))
-                            }]
-                        }]
-                    });
-                }
-            }
-        } else if (customId.startsWith('settings:set:')) {
-            if (interaction.isStringSelectMenu()) {
-                // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                const [ _settings, _set, settingString ] = customId.split(':');
-                const value = interaction.values[0];
-                const setting = parseInt(settingString) as GuildSetting;
-                if (setting in FORMATTED_GUILD_SETTINGS) {
-                    // TODO: Actually update the setting in state/PG
-                    await interaction.update({
-                        content: `You set the **${FORMATTED_GUILD_SETTINGS[setting]}** setting to **${value}**`,
-                        components: [{
-                            type: ComponentType.ActionRow,
-                            components: [{
-                                type: ComponentType.StringSelect,
-                                custom_id: `settings:set:${setting}`,
-                                min_values: 1,
-                                max_values: 1,
-                                placeholder: 'Select setting value...',
-                                options: Object.entries(GUILD_SETTING_OPTIONS[setting]).map(([settingValue, description]) => ({ label: description, value: settingValue }))
-                            }]
-                        }]
-                    });
-                }
-            }
+        try {
+            await settingsInteractionHandler.onMessageComponentInteraction(interaction);
+        } catch (err) {
+            await logger.log(`Settings interaction failed: \`${err}\``);
         }
     }
 });
