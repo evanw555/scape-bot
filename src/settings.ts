@@ -73,12 +73,12 @@ class SettingsInteractionHandler {
             await interaction.update(this.getSkillSettingsPayload(guildId));
         } else if (customId === 'settings:selectSkillAllThreshold') {
             if (!interaction.isStringSelectMenu()) {
-                await interaction.reply({ ephemeral: true, content: 'Failed: is NOT string select menu'});
+                await interaction.reply({ ephemeral: true, content: 'Failed: is NOT string select menu' });
                 return;
             }
             const value = parseInt(interaction.values[0]);
             if (isNaN(value)) {
-                await interaction.reply({ ephemeral: true, content: `Failed: selected value \`${interaction.values[0]}\` is NaN`});
+                await interaction.reply({ ephemeral: true, content: `Failed: selected value \`${interaction.values[0]}\` is NaN` });
                 return;
             }
             // TODO: Update in PG too
@@ -91,12 +91,12 @@ class SettingsInteractionHandler {
             await interaction.update(this.getSkillSettingsPayload(guildId));
         } else if (customId === 'settings:selectSkillFiveThreshold') {
             if (!interaction.isStringSelectMenu()) {
-                await interaction.reply({ ephemeral: true, content: 'Failed: is NOT string select menu'});
+                await interaction.reply({ ephemeral: true, content: 'Failed: is NOT string select menu' });
                 return;
             }
             const value = parseInt(interaction.values[0]);
             if (isNaN(value)) {
-                await interaction.reply({ ephemeral: true, content: `Failed: selected value \`${interaction.values[0]}\` is NaN`});
+                await interaction.reply({ ephemeral: true, content: `Failed: selected value \`${interaction.values[0]}\` is NaN` });
                 return;
             }
             // TODO: Update in PG too
@@ -107,6 +107,10 @@ class SettingsInteractionHandler {
                 state.setGuildSetting(guildId, GuildSetting.SkillBroadcastAllThreshold, 1);
             }
             await interaction.update(this.getSkillSettingsPayload(guildId));
+            // TODO: temp logging
+            if (!interaction.replied) {
+                await interaction.reply({ ephemeral: true, content: 'Interaction didn\'t reply for some reason' });
+            }
         } else if (customId === 'settings:selectSetting') {
             if (interaction.isStringSelectMenu()) {
                 const value = interaction.values[0];
