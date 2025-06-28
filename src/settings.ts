@@ -230,7 +230,7 @@ class SettingsInteractionHandler {
                 min_values: 1,
                 max_values: 1,
                 placeholder: 'Click to set 1-level threshold',
-                options: Object.entries(options).map(([value, text]) => ({ value: value, label: text, default: oneThreshold.toString() === value}))
+                options: Object.entries(options).map(([value, text]) => ({ value: value, label: text, default: oneThreshold.toString() === value }))
             }]
         });
         // If the first setting is not disabled/everything, show specific second menu
@@ -243,7 +243,7 @@ class SettingsInteractionHandler {
             for (let i = 10; i < oneThreshold; i++) {
                 options5[i] = `Every 10 levels until ${i}, every 5 until ${oneThreshold}`;
             }
-            options[oneThreshold] = `Every 10 levels until ${oneThreshold}`;
+            options5[oneThreshold] = `Every 10 levels until ${oneThreshold}`;
             menus.push({
                 type: ComponentType.ActionRow,
                 components: [{
@@ -252,7 +252,7 @@ class SettingsInteractionHandler {
                     min_values: 1,
                     max_values: 1,
                     placeholder: 'Click to set 5-level threshold',
-                    options: Object.entries(options5).map(([value, text]) => ({ value: value, label: text, default: oneThreshold.toString() === value}))
+                    options: Object.entries(options5).map(([value, text]) => ({ value: value, label: text, default: fiveThreshold.toString() === value }))
                 }]
             });
         }
