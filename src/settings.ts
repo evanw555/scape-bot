@@ -209,7 +209,7 @@ class SettingsInteractionHandler {
                     min_values: 1,
                     max_values: 1,
                     placeholder: 'Click to set 5-level threshold',
-                    options: Object.entries(GUILD_SETTING_OPTIONS[GuildSetting.SkillBroadcastFiveThreshold]).map(([value, text]) => ({ value: value, label: text, default: oneThreshold.toString() === value}))
+                    options: Object.entries(GUILD_SETTING_OPTIONS[GuildSetting.SkillBroadcastFiveThreshold]).map(([value, text]) => ({ value: value, label: text, default: fiveThreshold.toString() === value}))
                 }]
             }, {
                 type: ComponentType.ActionRow,
