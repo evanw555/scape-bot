@@ -1,4 +1,4 @@
-import { ButtonStyle, ChannelType, ComponentType, InteractionUpdateOptions, MessageComponentInteraction, Snowflake } from 'discord.js';
+import { APIActionRowComponent, APIMessageActionRowComponent, ButtonStyle, ChannelType, ComponentType, InteractionUpdateOptions, MessageComponentInteraction, Snowflake } from 'discord.js';
 import { ALL_GUILD_SETTINGS, FORMATTED_GUILD_SETTINGS, GUILD_SETTING_OPTIONS } from './constants';
 import { GuildSetting } from './types';
 
@@ -83,10 +83,17 @@ class SettingsInteractionHandler {
             }
             // TODO: Update in PG too
             state.setGuildSetting(guildId, GuildSetting.SkillBroadcastAllThreshold, value);
+            // If disabling the 1-threshold, disable the 5-threshold as well
             if (value === 0) {
                 state.setGuildSetting(guildId, GuildSetting.SkillBroadcastFiveThreshold, 0);
-            } else if (state.getGuildSettingWithDefault(guildId, GuildSetting.SkillBroadcastFiveThreshold) === 0) {
+            }
+            // If enabling the 1-threshold while the 5-threshold is disabled, enable it at 1
+            else if (state.getGuildSettingWithDefault(guildId, GuildSetting.SkillBroadcastFiveThreshold) === 0) {
                 state.setGuildSetting(guildId, GuildSetting.SkillBroadcastFiveThreshold, 1);
+            }
+            // If trying to set the 1-threshold below the 5-threshold, set the 5-threshold to just match it
+            else if (value < state.getGuildSettingWithDefault(guildId, GuildSetting.SkillBroadcastFiveThreshold)) {
+                state.setGuildSetting(guildId, GuildSetting.SkillBroadcastFiveThreshold, value);
             }
             await interaction.update(this.getSkillSettingsPayload(guildId));
         } else if (customId === 'settings:selectSkillFiveThreshold') {
@@ -101,16 +108,27 @@ class SettingsInteractionHandler {
             }
             // TODO: Update in PG too
             state.setGuildSetting(guildId, GuildSetting.SkillBroadcastFiveThreshold, value);
-            if (value === 0) {
-                state.setGuildSetting(guildId, GuildSetting.SkillBroadcastAllThreshold, 0);
-            } else if (state.getGuildSettingWithDefault(guildId, GuildSetting.SkillBroadcastAllThreshold) === 0) {
-                state.setGuildSetting(guildId, GuildSetting.SkillBroadcastAllThreshold, 1);
+            // If (SOMEHOW) enabling the 5-threshold while the 1-threshold is disabled it, enable it at the same value
+            if (value > 0 &&  state.getGuildSettingWithDefault(guildId, GuildSetting.SkillBroadcastAllThreshold) === 0) {
+                state.setGuildSetting(guildId, GuildSetting.SkillBroadcastAllThreshold, value);
             }
             await interaction.update(this.getSkillSettingsPayload(guildId));
             // TODO: temp logging
             if (!interaction.replied) {
                 await interaction.reply({ ephemeral: true, content: 'Interaction didn\'t reply for some reason' });
             }
+        } else if (customId === 'settings:selectSkillMiscFlags') {
+            if (!interaction.isStringSelectMenu()) {
+                await interaction.reply({ ephemeral: true, content: 'Failed: is NOT string select menu' });
+                return;
+            }
+            const values = interaction.values.map(v => parseInt(v));
+            if (values.some(v => isNaN(v))) {
+                await interaction.reply({ ephemeral: true, content: `Failed: selected values \`${interaction.values}\` contain NaN` });
+                return;
+            }
+            // TODO: Temp logic
+            await interaction.reply({ ephemeral: true, content: `You enabled settings ${JSON.stringify(values)}`});
         } else if (customId === 'settings:selectSetting') {
             if (interaction.isStringSelectMenu()) {
                 const value = interaction.values[0];
@@ -186,22 +204,47 @@ class SettingsInteractionHandler {
         if (fiveThreshold > 1) {
             intervalStrings.unshift(`every **10** levels through levels **1-${fiveThreshold - 1}**`);
         }
-        return {
-            embeds: [{
-                title: 'Settings > Skill Settings',
-                description: disabled ? 'Skill updates are disabled' : `Skill updates are enabled and configured to show ${naturalJoin(intervalStrings)}`
-            }],
+
+        const menus: APIActionRowComponent<APIMessageActionRowComponent>[] = [];
+
+        // The first threshold menu is always shown
+        const options: Record<number, string> = {
+            0: 'Disabled (no skill updates)',
+            1: 'Always report every level',
+            10: 'Every level after 10',
+            20: 'Every level after 20',
+            30: 'Every level after 30',
+            40: 'Every level after 40',
+            50: 'Every level after 50',
+            60: 'Every level after 60',
+            70: 'Every level after 70',
+            80: 'Every level after 80',
+            90: 'Every level after 90',
+            99: 'Only on reaching 99'
+        };
+        menus.push({
+            type: ComponentType.ActionRow,
             components: [{
-                type: ComponentType.ActionRow,
-                components: [{
-                    type: ComponentType.StringSelect,
-                    custom_id: 'settings:selectSkillAllThreshold',
-                    min_values: 1,
-                    max_values: 1,
-                    placeholder: 'Click to set 1-level threshold',
-                    options: Object.entries(GUILD_SETTING_OPTIONS[GuildSetting.SkillBroadcastAllThreshold]).map(([value, text]) => ({ value: value, label: text, default: oneThreshold.toString() === value}))
-                }]
-            }, {
+                type: ComponentType.StringSelect,
+                custom_id: 'settings:selectSkillAllThreshold',
+                min_values: 1,
+                max_values: 1,
+                placeholder: 'Click to set 1-level threshold',
+                options: Object.entries(options).map(([value, text]) => ({ value: value, label: text, default: oneThreshold.toString() === value}))
+            }]
+        });
+        // If the first setting is not disabled/everything, show specific second menu
+        if (oneThreshold > 1) {
+            const options5: Record<number, string> = {
+                0: `Report nothing below level ${oneThreshold}`,
+                1: `Every 5 levels until ${oneThreshold}`
+            };
+            // Dynamically add tiered options
+            for (let i = 10; i < oneThreshold; i++) {
+                options5[i] = `Every 10 levels until ${i}, every 5 until ${oneThreshold}`;
+            }
+            options[oneThreshold] = `Every 10 levels until ${oneThreshold}`;
+            menus.push({
                 type: ComponentType.ActionRow,
                 components: [{
                     type: ComponentType.StringSelect,
@@ -209,17 +252,53 @@ class SettingsInteractionHandler {
                     min_values: 1,
                     max_values: 1,
                     placeholder: 'Click to set 5-level threshold',
-                    options: Object.entries(GUILD_SETTING_OPTIONS[GuildSetting.SkillBroadcastFiveThreshold]).map(([value, text]) => ({ value: value, label: text, default: fiveThreshold.toString() === value}))
+                    options: Object.entries(options5).map(([value, text]) => ({ value: value, label: text, default: oneThreshold.toString() === value}))
                 }]
-            }, {
+            });
+        }
+
+        // Unless everything is disabled, show the misc menu
+        if (oneThreshold !== 0) {
+            menus.push({
                 type: ComponentType.ActionRow,
                 components: [{
-                    type: ComponentType.Button,
-                    style: ButtonStyle.Secondary,
-                    label: 'Back',
-                    custom_id: 'settings:root'
+                    type: ComponentType.StringSelect,
+                    custom_id: 'settings:selectSkillMiscFlags',
+                    min_values: 0,
+                    max_values: 3,
+                    placeholder: 'Click to toggle additional settings',
+                    options: [{
+                        label: 'Tag @everyone on 99',
+                        value: '123'
+                    }, {
+                        label: 'React with GZ on 99',
+                        value: '456'
+                    }, {
+                        label: 'Report "virtual" levels after 99',
+                        value: '789'
+                    }]
                 }]
-            }]
+            });
+        }
+
+        return {
+            content: '',
+            embeds: [{
+                title: 'Settings > Skill Settings',
+                description: disabled ? 'Skill updates are disabled' : `Skill updates are enabled and configured to show ${naturalJoin(intervalStrings)}`
+            }],
+            components: [
+                ...menus,
+                {
+                    type: ComponentType.ActionRow,
+                    components: [{
+                        type: ComponentType.Button,
+                        style: ButtonStyle.Secondary,
+                        label: 'Back',
+                        custom_id: 'settings:root'
+                    }]
+                }
+            ]
         };
     }
 }
