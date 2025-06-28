@@ -196,12 +196,15 @@ class SettingsInteractionHandler {
     private getSkillSettingsPayload(guildId: Snowflake): InteractionUpdateOptions {
         const oneThreshold = state.getGuildSettingWithDefault(guildId, GuildSetting.SkillBroadcastAllThreshold);
         const fiveThreshold = state.getGuildSettingWithDefault(guildId, GuildSetting.SkillBroadcastFiveThreshold);
-        const disabled = oneThreshold === 0 || fiveThreshold === 0;
+
+        // Construct the overall description in the embed
         const intervalStrings: string[] = [oneThreshold === 99 ? 'level **99**' : `every **1** level through levels **${oneThreshold}-99**`];
-        if (oneThreshold > 1) {
-            intervalStrings.unshift(`every **5** levels through levels **${fiveThreshold}-${oneThreshold - 1}**`);
-        }
-        if (fiveThreshold > 1) {
+        if (fiveThreshold === 0) {
+            intervalStrings.unshift(`nothing through levels **1-${oneThreshold - 1}**`);
+        } else {
+            if (oneThreshold !== fiveThreshold) {
+                intervalStrings.unshift(`every **5** levels through levels **${fiveThreshold}-${oneThreshold - 1}**`);
+            }
             intervalStrings.unshift(`every **10** levels through levels **1-${fiveThreshold - 1}**`);
         }
 
@@ -240,7 +243,7 @@ class SettingsInteractionHandler {
                 1: `Every 5 levels until ${oneThreshold}`
             };
             // Dynamically add tiered options
-            for (let i = 10; i < oneThreshold; i++) {
+            for (let i = 10; i < oneThreshold; i += 10) {
                 options5[i] = `Every 10 levels until ${i}, every 5 until ${oneThreshold}`;
             }
             options5[oneThreshold] = `Every 10 levels until ${oneThreshold}`;
@@ -285,7 +288,7 @@ class SettingsInteractionHandler {
             content: '',
             embeds: [{
                 title: 'Settings > Skill Settings',
-                description: disabled ? 'Skill updates are disabled' : `Skill updates are enabled and configured to show ${naturalJoin(intervalStrings)}`
+                description: (oneThreshold === 0) ? 'Skill updates are disabled' : `Skill updates are enabled and configured to show ${naturalJoin(intervalStrings)}`
             }],
             components: [
                 ...menus,
