@@ -1,5 +1,5 @@
 import { APIActionRowComponent, APIMessageActionRowComponent, ButtonStyle, ChannelType, ComponentType, InteractionUpdateOptions, MessageComponentInteraction, Snowflake } from 'discord.js';
-import { ALL_GUILD_SETTINGS, FORMATTED_GUILD_SETTINGS, GUILD_SETTING_OPTIONS } from './constants';
+import { FORMATTED_GUILD_SETTINGS, GUILD_SETTING_OPTIONS } from './constants';
 import { GuildSetting } from './types';
 
 import state from './instances/state';
@@ -26,14 +26,11 @@ class SettingsInteractionHandler {
             return;
         }
         if (customId === 'settings:root') {
-            // Collect all current setting values
-            const currentSettingsString = ALL_GUILD_SETTINGS.map(setting => `**${FORMATTED_GUILD_SETTINGS[setting]}:** ${(GUILD_SETTING_OPTIONS[setting] ?? {})[state.getGuildSettingWithDefault(guildId, setting)]}`)
-                .join('\n');
             // Show the root settings menu
             await interaction.update({
                 embeds: [{
                     title: 'ScapeBot Settings',
-                    description: 'ScapeBot is configured in your guild with the following settings:\n' + currentSettingsString
+                    description: 'TODO: Fill me out'
                 }],
                 components: [{
                     type: ComponentType.ActionRow,
@@ -199,13 +196,17 @@ class SettingsInteractionHandler {
 
         // Construct the overall description in the embed
         const intervalStrings: string[] = [oneThreshold === 99 ? 'level **99**' : `every **1** level through levels **${oneThreshold}-99**`];
-        if (fiveThreshold === 0) {
-            intervalStrings.unshift(`nothing through levels **1-${oneThreshold - 1}**`);
-        } else {
-            if (oneThreshold !== fiveThreshold) {
-                intervalStrings.unshift(`every **5** levels through levels **${fiveThreshold}-${oneThreshold - 1}**`);
+        if (oneThreshold > 1) {
+            if (fiveThreshold === 0) {
+                intervalStrings.unshift(`nothing through levels **1-${oneThreshold - 1}**`);
+            } else {
+                if (oneThreshold !== fiveThreshold) {
+                    intervalStrings.unshift(`every **5** levels through levels **${fiveThreshold}-${oneThreshold - 1}**`);
+                }
+                if (fiveThreshold > 1) {
+                    intervalStrings.unshift(`every **10** levels through levels **1-${fiveThreshold - 1}**`);
+                }
             }
-            intervalStrings.unshift(`every **10** levels through levels **1-${fiveThreshold - 1}**`);
         }
 
         const menus: APIActionRowComponent<APIMessageActionRowComponent>[] = [];
