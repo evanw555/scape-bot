@@ -797,7 +797,7 @@ client.on('interactionCreate', async (interaction) => {
         try {
             await settingsInteractionHandler.onMessageComponentInteraction(interaction);
         } catch (err) {
-            await logger.log(`Settings interaction failed: \`${err}\``);
+            await logger.log(`Settings interaction failed: \`${err}\``, MultiLoggerLevel.Error);
         }
     }
 });
