@@ -323,7 +323,10 @@ export default class State {
     }
 
     setGuildSetting(guildId: Snowflake, setting: GuildSetting, value: number) {
-        // TODO: Error if the map doesn't exist
+        // TODO: Error if the map doesn't exist, this is a temporary fix for testing
+        if (!this.hasGuildSettings(guildId)) {
+            this.setGuildSettings(guildId, {});
+        }
         this._settingsByGuild[guildId][setting] = value;
     }
 
