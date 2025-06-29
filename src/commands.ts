@@ -473,6 +473,11 @@ const slashCommands: SlashCommandsType = {
                     }, {
                         type: ComponentType.Button,
                         style: ButtonStyle.Secondary,
+                        label: 'Weekly Settings',
+                        custom_id: 'settings:weekly'
+                    }, {
+                        type: ComponentType.Button,
+                        style: ButtonStyle.Secondary,
                         label: 'Other Settings',
                         custom_id: 'settings:other'
                     }]

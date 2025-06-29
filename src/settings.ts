@@ -1,9 +1,9 @@
 import { APIActionRowComponent, APIMessageActionRowComponent, ButtonStyle, ChannelType, ComponentType, InteractionUpdateOptions, MessageComponentInteraction, Snowflake } from 'discord.js';
 import { FORMATTED_GUILD_SETTINGS, GUILD_SETTING_OPTIONS } from './constants';
 import { GuildSetting } from './types';
+import { naturalJoin } from 'evanw555.js';
 
 import state from './instances/state';
-import { naturalJoin } from 'evanw555.js';
 
 class SettingsInteractionHandler {
     async onMessageComponentInteraction(interaction: MessageComponentInteraction) {
@@ -61,6 +61,11 @@ class SettingsInteractionHandler {
                     }, {
                         type: ComponentType.Button,
                         style: ButtonStyle.Secondary,
+                        label: 'Weekly Settings',
+                        custom_id: 'settings:weekly'
+                    }, {
+                        type: ComponentType.Button,
+                        style: ButtonStyle.Secondary,
                         label: 'Other Settings',
                         custom_id: 'settings:other'
                     }]
@@ -79,7 +84,7 @@ class SettingsInteractionHandler {
                 return;
             }
             // TODO: Update in PG too
-            state.setGuildSetting(guildId, GuildSetting.SkillBroadcastAllThreshold, value);
+            state.setGuildSetting(guildId, GuildSetting.SkillBroadcastOneThreshold, value);
             // If disabling the 1-threshold, disable the 5-threshold as well
             if (value === 0) {
                 state.setGuildSetting(guildId, GuildSetting.SkillBroadcastFiveThreshold, 0);
@@ -106,8 +111,8 @@ class SettingsInteractionHandler {
             // TODO: Update in PG too
             state.setGuildSetting(guildId, GuildSetting.SkillBroadcastFiveThreshold, value);
             // If (SOMEHOW) enabling the 5-threshold while the 1-threshold is disabled it, enable it at the same value
-            if (value > 0 &&  state.getGuildSettingWithDefault(guildId, GuildSetting.SkillBroadcastAllThreshold) === 0) {
-                state.setGuildSetting(guildId, GuildSetting.SkillBroadcastAllThreshold, value);
+            if (value > 0 &&  state.getGuildSettingWithDefault(guildId, GuildSetting.SkillBroadcastOneThreshold) === 0) {
+                state.setGuildSetting(guildId, GuildSetting.SkillBroadcastOneThreshold, value);
             }
             await interaction.update(this.getSkillSettingsPayload(guildId));
             // TODO: temp logging
@@ -126,6 +131,75 @@ class SettingsInteractionHandler {
             }
             // TODO: Temp logic
             await interaction.reply({ ephemeral: true, content: `You enabled settings ${JSON.stringify(values)}`});
+        } else if (customId === 'settings:weekly') {
+            await interaction.update(this.getWeeklySettingsPayload(guildId));
+        } else if (customId === 'settings:selectWeeklyRankingMaxCount') {
+            if (!interaction.isStringSelectMenu()) {
+                await interaction.reply({ ephemeral: true, content: 'Failed: is NOT string select menu' });
+                return;
+            }
+            const value = parseInt(interaction.values[0]);
+            if (isNaN(value)) {
+                await interaction.reply({ ephemeral: true, content: `Failed: selected value \`${interaction.values[0]}\` is NaN` });
+                return;
+            }
+            // TODO: Update in PG too
+            state.setGuildSetting(guildId, GuildSetting.WeeklyRankingMaxCount, value);
+            await interaction.update(this.getWeeklySettingsPayload(guildId));
+        } else if (customId === 'settings:selectWeeklyRankingIconSet') {
+            if (!interaction.isStringSelectMenu()) {
+                await interaction.reply({ ephemeral: true, content: 'Failed: is NOT string select menu' });
+                return;
+            }
+            const value = parseInt(interaction.values[0]);
+            if (isNaN(value)) {
+                await interaction.reply({ ephemeral: true, content: `Failed: selected value \`${interaction.values[0]}\` is NaN` });
+                return;
+            }
+            // TODO: Update in PG too
+            state.setGuildSetting(guildId, GuildSetting.WeeklyRankingIconSet, value);
+            await interaction.update(this.getWeeklySettingsPayload(guildId));
+        } else if (customId === 'settings:other') {
+            await interaction.update(this.getOtherSettingsPayload(guildId));
+        } else if (customId === 'settings:selectBossInterval') {
+            if (!interaction.isStringSelectMenu()) {
+                await interaction.reply({ ephemeral: true, content: 'Failed: is NOT string select menu' });
+                return;
+            }
+            const value = parseInt(interaction.values[0]);
+            if (isNaN(value)) {
+                await interaction.reply({ ephemeral: true, content: `Failed: selected value \`${interaction.values[0]}\` is NaN` });
+                return;
+            }
+            // TODO: Update in PG too
+            state.setGuildSetting(guildId, GuildSetting.BossBroadcastInterval, value);
+            await interaction.update(this.getOtherSettingsPayload(guildId));
+        } else if (customId === 'settings:selectClueInterval') {
+            if (!interaction.isStringSelectMenu()) {
+                await interaction.reply({ ephemeral: true, content: 'Failed: is NOT string select menu' });
+                return;
+            }
+            const value = parseInt(interaction.values[0]);
+            if (isNaN(value)) {
+                await interaction.reply({ ephemeral: true, content: `Failed: selected value \`${interaction.values[0]}\` is NaN` });
+                return;
+            }
+            // TODO: Update in PG too
+            state.setGuildSetting(guildId, GuildSetting.ClueBroadcastInterval, value);
+            await interaction.update(this.getOtherSettingsPayload(guildId));
+        } else if (customId === 'settings:selectMinigameInterval') {
+            if (!interaction.isStringSelectMenu()) {
+                await interaction.reply({ ephemeral: true, content: 'Failed: is NOT string select menu' });
+                return;
+            }
+            const value = parseInt(interaction.values[0]);
+            if (isNaN(value)) {
+                await interaction.reply({ ephemeral: true, content: `Failed: selected value \`${interaction.values[0]}\` is NaN` });
+                return;
+            }
+            // TODO: Update in PG too
+            state.setGuildSetting(guildId, GuildSetting.BossBroadcastInterval, value);
+            await interaction.update(this.getOtherSettingsPayload(guildId));
         } else if (customId === 'settings:selectSetting') {
             if (interaction.isStringSelectMenu()) {
                 const value = interaction.values[0];
@@ -191,7 +265,7 @@ class SettingsInteractionHandler {
     }
 
     private getSkillSettingsPayload(guildId: Snowflake): InteractionUpdateOptions {
-        const oneThreshold = state.getGuildSettingWithDefault(guildId, GuildSetting.SkillBroadcastAllThreshold);
+        const oneThreshold = state.getGuildSettingWithDefault(guildId, GuildSetting.SkillBroadcastOneThreshold);
         const fiveThreshold = state.getGuildSettingWithDefault(guildId, GuildSetting.SkillBroadcastFiveThreshold);
 
         // Construct the overall description in the embed
@@ -303,6 +377,144 @@ class SettingsInteractionHandler {
                     }]
                 }
             ]
+        };
+    }
+
+    private getWeeklySettingsPayload(guildId: Snowflake): InteractionUpdateOptions {
+        const weeklyRankingMaxCount = state.getGuildSettingWithDefault(guildId, GuildSetting.WeeklyRankingMaxCount);
+        const weeklyRankingIcons = 0;
+
+        // TODO: Construct this dynamically
+        const weeklyRankingMaxCountOptions: Record<number, string> = {
+            0: 'Disabled (no weekly XP updates)',
+            3: 'Show top 3',
+            4: 'Show top 4',
+            5: 'Show top 5',
+            10: 'Show top 10'
+        };
+
+        // TODO: Only show this if the updates are enabled, and cap it based on how many each icon set supports
+        const iconSetNames: Record<number, string> = {
+            0: 'Gold/Silver/Bronze Bars',
+            1: 'Numbers',
+            2: 'Pickaxes',
+            3: 'Full Helms',
+            4: 'Defenders',
+            5: 'Smithing Bars'
+        };
+
+        return {
+            content: '',
+            embeds: [{
+                title: 'Settings > Weekly Settings',
+                description: `**Weekly XP Updates:** ${weeklyRankingMaxCount === 0 ? 'Disabled' : `Enabled (top ${weeklyRankingMaxCount})`}`
+                    + `\n**Rank Icons:** ${iconSetNames[weeklyRankingIcons]}`
+            }],
+            components: [{
+                type: ComponentType.ActionRow,
+                components: [{
+                    type: ComponentType.StringSelect,
+                    custom_id: 'settings:selectWeeklyRankingMaxCount',
+                    min_values: 1,
+                    max_values: 1,
+                    placeholder: 'Click to set weekly XP ranking count',
+                    options: Object.entries(weeklyRankingMaxCountOptions).map(([value, label]) => ({ value, label }))
+                }]
+            },
+            // TODO: Hide this if disabled
+            {
+                type: ComponentType.ActionRow,
+                components: [{
+                    type: ComponentType.StringSelect,
+                    custom_id: 'settings:selectWeeklyRankingIconSet',
+                    min_values: 1,
+                    max_values: 1,
+                    placeholder: 'Click to set weekly XP icons',
+                    options: Object.entries(iconSetNames).map(([value, label]) => ({ value, label }))
+                }]
+            }, {
+                type: ComponentType.ActionRow,
+                components: [{
+                    type: ComponentType.Button,
+                    style: ButtonStyle.Secondary,
+                    label: 'Back',
+                    custom_id: 'settings:root'
+                }]
+            }]
+        };
+    }
+
+    private getOtherSettingsPayload(guildId: Snowflake): InteractionUpdateOptions {
+        const bossInterval = state.getGuildSettingWithDefault(guildId, GuildSetting.BossBroadcastInterval);
+        const clueInterval = state.getGuildSettingWithDefault(guildId, GuildSetting.ClueBroadcastInterval);
+        const minigameInterval = state.getGuildSettingWithDefault(guildId, GuildSetting.MinigameBroadcastInterval);
+
+        const intervals = [0, 1, 2, 3, 5, 10, 15, 20, 25, 30, 40, 50, 100];
+        const constructIntervalOptions = (_label: string, _current: number) => {
+            return intervals.map(x => ({
+                value: x.toString(),
+                label: x === 0 ? `Disabled (no ${_label} updates)` : (x === 1 ? `Show every ${_label}` : `Show every ${x} ${_label}s`),
+                default: x === _current ? true : false
+            }));
+        };
+
+        const constructIntervalDescription = (_value: number) => {
+            if (_value === 0) {
+                return 'Disabled';
+            }
+            if (_value === 1) {
+                return 'Enabled';
+            }
+            return `Enabled yet only showing every **${_value}**`;
+        };
+
+        return {
+            content: '',
+            embeds: [{
+                title: 'Settings > Other Settings',
+                description: `**Boss Updates:** ${constructIntervalDescription(bossInterval)}`
+                    + `\n**Clue Updates:** ${constructIntervalDescription(clueInterval)}`
+                    + `\n**Minigame Updates:** ${constructIntervalDescription(minigameInterval)}`
+            }],
+            components: [{
+                type: ComponentType.ActionRow,
+                components: [{
+                    type: ComponentType.StringSelect,
+                    custom_id: 'settings:selectBossInterval',
+                    min_values: 1,
+                    max_values: 1,
+                    placeholder: 'Click to set boss KC threshold',
+                    options: constructIntervalOptions('boss KC', bossInterval)
+                }]
+            }, {
+                type: ComponentType.ActionRow,
+                components: [{
+                    type: ComponentType.StringSelect,
+                    custom_id: 'settings:selectClueInterval',
+                    min_values: 1,
+                    max_values: 1,
+                    placeholder: 'Click to set clue threshold',
+                    options: constructIntervalOptions('clue', clueInterval)
+                }]
+            }, {
+                type: ComponentType.ActionRow,
+                components: [{
+                    type: ComponentType.StringSelect,
+                    custom_id: 'settings:selectMinigameUpdates',
+                    min_values: 1,
+                    max_values: 1,
+                    placeholder: 'Click to set minigame threshold',
+                    options: constructIntervalOptions('minigame', minigameInterval)
+                }]
+            }, {
+                type: ComponentType.ActionRow,
+                components: [{
+                    type: ComponentType.Button,
+                    style: ButtonStyle.Secondary,
+                    label: 'Back',
+                    custom_id: 'settings:root'
+                }]
+            }]
         };
     }
 }

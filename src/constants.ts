@@ -92,28 +92,30 @@ export const DEFAULT_AXIOS_CONFIG: { timeout: number } = {
 };
 
 export const FORMATTED_GUILD_SETTINGS: Record<GuildSetting, string> = {
-    [GuildSetting.SkillBroadcastAllThreshold]: 'Report every skill update above this level',
+    [GuildSetting.SkillBroadcastOneThreshold]: 'Report every skill update above this level',
     [GuildSetting.SkillBroadcastFiveThreshold]: 'Report every 5 levels above this level',
     [GuildSetting.BossBroadcastInterval]: 'Boss kills broadcast interval',
     [GuildSetting.ClueBroadcastInterval]: 'Clue completions broadcast interval',
     [GuildSetting.MinigameBroadcastInterval]: 'Minigame completions broadcast interval',
-    [GuildSetting.WeeklyRankingMaxCount]: 'Number of players in the weekly ranking'
+    [GuildSetting.WeeklyRankingMaxCount]: 'Number of players in the weekly XP ranking',
+    [GuildSetting.WeeklyRankingIconSet]: 'Weekly XP ranking icon set'
 } as const;
 
 export const DEFAULT_GUILD_SETTINGS: Record<GuildSetting, number> = {
-    [GuildSetting.SkillBroadcastAllThreshold]: 1,
+    [GuildSetting.SkillBroadcastOneThreshold]: 1,
     [GuildSetting.SkillBroadcastFiveThreshold]: 1,
     [GuildSetting.BossBroadcastInterval]: 1,
     [GuildSetting.ClueBroadcastInterval]: 1,
     [GuildSetting.MinigameBroadcastInterval]: 1,
-    [GuildSetting.WeeklyRankingMaxCount]: 3
+    [GuildSetting.WeeklyRankingMaxCount]: 3,
+    [GuildSetting.WeeklyRankingIconSet]: 0
 } as const;
 
 // TODO: How to cleanly cast the type?
 export const ALL_GUILD_SETTINGS: GuildSetting[] = Object.keys(FORMATTED_GUILD_SETTINGS).map(e => parseInt(e)) as GuildSetting[];
 
 export const GUILD_SETTING_OPTIONS: Record<GuildSetting, Record<number, string>> = {
-    [GuildSetting.SkillBroadcastAllThreshold]: {
+    [GuildSetting.SkillBroadcastOneThreshold]: {
         0: 'Disabled (no skill updates)',
         1: 'Always report every level',
         10: 'After level 10',
@@ -170,5 +172,6 @@ export const GUILD_SETTING_OPTIONS: Record<GuildSetting, Record<number, string>>
         4: 'Top 4 players',
         5: 'Top 5 players',
         10: 'Top 10 players'
-    }
+    },
+    [GuildSetting.WeeklyRankingIconSet]: {}
 };

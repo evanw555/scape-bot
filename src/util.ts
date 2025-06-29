@@ -475,7 +475,7 @@ export function filterUpdatesForGuild(updates: PendingPlayerUpdate[]): PendingPl
     }
     // TODO: Actually read from a guild's settings once that's set up
     const SKILL_INTERVAL_FIVE_THRESHOLD = state.getGuildSettingWithDefault(guildId, GuildSetting.SkillBroadcastFiveThreshold);
-    const SKILL_INTERVAL_ONE_THRESHOLD = state.getGuildSettingWithDefault(guildId, GuildSetting.SkillBroadcastAllThreshold);
+    const SKILL_INTERVAL_ONE_THRESHOLD = state.getGuildSettingWithDefault(guildId, GuildSetting.SkillBroadcastOneThreshold);
     const BOSS_INTERVAL = state.getGuildSettingWithDefault(guildId, GuildSetting.BossBroadcastInterval);
     const CLUE_INTERVAL = state.getGuildSettingWithDefault(guildId, GuildSetting.ClueBroadcastInterval);
     const ACTIVITY_INTERVAL = state.getGuildSettingWithDefault(guildId, GuildSetting.MinigameBroadcastInterval);

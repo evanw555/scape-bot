@@ -161,12 +161,13 @@ export enum DailyAnalyticsLabel {
 export class NegativeDiffError extends Error {}
 
 export enum GuildSetting {
-    SkillBroadcastAllThreshold = 0,
+    SkillBroadcastOneThreshold = 0,
     SkillBroadcastFiveThreshold = 1,
     BossBroadcastInterval = 2,
     ClueBroadcastInterval = 3,
     MinigameBroadcastInterval = 4,
-    WeeklyRankingMaxCount = 5
+    WeeklyRankingMaxCount = 5,
+    WeeklyRankingIconSet = 6
 }
 
 export type GuildSettingsMap = Partial<Record<GuildSetting, number>>;
