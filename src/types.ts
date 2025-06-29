@@ -167,7 +167,10 @@ export enum GuildSetting {
     ClueBroadcastInterval = 3,
     MinigameBroadcastInterval = 4,
     WeeklyRankingMaxCount = 5,
-    WeeklyRankingIconSet = 6
+    WeeklyRankingIconSet = 6,
+    ReactOnSkill99 = 7,
+    TagEveryoneOnSkill99 = 8,
+    ShowVirtualSkillUpdates = 9
 }
 
 export type GuildSettingsMap = Partial<Record<GuildSetting, number>>;

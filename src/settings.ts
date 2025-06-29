@@ -129,7 +129,10 @@ class SettingsInteractionHandler {
                 await interaction.reply({ ephemeral: true, content: `Failed: selected values \`${interaction.values}\` contain NaN` });
                 return;
             }
-            // TODO: Temp logic
+            // TODO: Temp logic (should do this in a better way so we're not making unnecessary PG calls)
+            state.setGuildSetting(guildId, GuildSetting.ReactOnSkill99, values.includes(GuildSetting.ReactOnSkill99) ? 1 : 0);
+            state.setGuildSetting(guildId, GuildSetting.TagEveryoneOnSkill99, values.includes(GuildSetting.TagEveryoneOnSkill99) ? 1 : 0);
+            state.setGuildSetting(guildId, GuildSetting.ShowVirtualSkillUpdates, values.includes(GuildSetting.ShowVirtualSkillUpdates) ? 1 : 0);
             await interaction.reply({ ephemeral: true, content: `You enabled settings ${JSON.stringify(values)}`});
         } else if (customId === 'settings:weekly') {
             await interaction.update(this.getWeeklySettingsPayload(guildId));
@@ -268,6 +271,10 @@ class SettingsInteractionHandler {
         const oneThreshold = state.getGuildSettingWithDefault(guildId, GuildSetting.SkillBroadcastOneThreshold);
         const fiveThreshold = state.getGuildSettingWithDefault(guildId, GuildSetting.SkillBroadcastFiveThreshold);
 
+        const reactOn99 = state.getGuildSettingWithDefault(guildId, GuildSetting.ReactOnSkill99);
+        const tagOn99 = state.getGuildSettingWithDefault(guildId, GuildSetting.TagEveryoneOnSkill99);
+        const showVirtualLevels = state.getGuildSettingWithDefault(guildId, GuildSetting.ShowVirtualSkillUpdates);
+
         // Construct the overall description in the embed
         const intervalStrings: string[] = [oneThreshold === 99 ? 'level **99**' : `every **1** level through levels **${oneThreshold}-99**`];
         if (oneThreshold > 1) {
@@ -346,14 +353,20 @@ class SettingsInteractionHandler {
                     max_values: 3,
                     placeholder: 'Click to toggle additional settings',
                     options: [{
-                        label: 'Tag @everyone on 99',
-                        value: '123'
+                        label: 'React on 99',
+                        description: FORMATTED_GUILD_SETTINGS[GuildSetting.ReactOnSkill99],
+                        value: GuildSetting.ReactOnSkill99.toString(),
+                        default: reactOn99 === 1 ? true : false
                     }, {
-                        label: 'React with GZ on 99',
-                        value: '456'
+                        label: 'Tag on 99',
+                        description: FORMATTED_GUILD_SETTINGS[GuildSetting.TagEveryoneOnSkill99],
+                        value: GuildSetting.TagEveryoneOnSkill99.toString(),
+                        default: tagOn99 === 1 ? true : false
                     }, {
-                        label: 'Report "virtual" levels after 99',
-                        value: '789'
+                        label: 'Show virtual levels',
+                        description: FORMATTED_GUILD_SETTINGS[GuildSetting.ShowVirtualSkillUpdates],
+                        value: GuildSetting.ShowVirtualSkillUpdates.toString(),
+                        default: showVirtualLevels === 1 ? true : false
                     }]
                 }]
             });
@@ -382,7 +395,7 @@ class SettingsInteractionHandler {
 
     private getWeeklySettingsPayload(guildId: Snowflake): InteractionUpdateOptions {
         const weeklyRankingMaxCount = state.getGuildSettingWithDefault(guildId, GuildSetting.WeeklyRankingMaxCount);
-        const weeklyRankingIcons = 0;
+        const weeklyRankingIconSet = state.getGuildSettingWithDefault(guildId, GuildSetting.WeeklyRankingIconSet);
 
         // TODO: Construct this dynamically
         const weeklyRankingMaxCountOptions: Record<number, string> = {
@@ -408,7 +421,7 @@ class SettingsInteractionHandler {
             embeds: [{
                 title: 'Settings > Weekly Settings',
                 description: `**Weekly XP Updates:** ${weeklyRankingMaxCount === 0 ? 'Disabled' : `Enabled (top ${weeklyRankingMaxCount})`}`
-                    + `\n**Rank Icons:** ${iconSetNames[weeklyRankingIcons]}`
+                    + `\n**Rank Icons:** ${iconSetNames[weeklyRankingIconSet]}`
             }],
             components: [{
                 type: ComponentType.ActionRow,
@@ -418,7 +431,7 @@ class SettingsInteractionHandler {
                     min_values: 1,
                     max_values: 1,
                     placeholder: 'Click to set weekly XP ranking count',
-                    options: Object.entries(weeklyRankingMaxCountOptions).map(([value, label]) => ({ value, label }))
+                    options: Object.entries(weeklyRankingMaxCountOptions).map(([value, label]) => ({ value, label, default: value === weeklyRankingMaxCount.toString() ? true : false }))
                 }]
             },
             // TODO: Hide this if disabled
@@ -430,7 +443,7 @@ class SettingsInteractionHandler {
                     min_values: 1,
                     max_values: 1,
                     placeholder: 'Click to set weekly XP icons',
-                    options: Object.entries(iconSetNames).map(([value, label]) => ({ value, label }))
+                    options: Object.entries(iconSetNames).map(([value, label]) => ({ value, label, default: value === weeklyRankingIconSet.toString() ? true : false }))
                 }]
             }, {
                 type: ComponentType.ActionRow,
@@ -500,7 +513,7 @@ class SettingsInteractionHandler {
                 type: ComponentType.ActionRow,
                 components: [{
                     type: ComponentType.StringSelect,
-                    custom_id: 'settings:selectMinigameUpdates',
+                    custom_id: 'settings:selectMinigameInterval',
                     min_values: 1,
                     max_values: 1,
                     placeholder: 'Click to set minigame threshold',

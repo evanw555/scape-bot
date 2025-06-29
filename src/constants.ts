@@ -98,7 +98,10 @@ export const FORMATTED_GUILD_SETTINGS: Record<GuildSetting, string> = {
     [GuildSetting.ClueBroadcastInterval]: 'Clue completions broadcast interval',
     [GuildSetting.MinigameBroadcastInterval]: 'Minigame completions broadcast interval',
     [GuildSetting.WeeklyRankingMaxCount]: 'Number of players in the weekly XP ranking',
-    [GuildSetting.WeeklyRankingIconSet]: 'Weekly XP ranking icon set'
+    [GuildSetting.WeeklyRankingIconSet]: 'Weekly XP ranking icon set',
+    [GuildSetting.ReactOnSkill99]: 'React GZ on reaching level 99',
+    [GuildSetting.TagEveryoneOnSkill99]: 'Tag everyone on reaching level 99',
+    [GuildSetting.ShowVirtualSkillUpdates]: 'Show "virtual" levels beyond 99'
 } as const;
 
 export const DEFAULT_GUILD_SETTINGS: Record<GuildSetting, number> = {
@@ -108,7 +111,10 @@ export const DEFAULT_GUILD_SETTINGS: Record<GuildSetting, number> = {
     [GuildSetting.ClueBroadcastInterval]: 1,
     [GuildSetting.MinigameBroadcastInterval]: 1,
     [GuildSetting.WeeklyRankingMaxCount]: 3,
-    [GuildSetting.WeeklyRankingIconSet]: 0
+    [GuildSetting.WeeklyRankingIconSet]: 0,
+    [GuildSetting.ReactOnSkill99]: 1,
+    [GuildSetting.TagEveryoneOnSkill99]: 0,
+    [GuildSetting.ShowVirtualSkillUpdates]: 0
 } as const;
 
 // TODO: How to cleanly cast the type?
@@ -173,5 +179,8 @@ export const GUILD_SETTING_OPTIONS: Record<GuildSetting, Record<number, string>>
         5: 'Top 5 players',
         10: 'Top 10 players'
     },
-    [GuildSetting.WeeklyRankingIconSet]: {}
+    [GuildSetting.WeeklyRankingIconSet]: {},
+    [GuildSetting.ReactOnSkill99]: {},
+    [GuildSetting.TagEveryoneOnSkill99]: {},
+    [GuildSetting.ShowVirtualSkillUpdates]: {}
 };
