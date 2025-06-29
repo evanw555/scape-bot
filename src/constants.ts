@@ -194,11 +194,11 @@ export const RANKING_ICON_SETS: Record<number, { id: string, name: string, cap: 
     1: {
         id: 'defenders',
         name: 'Defenders',
-        cap: 7
+        cap: 8
     },
     2: {
         id: 'pickaxes',
         name: 'Pickaxes',
-        cap: 7
+        cap: 8
     }
 };

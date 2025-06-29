@@ -4,6 +4,7 @@ import { GuildSetting } from './types';
 import { naturalJoin } from 'evanw555.js';
 
 import state from './instances/state';
+import pgStorage from './instances/pg-storage-client';
 
 class SettingsInteractionHandler {
     async onMessageComponentInteraction(interaction: MessageComponentInteraction) {
@@ -146,8 +147,10 @@ class SettingsInteractionHandler {
                 await interaction.reply({ ephemeral: true, content: `Failed: selected value \`${interaction.values[0]}\` is NaN` });
                 return;
             }
-            // TODO: Update in PG too
+            // Write to PG and state
+            await pgStorage.writeGuildSetting(guildId, GuildSetting.WeeklyRankingMaxCount, value);
             state.setGuildSetting(guildId, GuildSetting.WeeklyRankingMaxCount, value);
+            // Update the settings menu to reflect the updated settings
             await interaction.update(this.getWeeklySettingsPayload(guildId));
         } else if (customId === 'settings:selectWeeklyRankingIconSet') {
             if (!interaction.isStringSelectMenu()) {
@@ -159,8 +162,10 @@ class SettingsInteractionHandler {
                 await interaction.reply({ ephemeral: true, content: `Failed: selected value \`${interaction.values[0]}\` is NaN` });
                 return;
             }
-            // TODO: Update in PG too
+            // Write to PG and state
+            await pgStorage.writeGuildSetting(guildId, GuildSetting.WeeklyRankingIconSet, value);
             state.setGuildSetting(guildId, GuildSetting.WeeklyRankingIconSet, value);
+            // Update the settings menu to reflect the updated settings
             await interaction.update(this.getWeeklySettingsPayload(guildId));
         } else if (customId === 'settings:other') {
             await interaction.update(this.getOtherSettingsPayload(guildId));
