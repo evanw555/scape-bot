@@ -133,7 +133,7 @@ class SettingsInteractionHandler {
             state.setGuildSetting(guildId, GuildSetting.ReactOnSkill99, values.includes(GuildSetting.ReactOnSkill99) ? 1 : 0);
             state.setGuildSetting(guildId, GuildSetting.TagEveryoneOnSkill99, values.includes(GuildSetting.TagEveryoneOnSkill99) ? 1 : 0);
             state.setGuildSetting(guildId, GuildSetting.ShowVirtualSkillUpdates, values.includes(GuildSetting.ShowVirtualSkillUpdates) ? 1 : 0);
-            await interaction.reply({ ephemeral: true, content: `You enabled settings ${JSON.stringify(values)}`});
+            await interaction.update(this.getSkillSettingsPayload(guildId));
         } else if (customId === 'settings:weekly') {
             await interaction.update(this.getWeeklySettingsPayload(guildId));
         } else if (customId === 'settings:selectWeeklyRankingMaxCount') {
@@ -201,7 +201,7 @@ class SettingsInteractionHandler {
                 return;
             }
             // TODO: Update in PG too
-            state.setGuildSetting(guildId, GuildSetting.BossBroadcastInterval, value);
+            state.setGuildSetting(guildId, GuildSetting.MinigameBroadcastInterval, value);
             await interaction.update(this.getOtherSettingsPayload(guildId));
         } else if (customId === 'settings:selectSetting') {
             if (interaction.isStringSelectMenu()) {
