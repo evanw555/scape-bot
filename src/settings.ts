@@ -1,5 +1,5 @@
 import { APIActionRowComponent, APIMessageActionRowComponent, ButtonStyle, ChannelType, ComponentType, InteractionUpdateOptions, MessageComponentInteraction, Snowflake } from 'discord.js';
-import { FORMATTED_GUILD_SETTINGS, GUILD_SETTING_OPTIONS } from './constants';
+import { FORMATTED_GUILD_SETTINGS, GUILD_SETTING_OPTIONS, RANKING_ICON_SETS } from './constants';
 import { GuildSetting } from './types';
 import { naturalJoin } from 'evanw555.js';
 
@@ -403,17 +403,11 @@ class SettingsInteractionHandler {
             3: 'Show top 3',
             4: 'Show top 4',
             5: 'Show top 5',
+            6: 'Show top 6',
+            7: 'Show top 7',
+            8: 'Show top 8',
+            9: 'Show top 9',
             10: 'Show top 10'
-        };
-
-        // TODO: Only show this if the updates are enabled, and cap it based on how many each icon set supports
-        const iconSetNames: Record<number, string> = {
-            0: 'Gold/Silver/Bronze Bars',
-            1: 'Numbers',
-            2: 'Pickaxes',
-            3: 'Full Helms',
-            4: 'Defenders',
-            5: 'Smithing Bars'
         };
 
         return {
@@ -421,7 +415,7 @@ class SettingsInteractionHandler {
             embeds: [{
                 title: 'Settings > Weekly Settings',
                 description: `**Weekly XP Updates:** ${weeklyRankingMaxCount === 0 ? 'Disabled' : `Enabled (top ${weeklyRankingMaxCount})`}`
-                    + `\n**Rank Icons:** ${iconSetNames[weeklyRankingIconSet]}`
+                    + `\n**Rank Icons:** ${RANKING_ICON_SETS[weeklyRankingIconSet]?.name ?? '???'}`
             }],
             components: [{
                 type: ComponentType.ActionRow,
@@ -443,7 +437,7 @@ class SettingsInteractionHandler {
                     min_values: 1,
                     max_values: 1,
                     placeholder: 'Click to set weekly XP icons',
-                    options: Object.entries(iconSetNames).map(([value, label]) => ({ value, label, default: value === weeklyRankingIconSet.toString() ? true : false }))
+                    options: Object.entries(RANKING_ICON_SETS).map(([value, data]) => ({ value, label: data.name, description: `Has ${data.cap} icons`, default: value === weeklyRankingIconSet.toString() ? true : false }))
                 }]
             }, {
                 type: ComponentType.ActionRow,

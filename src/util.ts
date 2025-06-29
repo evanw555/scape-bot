@@ -71,6 +71,10 @@ export function getThumbnail(name: string, options?: { is99?: boolean }) {
     return;
 }
 
+export function getRankingIconUrl(setId: string, rank: number): string {
+    return `${CONSTANTS.baseThumbnailUrl}rankings/${setId}/${rank}${CONSTANTS.imageFileExtension}`;
+}
+
 interface UpdateMessageOptions {
     // Decimal-coded color of the embed
     color?: number,
@@ -602,15 +606,15 @@ export async function updateLevels(rsn: string, newLevels: Record<IndividualSkil
 }
 
 export function constructSkill99UpdateMessage(update: PendingPlayerUpdate): MessageCreateOptions {
-    const { rsn, key: skill, baseValue, newValue } = update;
+    const { guildId, rsn, key: skill, baseValue, newValue } = update;
     const levelsGained = newValue - baseValue;
     return buildUpdateMessage(
         `**${state.getDisplayName(rsn)}** has gained `
             + (levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`)
             + ` in **${skill}** and is now level **99**`,
         skill, {
-            // TODO: Disabling the @everyone tag now, but make it configurable when we support server settings
-            // header: '@everyone',
+            // Tag @everyone only if the guild has opted in to it
+            header: (state.getGuildSettingWithDefault(guildId, GuildSetting.TagEveryoneOnSkill99) === 1) ? '@everyone' : undefined,
             is99: true
         });
 }
@@ -1019,7 +1023,9 @@ export async function sendPlayerUpdates(channel: TextChannel, updates: PendingPl
     const skillUpdates99 = updates.filter(u => u.type === PlayerUpdateType.Skill && u.newValue === 99);
     for (const u of skillUpdates99) {
         const payload99 = constructSkill99UpdateMessage(u);
-        await sendUpdateMessageRaw([channel], payload99, { reacts: ['🇬', '🇿'] });
+        // Only add reacts if the guild is configured to do so
+        const reacts = (state.getGuildSettingWithDefault(u.guildId, GuildSetting.ReactOnSkill99) === 1) ? ['🇬', '🇿'] : undefined;
+        await sendUpdateMessageRaw([channel], payload99, { reacts });
     }
     // Construct update embeds
     const embeds: APIEmbed[] = [];

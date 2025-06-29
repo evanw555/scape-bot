@@ -184,3 +184,21 @@ export const GUILD_SETTING_OPTIONS: Record<GuildSetting, Record<number, string>>
     [GuildSetting.TagEveryoneOnSkill99]: {},
     [GuildSetting.ShowVirtualSkillUpdates]: {}
 };
+
+export const RANKING_ICON_SETS: Record<number, { id: string, name: string, cap: number }> = {
+    0: {
+        id: 'default',
+        name: 'Gold/Silver/Bronze Bars',
+        cap: 3
+    },
+    1: {
+        id: 'defenders',
+        name: 'Defenders',
+        cap: 7
+    },
+    2: {
+        id: 'pickaxes',
+        name: 'Pickaxes',
+        cap: 7
+    }
+};
