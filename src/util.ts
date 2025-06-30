@@ -487,12 +487,23 @@ export function filterUpdatesForGuild(updates: PendingPlayerUpdate[]): PendingPl
     return updates.filter(u => {
         switch (u.type) {
         case PlayerUpdateType.Skill: {
+            // Skill updates are disabled if the 1-threshold is zero
+            if (SKILL_INTERVAL_ONE_THRESHOLD === 0) {
+                return false;
+            }
+            // If the value is above the 1-threshold, test against 1
             if (u.newValue >= SKILL_INTERVAL_ONE_THRESHOLD) {
                 return diffPassesMilestone(u.baseValue, u.newValue, 1);
             }
+            // If the 5-threshold is zero, then nothing below the 1-threshold should be reported
+            if (SKILL_INTERVAL_FIVE_THRESHOLD === 0) {
+                return false;
+            }
+            // If the value is against the 5-threshold, test against 5
             if (u.newValue >= SKILL_INTERVAL_FIVE_THRESHOLD) {
                 return diffPassesMilestone(u.baseValue, u.newValue, 5);
             }
+            // Otherwise, test against 10
             return diffPassesMilestone(u.baseValue, u.newValue, 10);
         }
         case PlayerUpdateType.Boss: {
