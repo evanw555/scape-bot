@@ -318,7 +318,7 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
     let activity = false;
     let processPendingUpdates = false;
 
-    // Check if levels have changes and send notifications
+    // Check if levels have changed and send notifications
     if (state.hasLevels(rsn)) {
         const a = await updateLevels(rsn, data.levelsWithDefaults, options?.spoofedDiff);
         activity = activity || a;
@@ -331,7 +331,7 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
         await pgStorageClient.updatePlayerRefreshTimestamp(rsn, new Date());
     }
 
-    // Check if bosses have changes and send notifications
+    // Check if bosses have changed and send notifications
     if (state.hasBosses(rsn)) {
         const a = await updateKillCounts(rsn, data.bossesWithDefaults, options?.spoofedDiff);
         activity = activity || a;
@@ -344,7 +344,7 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
         await pgStorageClient.updatePlayerRefreshTimestamp(rsn, new Date());
     }
 
-    // Check if clues have changes and send notifications
+    // Check if clues have changed and send notifications
     if (state.hasClues(rsn)) {
         const a = await updateClues(rsn, data.cluesWithDefaults, options?.spoofedDiff);
         activity = activity || a;
@@ -357,22 +357,26 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
         await pgStorageClient.updatePlayerRefreshTimestamp(rsn, new Date());
     }
 
-    // Check if other activities have changes and send notifications
+    // Check if other activities have changed and send notifications
     if (state.hasActivities(rsn)) {
         const a = await updateActivities(rsn, data.activitiesWithDefaults, options?.spoofedDiff);
         activity = activity || a;
         processPendingUpdates = processPendingUpdates || a;
     } else {
-        // If this player has no activities in the state, prime with initial date (NOT including assumed defaults)
+        // If this player has no activities in the state, prime with initial data (NOT including assumed defaults)
         state.setActivities(rsn, data.activities);
         await pgStorageClient.writePlayerActivities(rsn, data.activities);
         state.setLastRefresh(rsn, new Date());
         await pgStorageClient.updatePlayerRefreshTimestamp(rsn, new Date());
     }
 
-    // If the player has any virtual levels, check if they've updated
-    if (Object.keys(data.virtualLevels).length > 0) {
+    // Check if virtual levels have changed and send notifications
+    if (state.hasVirtualLevels(rsn)) {
+        // TODO: Do we need to count this as "activity"? Total XP should already cover this
         await updateVirtualLevels(rsn, data.virtualLevels);
+    } else {
+        // If this player has no virtual levels in the state, prime them with initial data (only including levels above 99)
+        state.setVirtualLevels(rsn, data.virtualLevels);
     }
 
     // If the player has a valid total XP value, process it
@@ -1028,10 +1032,15 @@ export function constructActivitiesUpdateEmbeds(updates: PendingPlayerUpdate[]):
 }
 
 export async function updateVirtualLevels(rsn: string, newLevels: Partial<Record<IndividualSkillName, number>>): Promise<boolean> {
+    // We shouldn't be doing this if this player doesn't have any virtual levels in the state
+    if (!state.hasVirtualLevels(rsn)) {
+        return false;
+    }
+
     // Compute diff for each level
     let diff: Partial<Record<IndividualSkillName, number>>;
     try {
-        diff = computeDiff(state.hasVirtualLevels(rsn) ? state.getVirtualLevels(rsn) : {}, newLevels, 99);
+        diff = computeDiff(state.getVirtualLevels(rsn), newLevels, 99);
     } catch (err) {
         if (err instanceof NegativeDiffError) {
             negativeDiffStrikes[rsn] = (negativeDiffStrikes[rsn] ?? 0) + 1;
