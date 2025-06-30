@@ -16,6 +16,7 @@ export default class State {
     private readonly _bosses: Record<string, Partial<Record<Boss, number>>>;
     private readonly _clues: Record<string, Partial<Record<IndividualClueType, number>>>;
     private readonly _activities: Record<string, Partial<Record<IndividualActivityName, number>>>;
+    private readonly _virtualLevels: Record<string, Partial<Record<IndividualSkillName, number>>>;
     private readonly _botCounters: Record<Snowflake, number>;
     private readonly _lastRefresh: Record<string, Date>;
     private readonly _displayNames: Record<string, string>;
@@ -41,6 +42,8 @@ export default class State {
         this._bosses = {};
         this._clues = {};
         this._activities = {};
+
+        this._virtualLevels = {};
 
         this._botCounters = {};
         this._lastRefresh = {};
@@ -610,6 +613,24 @@ export default class State {
             throw new Error(`Trying to set ${activity} score for ${rsn} without there being pre-existing activities`);
         }
         this._activities[rsn][activity] = score;
+    }
+
+    hasVirtualLevels(rsn: string): boolean {
+        return rsn in this._virtualLevels;
+    }
+
+    /**
+     * NOTE: This only contains values that are definitively known via the API (does NOT contain assumed defaults) and above 99
+     */
+    getVirtualLevels(rsn: string): Partial<Record<IndividualSkillName, number>> {
+        return this._virtualLevels[rsn];
+    }
+
+    /**
+     * NOTE: It is expected that the input map only contains values that are definitively known via the API (does NOT contain assumed defaults) and above 99
+     */
+    setVirtualLevels(rsn: string, virtualLevels: Partial<Record<IndividualSkillName, number>>): void {
+        this._virtualLevels[rsn] = virtualLevels;
     }
 
     getBotCounter(botId: Snowflake): number {

@@ -177,7 +177,7 @@ export function camelize(str: string) {
  * @param baselineValue for any key missing from the before map, default to this value
  * @returns A map containing the diff for entries where the value has increased
  */
-export function computeDiff<T extends string>(before: Partial<Record<T, number>>, after: Record<T, number>, baselineValue: number): Partial<Record<T, number>> {
+export function computeDiff<T extends string>(before: Partial<Record<T, number>>, after: Partial<Record<T, number>>, baselineValue: number): Partial<Record<T, number>> {
     // Validate that before's keys are a subset of after's
     if (!Object.keys(before).every(key => key in after)) {
         throw new Error(`Cannot compute diff, before ${Object.keys(before).join(',')} is not a subset of after ${Object.keys(after).join(',')}`);
@@ -188,7 +188,7 @@ export function computeDiff<T extends string>(before: Partial<Record<T, number>>
     const kinds: T[] = Object.keys(after) as T[];
     for (const kind of kinds) {
         const beforeValue: number = before[kind] ?? baselineValue;
-        const afterValue: number = after[kind];
+        const afterValue: number = after[kind] as number;
         // Validate value types (e.g. strange subtraction behavior if a string is passed in)
         if (typeof beforeValue !== 'number' || typeof afterValue !== 'number') {
             throw new Error(`Invalid types for **${kind}** diff, before \`${beforeValue}\` is type ${typeof beforeValue} and after \`${typeof afterValue}\` is type ${typeof afterValue}`);
@@ -368,6 +368,11 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
         await pgStorageClient.writePlayerActivities(rsn, data.activities);
         state.setLastRefresh(rsn, new Date());
         await pgStorageClient.updatePlayerRefreshTimestamp(rsn, new Date());
+    }
+
+    // If the player has any virtual levels, check if they've updated
+    if (Object.keys(data.virtualLevels).length > 0) {
+        await updateVirtualLevels(rsn, data.virtualLevels);
     }
 
     // If the player has a valid total XP value, process it
@@ -1022,6 +1027,39 @@ export function constructActivitiesUpdateEmbeds(updates: PendingPlayerUpdate[]):
     }
 }
 
+export async function updateVirtualLevels(rsn: string, newLevels: Partial<Record<IndividualSkillName, number>>): Promise<boolean> {
+    // Compute diff for each level
+    let diff: Partial<Record<IndividualSkillName, number>>;
+    try {
+        diff = computeDiff(state.hasVirtualLevels(rsn) ? state.getVirtualLevels(rsn) : {}, newLevels, 99);
+    } catch (err) {
+        if (err instanceof NegativeDiffError) {
+            negativeDiffStrikes[rsn] = (negativeDiffStrikes[rsn] ?? 0) + 1;
+        } else if (err instanceof Error && err.message) {
+            await logger.log(`Failed to compute virtual level diff for player ${rsn}: ${err.message}`, MultiLoggerLevel.Error);
+        }
+        return false;
+    }
+    if (!diff) {
+        return false;
+    }
+
+    const updatedSkills: IndividualSkillName[] = toSortedSkillsNoOverall(Object.keys(diff));
+
+    if (updatedSkills.length > 0) {
+        // TODO: We should either queue up a pending update or send it directly, so just logging for now
+        await logger.log(`Virtual level update for **${state.getDisplayName(rsn)}**: \`${JSON.stringify(newLevels)}\` (diff \`${JSON.stringify(diff)}\`)`, MultiLoggerLevel.Warn);
+        // Set in the state (not to PG... yet)
+        state.setVirtualLevels(rsn, newLevels);
+
+        return true;
+    }
+
+    // TODO: Write to PG and handle the actual state stuff here
+
+    return false;
+}
+
 export async function sendPlayerUpdates(channel: TextChannel, updates: PendingPlayerUpdate[]) {
     if (updates.length === 0) {
         return;
@@ -1429,4 +1467,33 @@ export function resolveHiScoresUrlTemplate(): string {
         gameModeSuffix = `_${AUTH.gameMode}`;
     }
     return `https://secure.runescape.com/m=hiscore_oldschool${gameModeSuffix}/hiscorepersonal.ws?user1=`;
+}
+
+/**
+ * For some level (including virtual levels beyond 99), return how much XP is required to achieve that level.
+ * This is primarily used for computing virtual levels.
+ * @param level Some skill level
+ * @returns The XP required to achieve it
+ */
+export function computeXpForLevel(level: number): number {
+    let total = 0;
+    for (let i = 1; i < level; i++) {
+        total += Math.floor(i + 300 * Math.pow(2, i / 7));
+    }
+    return Math.floor(0.25 * total);
+}
+
+/**
+ * For some XP amount, return what level this equates to (including virtual levels beyond 99).
+ * This is primarily used for computing virtual levels.
+ * @param xp Some amount of XP
+ * @returns The level this equates to
+ */
+export function computeLevelForXp(xp: number): number {
+    for (let i = 126; i > 0; i--) {
+        if (computeXpForLevel(i) <= xp) {
+            return i;
+        }
+    }
+    return 1;
 }

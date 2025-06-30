@@ -1,6 +1,7 @@
 import hiscores, { Activity, Boss, BOSSES, PLAYER_NOT_FOUND_ERROR, Skill, Stats } from 'osrs-json-hiscores';
 import { AUTH, CLUES_NO_ALL, DEFAULT_ACTIVITY_SCORE, DEFAULT_AXIOS_CONFIG, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, OTHER_ACTIVITIES, SKILLS_NO_OVERALL } from './constants';
 import { IndividualActivityName, IndividualClueType, IndividualSkillName, PlayerHiScores } from './types';
+import { computeLevelForXp } from './util';
 
 import state from './instances/state';
 
@@ -12,6 +13,7 @@ export async function fetchHiScores(rsn: string): Promise<PlayerHiScores> {
     
     const levels: Partial<Record<IndividualSkillName, number>> = {};
     const levelsWithDefaults: Partial<Record<IndividualSkillName, number>> = {};
+    const virtualLevels: Partial<Record<IndividualSkillName, number>> = {};
     for (const skill of SKILLS_NO_OVERALL) {
         if (skill in stats.skills) {
             const skillPayload: Skill = stats.skills[skill];
@@ -32,6 +34,11 @@ export async function fetchHiScores(rsn: string): Promise<PlayerHiScores> {
                 }
                 levels[skill] = level;
                 levelsWithDefaults[skill] = level;
+                // Compute the virtual level, include it if it's greater than 99
+                const virtualLevel = computeLevelForXp(skillPayload.xp);
+                if (virtualLevel > 99) {
+                    virtualLevels[skill] = virtualLevel;
+                }
             }
         } else {
             throw new Error(`Raw hi-scores data for player "${rsn}" missing skill "${skill}"`);
@@ -122,6 +129,7 @@ export async function fetchHiScores(rsn: string): Promise<PlayerHiScores> {
         onHiScores: stats.skills.overall.rank !== -1,
         levels,
         levelsWithDefaults: levelsWithDefaults as Record<IndividualSkillName, number>,
+        virtualLevels,
         bosses,
         bossesWithDefaults: bossesWithDefaults as Record<Boss, number>,
         clues,

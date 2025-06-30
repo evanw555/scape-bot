@@ -126,6 +126,8 @@ export interface PlayerHiScores {
     totalLevel?: number,
     levels: Partial<Record<IndividualSkillName, number>>,
     levelsWithDefaults: Record<IndividualSkillName, number>,
+    /** Record of "virtual" skill levels for any skill greater than 99. */
+    virtualLevels: Partial<Record<IndividualSkillName, number>>,
     bosses: Partial<Record<Boss, number>>,
     bossesWithDefaults: Record<Boss, number>,
     clues: Partial<Record<IndividualClueType, number>>,

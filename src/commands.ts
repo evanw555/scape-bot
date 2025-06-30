@@ -286,6 +286,7 @@ const slashCommands: SlashCommandsType = {
                 if (isPlayerNotFoundError(err)) {
                     await logger.log(`\`${interaction.user.tag}\` checked player **${rsn}** but got a 404`, MultiLoggerLevel.Warn);
                     await interaction.reply(`Couldn't find player **${rawRsn.trim()}** on the hiscores`);
+                    // TODO: If this player has any data in the state, just use that along with a disclaimer
                 } else {
                     await logger.log(`Error while fetching hiscores (check) for player **${rsn}**: \`${err}\``, MultiLoggerLevel.Error);
                     await interaction.reply(`Couldn't fetch hiscores for player **${rawRsn.trim()}** :pensive:\n\`${err}\``);

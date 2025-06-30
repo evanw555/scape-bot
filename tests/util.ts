@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import { diffPassesMilestone } from '../src/util';
+import { computeLevelForXp, diffPassesMilestone } from '../src/util';
 
 describe('Util Tests', () => {
     it('determines if an update diff passes an interval milestone', () => {
@@ -78,5 +78,25 @@ describe('Util Tests', () => {
         expect(diffPassesMilestone(50, 50, 13), 'Update 50-to-50 does NOT pass 13-interval milestone').is.false;
         expect(diffPassesMilestone(50, 49, 13), 'Update 50-to-49 does NOT pass 13-interval milestone').is.false;
         expect(diffPassesMilestone(50, 1, 13), 'Update 50-to-1 does NOT pass 13-interval milestone').is.false;
+    });
+
+    it ('computes virtual levels correctly', () => {
+        expect(computeLevelForXp(0)).equals(1);
+        expect(computeLevelForXp(82)).equals(1);
+        expect(computeLevelForXp(83)).equals(2);
+        expect(computeLevelForXp(84)).equals(2);
+        expect(computeLevelForXp(1000)).equals(9);
+        expect(computeLevelForXp(4470)).equals(20);
+        expect(computeLevelForXp(10_000)).equals(27);
+        expect(computeLevelForXp(100_000)).equals(49);
+        expect(computeLevelForXp(1_000_000)).equals(73);
+        expect(computeLevelForXp(10_000_000)).equals(96);
+        expect(computeLevelForXp(13_034_430)).equals(98);
+        expect(computeLevelForXp(13_034_431)).equals(99);
+        expect(computeLevelForXp(15_000_000)).equals(100);
+        expect(computeLevelForXp(100_000_000)).equals(119);
+        expect(computeLevelForXp(150_000_000)).equals(123);
+        expect(computeLevelForXp(200_000_000)).equals(126);
+        expect(computeLevelForXp(2_000_000_000)).equals(126);
     });
 });
