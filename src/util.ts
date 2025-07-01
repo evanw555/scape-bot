@@ -1063,8 +1063,10 @@ export async function updateVirtualLevels(rsn: string, newVirtualLevels: Partial
     if (updatedSkills.length > 0) {
         // Directly send a notification to all guilds tracking this player
         for (const guildId of state.getGuildsTrackingPlayer(rsn)) {
-            // Only send if the guild has this setting enabled
-            if (state.isGuildSettingEnabled(guildId, GuildSetting.ShowVirtualSkillUpdates) && state.hasTrackingChannel(guildId)) {
+            // Only send if the guild has this setting (and skill updates) enabled
+            if (state.isGuildSettingEnabled(guildId, GuildSetting.ShowVirtualSkillUpdates)
+                && state.isGuildSettingEnabled(guildId, GuildSetting.SkillBroadcastOneThreshold)
+                && state.hasTrackingChannel(guildId)) {
                 // Construct the pending player updates
                 // TODO: Should we actually save these though? Don't want them to coalesce with normal skill updates, also don't want them to send all at once once enabled
                 const updates: PendingPlayerUpdate[] = updatedSkills.map(skill => ({
@@ -1078,6 +1080,8 @@ export async function updateVirtualLevels(rsn: string, newVirtualLevels: Partial
                 }));
                 // Send the notification directly now (don't save as a pending update, so missed updates will be dropped)
                 await sendUpdateMessageRaw([state.getTrackingChannel(guildId)], { embeds: constructSkillUpdateEmbeds(updates) });
+                // TODO: Temp logging to see how this is working
+                await logger.log(`**${rsn}** virtual update: \`${JSON.stringify(diff)}\``, MultiLoggerLevel.Warn);
             }
         }
         // TODO: We should either queue up a pending update or send it directly, so just logging for now

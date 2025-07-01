@@ -1,4 +1,4 @@
-import { ApplicationCommandOptionType, AttachmentBuilder, ButtonStyle, ChannelType, ChatInputCommandInteraction, ComponentType, Guild, PermissionFlagsBits, TextChannel } from 'discord.js';
+import { ApplicationCommandOptionType, AttachmentBuilder, ButtonStyle, ChatInputCommandInteraction, ComponentType, Guild, PermissionFlagsBits, TextChannel } from 'discord.js';
 import { Boss, BOSSES } from 'osrs-json-hiscores';
 import { MultiLoggerLevel, naturalJoin } from 'evanw555.js';
 import { PlayerHiScores, SlashCommandsType } from './types';
@@ -437,8 +437,6 @@ const slashCommands: SlashCommandsType = {
                 });
                 return false;
             }
-            const guild = getInteractionGuild(interaction);
-            const guildId = guild.id;
             // Show the root settings menu
             await interaction.reply({
                 embeds: [{
@@ -446,25 +444,6 @@ const slashCommands: SlashCommandsType = {
                     description: 'TODO: Fill me out'
                 }],
                 components: [{
-                    type: ComponentType.ActionRow,
-                    components: [{
-                        type: ComponentType.ChannelSelect,
-                        custom_id: 'settings:selectTrackingChannel',
-                        min_values: 1,
-                        max_values: 1,
-                        placeholder: state.hasTrackingChannel(guildId) ? state.getTrackingChannel(guildId).name : 'Click to set tracking channel',
-                        channel_types: [ChannelType.GuildText]
-                    }]
-                }, {
-                    type: ComponentType.ActionRow,
-                    components: [{
-                        type: ComponentType.RoleSelect,
-                        custom_id: 'settings:selectPrivilegedRole',
-                        min_values: 0,
-                        max_values: 1,
-                        placeholder: state.hasPrivilegedRole(guildId) ? state.getPrivilegedRole(guildId).name : 'Click to set privileged role'
-                    }]
-                }, {
                     type: ComponentType.ActionRow,
                     components: [{
                         type: ComponentType.Button,

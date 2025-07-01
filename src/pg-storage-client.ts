@@ -80,7 +80,7 @@ export default class PGStorageClient {
         const results: string[] = [];
         for (const [ tableName, tableSchema ] of Object.entries(PGStorageClient.TABLES)) {
             if (await this.doesTableExist(tableName)) {
-                results.push(`✅ Table \`${tableName}\` exists`);
+                results.push(`✅ Table \`${tableName}\` exists **(${await this.getTableSize(tableName as TableName)})**`);
             } else {
                 await this.client.query(tableSchema);
                 results.push(`⚠️ Table \`${tableName}\` created`);
@@ -91,6 +91,14 @@ export default class PGStorageClient {
     
     async doesTableExist(name: string): Promise<boolean> {
         return (await this.client.query<{ exists: boolean }>('SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = $1);', [name])).rows[0].exists;
+    }
+
+    async getTableSize(name: TableName): Promise<number> {
+        // Assert that the table name is valid for obvious reasons
+        if (!PGStorageClient.TABLES[name]) {
+            throw new Error(`Cannot get size of unknown table \`${name}\``);
+        }
+        return (await this.client.query<{ count: number }>(`SELECT COUNT(*) FROM ${name};`)).rows[0].count;
     }
 
     /**

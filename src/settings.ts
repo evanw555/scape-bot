@@ -1,4 +1,4 @@
-import { APIActionRowComponent, APIMessageActionRowComponent, ButtonStyle, ChannelType, ComponentType, InteractionUpdateOptions, MessageComponentInteraction, Snowflake } from 'discord.js';
+import { APIActionRowComponent, APIMessageActionRowComponent, ButtonStyle, ComponentType, InteractionUpdateOptions, MessageComponentInteraction, Snowflake } from 'discord.js';
 import { FORMATTED_GUILD_SETTINGS, GUILD_SETTING_OPTIONS, RANKING_ICON_SETS } from './constants';
 import { GuildSetting } from './types';
 import { naturalJoin } from 'evanw555.js';
@@ -31,28 +31,15 @@ class SettingsInteractionHandler {
             await interaction.update({
                 embeds: [{
                     title: 'ScapeBot Settings',
-                    description: 'TODO: Fill me out'
+                    description: '**Skill Settings:**'
+                        + '\n> Configure skill updates for your guild, such as thresholds for showing every 1/5/10 levels'
+                        + '\n**Weekly Settings:**'
+                        + '\n> Configure the weekly XP ranking updates, such as the number of players to show'
+                        + '\n**Other Settings:**'
+                        + '\n> Configure other settings, such as how often to show boss and clue updates'
+                        + '\nUse the `/channel` command to choose where updates are sent, and use the `/role` command to set who can add/remove tracked players.'
                 }],
                 components: [{
-                    type: ComponentType.ActionRow,
-                    components: [{
-                        type: ComponentType.ChannelSelect,
-                        custom_id: 'settings:selectTrackingChannel',
-                        min_values: 1,
-                        max_values: 1,
-                        placeholder: state.hasTrackingChannel(guildId) ? state.getTrackingChannel(guildId).name : 'Click to set tracking channel',
-                        channel_types: [ChannelType.GuildText]
-                    }]
-                }, {
-                    type: ComponentType.ActionRow,
-                    components: [{
-                        type: ComponentType.RoleSelect,
-                        custom_id: 'settings:selectPrivilegedRole',
-                        min_values: 0,
-                        max_values: 1,
-                        placeholder: state.hasPrivilegedRole(guildId) ? state.getPrivilegedRole(guildId).name : 'Click to set privileged role'
-                    }]
-                }, {
                     type: ComponentType.ActionRow,
                     components: [{
                         type: ComponentType.Button,
@@ -291,18 +278,21 @@ class SettingsInteractionHandler {
         const showVirtualLevels = state.getGuildSettingWithDefault(guildId, GuildSetting.ShowVirtualSkillUpdates);
 
         // Construct the overall description in the embed
-        const intervalStrings: string[] = [oneThreshold === 99 ? 'level **99**' : `every **1** level through levels **${oneThreshold}-99**`];
+        const intervalStrings: string[] = [oneThreshold === 99 ? 'level **99**' : `every **1** level **${oneThreshold}-99**`];
         if (oneThreshold > 1) {
             if (fiveThreshold === 0) {
-                intervalStrings.unshift(`nothing through levels **1-${oneThreshold - 1}**`);
+                intervalStrings.unshift(`nothing **1-${oneThreshold - 1}**`);
             } else {
                 if (oneThreshold !== fiveThreshold) {
-                    intervalStrings.unshift(`every **5** levels through levels **${fiveThreshold}-${oneThreshold - 1}**`);
+                    intervalStrings.unshift(`every **5** levels **${fiveThreshold}-${oneThreshold - 1}**`);
                 }
                 if (fiveThreshold > 1) {
-                    intervalStrings.unshift(`every **10** levels through levels **1-${fiveThreshold - 1}**`);
+                    intervalStrings.unshift(`every **10** levels **1-${fiveThreshold - 1}**`);
                 }
             }
+        }
+        if (showVirtualLevels) {
+            intervalStrings.push('every "virtual level" **100-126**');
         }
 
         const menus: APIActionRowComponent<APIMessageActionRowComponent>[] = [];
