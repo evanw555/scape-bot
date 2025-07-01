@@ -1,5 +1,5 @@
 import { Snowflake } from 'discord.js';
-import { MultiLoggerLevel } from 'evanw555.js';
+import { getQuantityWithUnits, MultiLoggerLevel } from 'evanw555.js';
 import { Boss } from 'osrs-json-hiscores';
 import { Client, ClientConfig } from 'pg';
 import format from 'pg-format';
@@ -80,7 +80,7 @@ export default class PGStorageClient {
         const results: string[] = [];
         for (const [ tableName, tableSchema ] of Object.entries(PGStorageClient.TABLES)) {
             if (await this.doesTableExist(tableName)) {
-                results.push(`✅ Table \`${tableName}\` exists **(${await this.getTableSize(tableName as TableName)})**`);
+                results.push(`✅ Table \`${tableName}\` exists **(${getQuantityWithUnits(await this.getTableSize(tableName as TableName))})**`);
             } else {
                 await this.client.query(tableSchema);
                 results.push(`⚠️ Table \`${tableName}\` created`);
