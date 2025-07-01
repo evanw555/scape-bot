@@ -377,6 +377,7 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
     } else {
         // If this player has no virtual levels in the state, prime them with initial data (only including levels above 99)
         state.setVirtualLevels(rsn, data.virtualLevels);
+        await pgStorageClient.writePlayerVirtualLevels(rsn, data.virtualLevels);
     }
 
     // If the player has a valid total XP value, process it
@@ -634,7 +635,7 @@ export function constructSkill99UpdateMessage(update: PendingPlayerUpdate): Mess
             + ` in **${skill}** and is now level **99**`,
         skill, {
             // Tag @everyone only if the guild has opted in to it
-            header: (state.getGuildSettingWithDefault(guildId, GuildSetting.TagEveryoneOnSkill99) === 1) ? '@everyone' : undefined,
+            header: state.isGuildSettingEnabled(guildId, GuildSetting.TagEveryoneOnSkill99) ? '@everyone' : undefined,
             is99: true
         });
 }
@@ -648,8 +649,10 @@ export function constructSkillUpdateEmbeds(updates: PendingPlayerUpdate[]): APIE
     case 1: {
         const { rsn, key: skill, baseValue, newValue } = updates[0];
         const levelsGained = newValue - baseValue;
+        // Show quotes around the word "level" if it's a virtual level above 99
+        const quote = newValue > 99 ? '"' : '';
         const text = `**${state.getDisplayName(rsn)}** has gained `
-            + (levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`)
+            + (levelsGained === 1 ? `a ${quote}level${quote}` : `**${levelsGained}** ${quote}levels${quote}`)
             + ` in **${skill}** and is now level **${newValue}**`;
         return [buildUpdateEmbed(text, skill)];
         // await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), text, skill);
@@ -658,7 +661,9 @@ export function constructSkillUpdateEmbeds(updates: PendingPlayerUpdate[]): APIE
         const text = updates.map((u) => {
             const { key: skill, baseValue, newValue } = u;
             const levelsGained = newValue - baseValue;
-            return `${levelsGained === 1 ? 'a level' : `**${levelsGained}** levels`} in **${skill}** and is now level **${newValue}**`;
+            // Show quotes around the word "level" if it's a virtual level above 99
+            const quote = newValue > 99 ? '"' : '';
+            return `${levelsGained === 1 ? `a ${quote}level${quote}` : `**${levelsGained}** ${quote}levels${quote}`} in **${skill}** and is now level **${newValue}**`;
         }).join('\n');
         const { rsn } = updates[0];
         return [buildUpdateEmbed(`**${state.getDisplayName(rsn)}** has gained...\n${text}`, 'overall')];
@@ -1031,7 +1036,7 @@ export function constructActivitiesUpdateEmbeds(updates: PendingPlayerUpdate[]):
     }
 }
 
-export async function updateVirtualLevels(rsn: string, newLevels: Partial<Record<IndividualSkillName, number>>): Promise<boolean> {
+export async function updateVirtualLevels(rsn: string, newVirtualLevels: Partial<Record<IndividualSkillName, number>>): Promise<boolean> {
     // We shouldn't be doing this if this player doesn't have any virtual levels in the state
     if (!state.hasVirtualLevels(rsn)) {
         return false;
@@ -1040,7 +1045,7 @@ export async function updateVirtualLevels(rsn: string, newLevels: Partial<Record
     // Compute diff for each level
     let diff: Partial<Record<IndividualSkillName, number>>;
     try {
-        diff = computeDiff(state.getVirtualLevels(rsn), newLevels, 99);
+        diff = computeDiff(state.getVirtualLevels(rsn), newVirtualLevels, 99);
     } catch (err) {
         if (err instanceof NegativeDiffError) {
             negativeDiffStrikes[rsn] = (negativeDiffStrikes[rsn] ?? 0) + 1;
@@ -1056,10 +1061,31 @@ export async function updateVirtualLevels(rsn: string, newLevels: Partial<Record
     const updatedSkills: IndividualSkillName[] = toSortedSkillsNoOverall(Object.keys(diff));
 
     if (updatedSkills.length > 0) {
+        // Directly send a notification to all guilds tracking this player
+        for (const guildId of state.getGuildsTrackingPlayer(rsn)) {
+            // Only send if the guild has this setting enabled
+            if (state.isGuildSettingEnabled(guildId, GuildSetting.ShowVirtualSkillUpdates) && state.hasTrackingChannel(guildId)) {
+                // Construct the pending player updates
+                // TODO: Should we actually save these though? Don't want them to coalesce with normal skill updates, also don't want them to send all at once once enabled
+                const updates: PendingPlayerUpdate[] = updatedSkills.map(skill => ({
+                    guildId,
+                    rsn,
+                    type: PlayerUpdateType.Skill,
+                    key: skill,
+                    baseValue: state.hasVirtualLevel(rsn, skill) ? state.getVirtualLevel(rsn, skill) : 99,
+                    // Asserting here that the value exists because all keys in the diff must exist in the new values map
+                    newValue: newVirtualLevels[skill] as number
+                }));
+                // Send the notification directly now (don't save as a pending update, so missed updates will be dropped)
+                await sendUpdateMessageRaw([state.getTrackingChannel(guildId)], { embeds: constructSkillUpdateEmbeds(updates) });
+            }
+        }
         // TODO: We should either queue up a pending update or send it directly, so just logging for now
-        await logger.log(`Virtual level update for **${state.getDisplayName(rsn)}**: \`${JSON.stringify(newLevels)}\` (diff \`${JSON.stringify(diff)}\`)`, MultiLoggerLevel.Warn);
+        await logger.log(`Virtual level update for **${state.getDisplayName(rsn)}**: \`${JSON.stringify(newVirtualLevels)}\` (diff \`${JSON.stringify(diff)}\`)`, MultiLoggerLevel.Warn);
         // Set in the state (not to PG... yet)
-        state.setVirtualLevels(rsn, newLevels);
+        state.setVirtualLevels(rsn, newVirtualLevels);
+        // Write only updated virtual levels to PG
+        await pgStorageClient.writePlayerVirtualLevels(rsn, filterMap(newVirtualLevels, { keyWhitelist: updatedSkills }));
 
         return true;
     }
@@ -1082,7 +1108,7 @@ export async function sendPlayerUpdates(channel: TextChannel, updates: PendingPl
     for (const u of skillUpdates99) {
         const payload99 = constructSkill99UpdateMessage(u);
         // Only add reacts if the guild is configured to do so
-        const reacts = (state.getGuildSettingWithDefault(u.guildId, GuildSetting.ReactOnSkill99) === 1) ? ['🇬', '🇿'] : undefined;
+        const reacts = state.isGuildSettingEnabled(u.guildId, GuildSetting.ReactOnSkill99) ? ['🇬', '🇿'] : undefined;
         await sendUpdateMessageRaw([channel], payload99, { reacts });
     }
     // Construct update embeds

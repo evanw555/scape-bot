@@ -339,7 +339,7 @@ export default class State {
      * @param setting Setting to check
      * @returns Value of the setting for this guild (or the default value)
      */
-    getGuildSettingWithDefault(guildId: string, setting: GuildSetting): number {
+    getGuildSettingWithDefault(guildId: Snowflake, setting: GuildSetting): number {
         if (this.hasGuildSettings(guildId)) {
             const settings = this.getGuildSettings(guildId);
             const value = settings[setting];
@@ -348,6 +348,17 @@ export default class State {
             }
         }
         return DEFAULT_GUILD_SETTINGS[setting];
+    }
+
+    /**
+     * For a given guild ID and setting name, return true if the configured value (or its default if not set) is nonzero.
+     * A guild setting being nonzero indicates that it's "enabled".
+     * @param guildId Guild whose settings we're checking
+     * @param setting Setting to check
+     * @returns True if the setting (with default) is nonzero
+     */
+    isGuildSettingEnabled(guildId: Snowflake, setting: GuildSetting): boolean {
+        return this.getGuildSettingWithDefault(guildId, setting) !== 0;
     }
 
     /**
@@ -456,7 +467,7 @@ export default class State {
     /**
      * NOTE: It is expected that the input map only contains values that are definitively known via the API (does NOT contain assumed defaults) 
      */
-    setAllLevels(allLevels: Record<string, Record<string, number>>): void {
+    setAllLevels(allLevels: Record<string, Partial<Record<IndividualSkillName, number>>>): void {
         for (const [rsn, levels] of Object.entries(allLevels)) {
             this.setLevels(rsn, levels);
         }
@@ -631,6 +642,26 @@ export default class State {
      */
     setVirtualLevels(rsn: string, virtualLevels: Partial<Record<IndividualSkillName, number>>): void {
         this._virtualLevels[rsn] = virtualLevels;
+    }
+
+    /**
+     * NOTE: It is expected that the input map only contains values that are definitively known via the API (does NOT contain assumed defaults) and above 99
+     */
+    setAllVirtualLevels(allVirtualLevels: Record<string, Partial<Record<IndividualSkillName, number>>>): void {
+        for (const [rsn, virtualLevels] of Object.entries(allVirtualLevels)) {
+            this.setVirtualLevels(rsn, virtualLevels);
+        }
+    }
+
+    hasVirtualLevel(rsn: string, skill: string): boolean {
+        return this.hasVirtualLevels(rsn) && skill in this._virtualLevels[rsn];
+    }
+
+    getVirtualLevel(rsn: string, skill: IndividualSkillName): number {
+        if (!this.hasVirtualLevel(rsn, skill)) {
+            throw new Error(`Trying to get ${skill} virtual level for ${rsn} without checking if it's in the state`);
+        }
+        return this._virtualLevels[rsn][skill] as number;
     }
 
     getBotCounter(botId: Snowflake): number {

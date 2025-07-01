@@ -84,7 +84,8 @@ class SettingsInteractionHandler {
                 await interaction.reply({ ephemeral: true, content: `Failed: selected value \`${interaction.values[0]}\` is NaN` });
                 return;
             }
-            // TODO: Update in PG too
+            // Write to PG and state
+            await pgStorage.writeGuildSetting(guildId, GuildSetting.SkillBroadcastOneThreshold, value);
             state.setGuildSetting(guildId, GuildSetting.SkillBroadcastOneThreshold, value);
             // If disabling the 1-threshold, disable the 5-threshold as well
             if (value === 0) {
@@ -109,7 +110,8 @@ class SettingsInteractionHandler {
                 await interaction.reply({ ephemeral: true, content: `Failed: selected value \`${interaction.values[0]}\` is NaN` });
                 return;
             }
-            // TODO: Update in PG too
+            // Write to PG and state
+            await pgStorage.writeGuildSetting(guildId, GuildSetting.SkillBroadcastFiveThreshold, value);
             state.setGuildSetting(guildId, GuildSetting.SkillBroadcastFiveThreshold, value);
             // If (SOMEHOW) enabling the 5-threshold while the 1-threshold is disabled it, enable it at the same value
             if (value > 0 &&  state.getGuildSettingWithDefault(guildId, GuildSetting.SkillBroadcastOneThreshold) === 0) {
@@ -130,10 +132,15 @@ class SettingsInteractionHandler {
                 await interaction.reply({ ephemeral: true, content: `Failed: selected values \`${interaction.values}\` contain NaN` });
                 return;
             }
-            // TODO: Temp logic (should do this in a better way so we're not making unnecessary PG calls)
-            state.setGuildSetting(guildId, GuildSetting.ReactOnSkill99, values.includes(GuildSetting.ReactOnSkill99) ? 1 : 0);
-            state.setGuildSetting(guildId, GuildSetting.TagEveryoneOnSkill99, values.includes(GuildSetting.TagEveryoneOnSkill99) ? 1 : 0);
-            state.setGuildSetting(guildId, GuildSetting.ShowVirtualSkillUpdates, values.includes(GuildSetting.ShowVirtualSkillUpdates) ? 1 : 0);
+            // Determine which settings have actually changed to minimize PG calls
+            const relevantSettings = [GuildSetting.ReactOnSkill99, GuildSetting.TagEveryoneOnSkill99, GuildSetting.ShowVirtualSkillUpdates];
+            const settingsChanged: GuildSetting[] = relevantSettings.filter(s => values.includes(s) !== (state.getGuildSettingWithDefault(guildId, s) === 1));
+            // For each changed setting, write to PG and state
+            for (const setting of settingsChanged) {
+                const value = values.includes(setting) ? 1 : 0;
+                await pgStorage.writeGuildSetting(guildId, setting, value);
+                state.setGuildSetting(guildId, setting, value);
+            }
             await interaction.update(this.getSkillSettingsPayload(guildId));
         } else if (customId === 'settings:weekly') {
             await interaction.update(this.getWeeklySettingsPayload(guildId));
@@ -179,7 +186,8 @@ class SettingsInteractionHandler {
                 await interaction.reply({ ephemeral: true, content: `Failed: selected value \`${interaction.values[0]}\` is NaN` });
                 return;
             }
-            // TODO: Update in PG too
+            // Write to PG and state
+            await pgStorage.writeGuildSetting(guildId, GuildSetting.BossBroadcastInterval, value);
             state.setGuildSetting(guildId, GuildSetting.BossBroadcastInterval, value);
             await interaction.update(this.getOtherSettingsPayload(guildId));
         } else if (customId === 'settings:selectClueInterval') {
@@ -192,7 +200,8 @@ class SettingsInteractionHandler {
                 await interaction.reply({ ephemeral: true, content: `Failed: selected value \`${interaction.values[0]}\` is NaN` });
                 return;
             }
-            // TODO: Update in PG too
+            // Write to PG and state
+            await pgStorage.writeGuildSetting(guildId, GuildSetting.ClueBroadcastInterval, value);
             state.setGuildSetting(guildId, GuildSetting.ClueBroadcastInterval, value);
             await interaction.update(this.getOtherSettingsPayload(guildId));
         } else if (customId === 'settings:selectMinigameInterval') {
@@ -205,7 +214,8 @@ class SettingsInteractionHandler {
                 await interaction.reply({ ephemeral: true, content: `Failed: selected value \`${interaction.values[0]}\` is NaN` });
                 return;
             }
-            // TODO: Update in PG too
+            // Write to PG and state
+            await pgStorage.writeGuildSetting(guildId, GuildSetting.MinigameBroadcastInterval, value);
             state.setGuildSetting(guildId, GuildSetting.MinigameBroadcastInterval, value);
             await interaction.update(this.getOtherSettingsPayload(guildId));
         } else if (customId === 'settings:selectSetting') {

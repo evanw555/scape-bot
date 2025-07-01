@@ -250,6 +250,7 @@ const loadState = async (): Promise<void> => {
     state.setAllBosses(await pgStorageClient.fetchAllPlayerBosses());
     state.setAllClues(await pgStorageClient.fetchAllPlayerClues());
     state.setAllActivities(await pgStorageClient.fetchAllPlayerActivities());
+    state.setAllVirtualLevels(await pgStorageClient.fetchAllPlayerVirtualLevels());
     state.setBotCounters(await pgStorageClient.fetchBotCounters());
     state.setDisabled((await pgStorageClient.fetchMiscProperty('disabled') ?? 'false') === 'true');
     state.setTimestamp(new Date(await pgStorageClient.fetchMiscProperty('timestamp') ?? new Date()));

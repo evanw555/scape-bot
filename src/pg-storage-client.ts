@@ -8,7 +8,7 @@ import { IndividualSkillName, IndividualClueType, IndividualActivityName, MiscPr
 import logger from './instances/logger';
 
 type TableName = 'weekly_xp_snapshots' | 'weekly_xp_snapshot_timestamps' | 'player_total_xp' | 'player_levels' | 'player_bosses' | 'player_clues'
-| 'player_activities' | 'pending_player_updates' | 'tracked_players' | 'tracking_channels' | 'player_hiscore_status' | 'player_display_names'
+| 'player_activities' | 'player_virtual_levels' | 'pending_player_updates' | 'tracked_players' | 'tracking_channels' | 'player_hiscore_status' | 'player_display_names'
 | 'player_activity_timestamps' | 'player_refresh_timestamps' | 'bot_counters' | 'privileged_roles' | 'guild_settings' | 'daily_analytics' | 'misc_properties';
 
 export default class PGStorageClient {
@@ -21,6 +21,7 @@ export default class PGStorageClient {
         'player_bosses': 'CREATE TABLE player_bosses (rsn VARCHAR(12), boss VARCHAR(32), score INTEGER, PRIMARY KEY (rsn, boss));',
         'player_clues': 'CREATE TABLE player_clues (rsn VARCHAR(12), clue VARCHAR(12), score SMALLINT, PRIMARY KEY (rsn, clue));',
         'player_activities': 'CREATE TABLE player_activities (rsn VARCHAR(12), activity VARCHAR(32), score BIGINT, PRIMARY KEY (rsn, activity));',
+        'player_virtual_levels': 'CREATE TABLE player_virtual_levels (rsn VARCHAR(12), skill VARCHAR(12), level SMALLINT, PRIMARY KEY (rsn, skill), CHECK (level between 100 and 126));',
         'pending_player_updates': 'CREATE TABLE pending_player_updates (guild_id BIGINT, rsn VARCHAR(12), type SMALLINT, key VARCHAR(32), base_value BIGINT, new_value BIGINT, PRIMARY KEY (guild_id, rsn, type, key));',
         'tracked_players': 'CREATE TABLE tracked_players (guild_id BIGINT, rsn VARCHAR(12), PRIMARY KEY (guild_id, rsn));',
         'tracking_channels': 'CREATE TABLE tracking_channels (guild_id BIGINT PRIMARY KEY, channel_id BIGINT);',
@@ -44,6 +45,7 @@ export default class PGStorageClient {
         'player_bosses',
         'player_clues',
         'player_activities',
+        'player_virtual_levels',
         'pending_player_updates',
         'player_hiscore_status',
         'player_display_names',
@@ -240,6 +242,29 @@ export default class PGStorageClient {
                 result[row.rsn] = {};
             }
             result[row.rsn][row.activity] = parseInt(row.score.toString());
+        }
+        return result;
+    }
+
+    async writePlayerVirtualLevels(rsn: string, virtualLevels: Record<string, number>): Promise<void> {
+        if (Object.keys(virtualLevels).length === 0) {
+            return;
+        }
+        const values = Object.keys(virtualLevels).map(skill => [rsn, skill, virtualLevels[skill]]);
+        if (values.length === 0) {
+            return;
+        }
+        await this.client.query(format('INSERT INTO player_virtual_levels VALUES %L ON CONFLICT (rsn, skill) DO UPDATE SET level = EXCLUDED.level;', values));
+    }
+
+    async fetchAllPlayerVirtualLevels(): Promise<Record<string, Partial<Record<IndividualSkillName, number>>>> {
+        const result: Record<string, Partial<Record<IndividualSkillName, number>>> = {};
+        const queryResult = await this.client.query<{rsn: string, skill: IndividualSkillName, level: number}>('SELECT * FROM player_virtual_levels;');
+        for (const row of queryResult.rows) {
+            if (!result[row.rsn]) {
+                result[row.rsn] = {};
+            }
+            result[row.rsn][row.skill] = row.level;
         }
         return result;
     }
