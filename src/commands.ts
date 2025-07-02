@@ -438,7 +438,10 @@ const slashCommands: SlashCommandsType = {
                 return false;
             }
             // Show the root settings menu
-            await interaction.reply(getRootSettingsMenu());
+            await interaction.reply({
+                ...getRootSettingsMenu(),
+                ephemeral: true
+            });
             return true;
         },
         text: 'Changes settings for ScapeBot in this guild',

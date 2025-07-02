@@ -249,21 +249,21 @@ class SettingsInteractionHandler {
         const showVirtualLevels = state.getGuildSettingWithDefault(guildId, GuildSetting.ShowVirtualSkillUpdates);
 
         // Construct the overall description in the embed
-        const intervalStrings: string[] = [oneThreshold === 99 ? 'level **99**' : `every **1** level **${oneThreshold}-99**`];
+        const intervalStrings: string[] = [oneThreshold === 99 ? 'level **99**' : 'every level until **99**'];
         if (oneThreshold > 1) {
             if (fiveThreshold === 0) {
-                intervalStrings.unshift(`nothing **1-${oneThreshold - 1}**`);
+                intervalStrings.unshift(`nothing until ${oneThreshold}**`);
             } else {
                 if (oneThreshold !== fiveThreshold) {
-                    intervalStrings.unshift(`every **5** levels **${fiveThreshold}-${oneThreshold - 1}**`);
+                    intervalStrings.unshift(`every **5** levels until **${oneThreshold}**`);
                 }
                 if (fiveThreshold > 1) {
-                    intervalStrings.unshift(`every **10** levels **1-${fiveThreshold - 1}**`);
+                    intervalStrings.unshift(`every **10** levels until **${fiveThreshold}**`);
                 }
             }
         }
         if (showVirtualLevels) {
-            intervalStrings.push('every "virtual level" **100-126**');
+            intervalStrings.push('every "virtual level" after **99** up to **126**');
         }
 
         const menus: APIActionRowComponent<APIMessageActionRowComponent>[] = [];
