@@ -71,7 +71,7 @@ export function getThumbnail(name: string, options?: { is99?: boolean }) {
     return;
 }
 
-export function getRankingIconUrl(setId: string, rank: number): string {
+export function getRankingIconUrl(setId: string, rank: number | 'preview'): string {
     return `${CONSTANTS.baseThumbnailUrl}rankings/${setId}/${rank}${CONSTANTS.imageFileExtension}`;
 }
 

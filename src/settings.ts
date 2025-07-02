@@ -391,8 +391,7 @@ class SettingsInteractionHandler {
             embeds: [{
                 title: 'Settings > Weekly Settings',
                 image: {
-                    // TODO: Instead of just showing the first icon, have a "preview.png" for each icon set
-                    url: getRankingIconUrl(RANKING_ICON_SETS[weeklyRankingIconSet].id, 0)
+                    url: getRankingIconUrl(RANKING_ICON_SETS[weeklyRankingIconSet].id, 'preview')
                 },
                 description: `**Weekly XP Updates:** ${weeklyRankingMaxCount === 0 ? 'Disabled' : `Enabled (top ${weeklyRankingMaxCount})`}`
                     + `\n**Rank Icons:** ${RANKING_ICON_SETS[weeklyRankingIconSet]?.name ?? '???'}`
