@@ -192,13 +192,28 @@ export const RANKING_ICON_SETS: Record<number, { id: string, name: string, cap: 
         cap: 3
     },
     1: {
+        id: 'pickaxes',
+        name: 'Pickaxes',
+        cap: 8
+    },
+    2: {
+        id: 'scimitars',
+        name: 'Scimitars',
+        cap: 8
+    },
+    3: {
         id: 'defenders',
         name: 'Defenders',
         cap: 8
     },
-    2: {
-        id: 'pickaxes',
-        name: 'Pickaxes',
-        cap: 8
+    4: {
+        id: 'ancients',
+        name: 'Ancient Magicks',
+        cap: 10
+    },
+    5: {
+        id: 'surges',
+        name: 'Surge Spells',
+        cap: 4
     }
 };

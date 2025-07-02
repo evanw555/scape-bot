@@ -1546,28 +1546,28 @@ export function getRootSettingsMenu(): BaseMessageOptions {
             title: 'ScapeBot Settings',
             description: '**Skill Settings:**'
                 + '\n> Configure skill updates for your guild, such as thresholds for showing every 1/5/10 levels'
-                + '\n**Weekly Settings:**'
+                + '\n\n**Weekly Settings:**'
                 + '\n> Configure the weekly XP ranking updates, such as the number of players to show'
-                + '\n**Other Settings:**'
+                + '\n\n**Other Settings:**'
                 + '\n> Configure other settings, such as how often to show boss and clue updates'
-                + '\nUse the `/channel` command to choose where updates are sent, and use the `/role` command to set who can add/remove tracked players.'
+                + '\n\nUse the `/channel` command to choose where updates are sent, and use the `/role` command to set who can add/remove tracked players.'
         }],
         components: [{
             type: ComponentType.ActionRow,
             components: [{
                 type: ComponentType.Button,
                 style: ButtonStyle.Secondary,
-                label: 'Skill Settings',
+                label: 'Skills',
                 custom_id: 'settings:skills'
             }, {
                 type: ComponentType.Button,
                 style: ButtonStyle.Secondary,
-                label: 'Weekly Settings',
+                label: 'Weekly',
                 custom_id: 'settings:weekly'
             }, {
                 type: ComponentType.Button,
                 style: ButtonStyle.Secondary,
-                label: 'Other Settings',
+                label: 'Other',
                 custom_id: 'settings:other'
             }]
         }]
