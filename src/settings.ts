@@ -2,6 +2,7 @@ import { APIActionRowComponent, APIMessageActionRowComponent, ButtonStyle, Compo
 import { FORMATTED_GUILD_SETTINGS, GUILD_SETTING_OPTIONS, RANKING_ICON_SETS } from './constants';
 import { GuildSetting } from './types';
 import { naturalJoin } from 'evanw555.js';
+import { getRankingIconUrl, getRootSettingsMenu } from './util';
 
 import state from './instances/state';
 import pgStorage from './instances/pg-storage-client';
@@ -28,37 +29,7 @@ class SettingsInteractionHandler {
         }
         if (customId === 'settings:root') {
             // Show the root settings menu
-            await interaction.update({
-                embeds: [{
-                    title: 'ScapeBot Settings',
-                    description: '**Skill Settings:**'
-                        + '\n> Configure skill updates for your guild, such as thresholds for showing every 1/5/10 levels'
-                        + '\n**Weekly Settings:**'
-                        + '\n> Configure the weekly XP ranking updates, such as the number of players to show'
-                        + '\n**Other Settings:**'
-                        + '\n> Configure other settings, such as how often to show boss and clue updates'
-                        + '\nUse the `/channel` command to choose where updates are sent, and use the `/role` command to set who can add/remove tracked players.'
-                }],
-                components: [{
-                    type: ComponentType.ActionRow,
-                    components: [{
-                        type: ComponentType.Button,
-                        style: ButtonStyle.Secondary,
-                        label: 'Skill Settings',
-                        custom_id: 'settings:skills'
-                    }, {
-                        type: ComponentType.Button,
-                        style: ButtonStyle.Secondary,
-                        label: 'Weekly Settings',
-                        custom_id: 'settings:weekly'
-                    }, {
-                        type: ComponentType.Button,
-                        style: ButtonStyle.Secondary,
-                        label: 'Other Settings',
-                        custom_id: 'settings:other'
-                    }]
-                }]
-            });
+            await interaction.update(getRootSettingsMenu());
         } else if (customId === 'settings:skills') {
             await interaction.update(this.getSkillSettingsPayload(guildId));
         } else if (customId === 'settings:selectSkillAllThreshold') {
@@ -419,6 +390,10 @@ class SettingsInteractionHandler {
             content: '',
             embeds: [{
                 title: 'Settings > Weekly Settings',
+                image: {
+                    // TODO: Instead of just showing the first icon, have a "preview.png" for each icon set
+                    url: getRankingIconUrl(RANKING_ICON_SETS[weeklyRankingIconSet].id, 0)
+                },
                 description: `**Weekly XP Updates:** ${weeklyRankingMaxCount === 0 ? 'Disabled' : `Enabled (top ${weeklyRankingMaxCount})`}`
                     + `\n**Rank Icons:** ${RANKING_ICON_SETS[weeklyRankingIconSet]?.name ?? '???'}`
             }],

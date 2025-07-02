@@ -1,6 +1,6 @@
 import { Boss, BOSSES, INVALID_FORMAT_ERROR, FORMATTED_BOSS_NAMES, getRSNFormat, HISCORES_ERROR } from 'osrs-json-hiscores';
 import fs from 'fs';
-import { APIEmbed, ActionRowData, ButtonStyle, ChatInputCommandInteraction, ComponentType, MessageActionRowComponentData, MessageCreateOptions, PermissionFlagsBits, PermissionsBitField, Snowflake, TextBasedChannel, TextChannel } from 'discord.js';
+import { APIEmbed, ActionRowData, BaseMessageOptions, ButtonStyle, ChatInputCommandInteraction, ComponentType, MessageActionRowComponentData, MessageCreateOptions, PermissionFlagsBits, PermissionsBitField, Snowflake, TextBasedChannel, TextChannel } from 'discord.js';
 import { addReactsSync, DiscordTimestampFormat, filterMap, getPercentChangeString, getQuantityWithUnits, groupByProperty, MultiLoggerLevel, naturalJoin, randChoice, toDiscordTimestamp } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName, IndividualActivityName, PlayerHiScores, NegativeDiffError, CommandsType, SlashCommand, DailyAnalyticsLabel, PendingPlayerUpdate, PlayerUpdateType, PlayerUpdateKey, GuildSetting } from './types';
 import { fetchHiScores, isPlayerNotFoundError } from './hiscores';
@@ -1080,12 +1080,10 @@ export async function updateVirtualLevels(rsn: string, newVirtualLevels: Partial
                 }));
                 // Send the notification directly now (don't save as a pending update, so missed updates will be dropped)
                 await sendUpdateMessageRaw([state.getTrackingChannel(guildId)], { embeds: constructSkillUpdateEmbeds(updates) });
-                // TODO: Temp logging to see how this is working
-                await logger.log(`**${rsn}** virtual update: \`${JSON.stringify(diff)}\``, MultiLoggerLevel.Warn);
             }
         }
-        // TODO: We should either queue up a pending update or send it directly, so just logging for now
-        await logger.log(`Virtual level update for **${state.getDisplayName(rsn)}**: \`${JSON.stringify(newVirtualLevels)}\` (diff \`${JSON.stringify(diff)}\`)`, MultiLoggerLevel.Warn);
+        // TODO: Temp logging to see how this is working
+        await logger.log(`**${rsn}** virtual update: \`${JSON.stringify(diff)}\``, MultiLoggerLevel.Warn);
         // Set in the state (not to PG... yet)
         state.setVirtualLevels(rsn, newVirtualLevels);
         // Write only updated virtual levels to PG
@@ -1535,4 +1533,43 @@ export function computeLevelForXp(xp: number): number {
         }
     }
     return 1;
+}
+
+/**
+ * Construct the root settings menu payload.
+ * @returns Root settings menu payload
+ */
+export function getRootSettingsMenu(): BaseMessageOptions {
+    // TODO: Use guild ID to show dynamic payload content?
+    return {
+        embeds: [{
+            title: 'ScapeBot Settings',
+            description: '**Skill Settings:**'
+                + '\n> Configure skill updates for your guild, such as thresholds for showing every 1/5/10 levels'
+                + '\n**Weekly Settings:**'
+                + '\n> Configure the weekly XP ranking updates, such as the number of players to show'
+                + '\n**Other Settings:**'
+                + '\n> Configure other settings, such as how often to show boss and clue updates'
+                + '\nUse the `/channel` command to choose where updates are sent, and use the `/role` command to set who can add/remove tracked players.'
+        }],
+        components: [{
+            type: ComponentType.ActionRow,
+            components: [{
+                type: ComponentType.Button,
+                style: ButtonStyle.Secondary,
+                label: 'Skill Settings',
+                custom_id: 'settings:skills'
+            }, {
+                type: ComponentType.Button,
+                style: ButtonStyle.Secondary,
+                label: 'Weekly Settings',
+                custom_id: 'settings:weekly'
+            }, {
+                type: ComponentType.Button,
+                style: ButtonStyle.Secondary,
+                label: 'Other Settings',
+                custom_id: 'settings:other'
+            }]
+        }]
+    };
 }
