@@ -445,7 +445,7 @@ const slashCommands: SlashCommandsType = {
             return true;
         },
         text: 'Changes settings for ScapeBot in this guild',
-        admin: true
+        privilegedRole: true
     }
 };
 
