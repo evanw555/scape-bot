@@ -35,6 +35,8 @@ class SettingsInteractionHandler {
             if (err instanceof Error) {
                 await CommandHandler.handleError(interaction, err);
             }
+            // TODO: Temp logging to see how this is working for now
+            void logger.log(`\`${interaction.user.username}\` settings interaction \`${interaction.customId}\` ⛔`, MultiLoggerLevel.Warn);
             return;
         }
         // TODO: Temp logging to see how this is working for now

@@ -187,63 +187,64 @@ export const hiddenCommands: HiddenCommandsType = {
                     rows.push(s);
                 }
                 await msg.channel.send(rows.join('\n'));
-            }
-            // Get host uptime info
-            const uptimeString = await new Promise<string>((resolve) => {
-                exec('uptime --pretty', (error, stdout, stderr) => {
-                    if (error) {
-                        resolve(error.message);
-                    } else if (stderr) {
-                        resolve(stderr);
-                    } else {
-                        resolve(stdout);
-                    }
+            } else {
+                // Get host uptime info
+                const uptimeString = await new Promise<string>((resolve) => {
+                    exec('uptime --pretty', (error, stdout, stderr) => {
+                        if (error) {
+                            resolve(error.message);
+                        } else if (stderr) {
+                            resolve(stderr);
+                        } else {
+                            resolve(stdout);
+                        }
+                    });
                 });
-            });
-            // Send admin info back to user
-            const numGuilds = msg.client.guilds.cache.size;
-            const numCommunityGuilds = msg.client.guilds.cache.filter(g => g.features?.includes('COMMUNITY')).size;
-            const numNonEnUsGuilds = msg.client.guilds.cache.filter(g => g.preferredLocale !== 'en-US').size;
-            const playerQueue = state.getPlayerQueue();
-            await msg.channel.send({
-                content: 'Admin Information:',
-                embeds: [{
-                    title: 'Host Uptime',
-                    description: `\`${uptimeString.trim()}\``
-                }, {
-                    title: 'Timer Info',
-                    description: `\`${timer.getIntervalMeasurementDebugString()}\``
-                        + `\n\`${timer.getPlayerUpdateFrequencyString()}\``
-                        + `\n\`${timer.getIntervalsBetweenUpdatesString()}\``
-                }, {
-                    title: 'Queue Info',
-                    description: playerQueue.getLabeledDurationStrings()
-                        .map((x, i) => `**${i + 1}.** _${x.label}_: `
-                            + `**${playerQueue.getQueueSize(i)}** players (${Math.floor(100 * playerQueue.getQueueSize(i) / playerQueue.size())}%), `
-                            + `**${playerQueue.getNumIterationsForQueue(i)}** iterations, `
-                            + `_${getPreciseDurationString(playerQueue.getQueueDuration(i))}_ est. duration`).join('\n')
-                }, {
-                    title: 'Largest Guilds',
-                    description: state.getGuildsByPlayerCount()
-                        .slice(0, 10)
-                        .map((id, i) => `**${i + 1}.** _${msg.client.guilds.cache.get(id)?.name ?? '???'}_: **${state.getNumTrackedPlayers(id)}**`)
-                        .join('\n')
-                }, {
-                    title: 'Most Tracked Players',
-                    description: state.getPlayersByGuildCount()
-                        .slice(0, 10)
-                        .map((rsn, i) => `**${i + 1}.** _${state.getDisplayName(rsn)}_: **${state.getNumGuildsTrackingPlayer(rsn)}**`)
-                        .join('\n')
-                }, {
-                    title: 'Misc. Information',
-                    description: `- **Total XP** populated for **${state.getNumPlayerTotalXp()}** of **${state.getNumGloballyTrackedPlayers()}** players`
-                        + `\n- **${state.getNumPlayersOffHiScores()}** players are off the hiscores (**${Math.floor(100 * state.getNumPlayersOffHiScores() / state.getNumGloballyTrackedPlayers())}%**)`
-                        + `\n- **${numCommunityGuilds}** guilds (**${toFixed(100 * numCommunityGuilds / numGuilds)}%**) are community`
-                        + `\n- **${numNonEnUsGuilds}** guilds aren't \`en-US\` (**${toFixed(100 * numNonEnUsGuilds / numGuilds)}%**)`
-                },
-                // TODO: This maybe can be removed since we send these out weekly
-                ...await getAnalyticsTrendsEmbeds()]
-            });
+                // Send admin info back to user
+                const numGuilds = msg.client.guilds.cache.size;
+                const numCommunityGuilds = msg.client.guilds.cache.filter(g => g.features?.includes('COMMUNITY')).size;
+                const numNonEnUsGuilds = msg.client.guilds.cache.filter(g => g.preferredLocale !== 'en-US').size;
+                const playerQueue = state.getPlayerQueue();
+                await msg.channel.send({
+                    content: 'Admin Information:',
+                    embeds: [{
+                        title: 'Host Uptime',
+                        description: `\`${uptimeString.trim()}\``
+                    }, {
+                        title: 'Timer Info',
+                        description: `\`${timer.getIntervalMeasurementDebugString()}\``
+                            + `\n\`${timer.getPlayerUpdateFrequencyString()}\``
+                            + `\n\`${timer.getIntervalsBetweenUpdatesString()}\``
+                    }, {
+                        title: 'Queue Info',
+                        description: playerQueue.getLabeledDurationStrings()
+                            .map((x, i) => `**${i + 1}.** _${x.label}_: `
+                                + `**${playerQueue.getQueueSize(i)}** players (${Math.floor(100 * playerQueue.getQueueSize(i) / playerQueue.size())}%), `
+                                + `**${playerQueue.getNumIterationsForQueue(i)}** iterations, `
+                                + `_${getPreciseDurationString(playerQueue.getQueueDuration(i))}_ est. duration`).join('\n')
+                    }, {
+                        title: 'Largest Guilds',
+                        description: state.getGuildsByPlayerCount()
+                            .slice(0, 10)
+                            .map((id, i) => `**${i + 1}.** _${msg.client.guilds.cache.get(id)?.name ?? '???'}_: **${state.getNumTrackedPlayers(id)}**`)
+                            .join('\n')
+                    }, {
+                        title: 'Most Tracked Players',
+                        description: state.getPlayersByGuildCount()
+                            .slice(0, 10)
+                            .map((rsn, i) => `**${i + 1}.** _${state.getDisplayName(rsn)}_: **${state.getNumGuildsTrackingPlayer(rsn)}**`)
+                            .join('\n')
+                    }, {
+                        title: 'Misc. Information',
+                        description: `- **Total XP** populated for **${state.getNumPlayerTotalXp()}** of **${state.getNumGloballyTrackedPlayers()}** players`
+                            + `\n- **${state.getNumPlayersOffHiScores()}** players are off the hiscores (**${Math.floor(100 * state.getNumPlayersOffHiScores() / state.getNumGloballyTrackedPlayers())}%**)`
+                            + `\n- **${numCommunityGuilds}** guilds (**${toFixed(100 * numCommunityGuilds / numGuilds)}%**) are community`
+                            + `\n- **${numNonEnUsGuilds}** guilds aren't \`en-US\` (**${toFixed(100 * numNonEnUsGuilds / numGuilds)}%**)`
+                    },
+                    // TODO: This maybe can be removed since we send these out weekly
+                    ...await getAnalyticsTrendsEmbeds()]
+                });
+            }
         },
         text: 'Show various debug data for admins'
     },
