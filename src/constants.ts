@@ -105,6 +105,20 @@ export const FORMATTED_GUILD_SETTINGS: Record<GuildSetting, string> = {
     [GuildSetting.ShowOverallHiscoreUpdates]: 'Show when players become on/off the hiscores'
 } as const;
 
+export const GUILD_SETTING_SHORT_NAMES: Record<GuildSetting, string> = {
+    [GuildSetting.SkillBroadcastOneThreshold]: 'Skill 1-threshold',
+    [GuildSetting.SkillBroadcastFiveThreshold]: 'Skill 5-threshold',
+    [GuildSetting.BossBroadcastInterval]: 'Boss KC interval',
+    [GuildSetting.ClueBroadcastInterval]: 'Clue interval',
+    [GuildSetting.MinigameBroadcastInterval]: 'Minigame interval',
+    [GuildSetting.WeeklyRankingMaxCount]: 'Weekly XP ranking count',
+    [GuildSetting.WeeklyRankingIconSet]: 'Weekly XP ranking icons',
+    [GuildSetting.ReactOnSkill99]: 'React GZ on 99',
+    [GuildSetting.TagEveryoneOnSkill99]: 'Tag everyone on 99',
+    [GuildSetting.ShowVirtualSkillUpdates]: 'Show "virtual" levels',
+    [GuildSetting.ShowOverallHiscoreUpdates]: 'Show overall hiscore updates'
+} as const;
+
 export const DEFAULT_GUILD_SETTINGS: Record<GuildSetting, number> = {
     [GuildSetting.SkillBroadcastOneThreshold]: 1,
     [GuildSetting.SkillBroadcastFiveThreshold]: 1,
