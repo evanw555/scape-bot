@@ -1,10 +1,10 @@
 import { exec } from 'child_process';
-import { Message, Snowflake, APIEmbed } from 'discord.js';
-import { randInt, randChoice, forEachMessage, MultiLoggerLevel, getPreciseDurationString, toFixed, getUnambiguousQuantitiesWithUnits } from 'evanw555.js';
+import { Message, Snowflake, APIEmbed, MessageFlags } from 'discord.js';
+import { randInt, randChoice, forEachMessage, MultiLoggerLevel, getPreciseDurationString, toFixed, getUnambiguousQuantitiesWithUnits, naturalJoin } from 'evanw555.js';
 import { FORMATTED_BOSS_NAMES, BOSSES, Boss, INVALID_FORMAT_ERROR } from 'osrs-json-hiscores';
-import { OTHER_ACTIVITIES, SKILLS_NO_OVERALL, CLUES_NO_ALL, GRAY_EMBED_COLOR, CONSTANTS } from './constants';
+import { OTHER_ACTIVITIES, SKILLS_NO_OVERALL, CLUES_NO_ALL, GRAY_EMBED_COLOR, CONSTANTS, FORMATTED_GUILD_SETTINGS, DEFAULT_GUILD_SETTINGS } from './constants';
 import { fetchHiScores, isPlayerNotFoundError } from './hiscores';
-import { HiddenCommandsType, DailyAnalyticsLabel, PlayerHiScores, IndividualSkillName, IndividualClueType, IndividualActivityName } from './types';
+import { HiddenCommandsType, DailyAnalyticsLabel, PlayerHiScores, IndividualSkillName, IndividualClueType, IndividualActivityName, GuildSetting } from './types';
 import { sendUpdateMessage, isValidBoss, updatePlayer, sanitizeRSN, purgeUntrackedPlayers, fetchDisplayName, createWarningEmbed, getHelpText, getAnalyticsTrendsEmbeds, resolveHiScoresUrlTemplate } from './util';
 
 import state from './instances/state';
@@ -158,6 +158,36 @@ export const hiddenCommands: HiddenCommandsType = {
                 const formattedValues = getUnambiguousQuantitiesWithUnits(players.map(rsn => diffs[rsn] ?? 0));
                 await msg.reply('__Current weekly XP standings__:\n' + players.filter(rsn => diffs[rsn]).map((rsn, i) => `${i + 1}. **${state.getDisplayName(rsn)}** _${formattedValues[i]}_`).join('\n'));
                 return;
+            } else if (subcommand === 'settings') {
+                // Compile all settings (including defaults) for all guilds
+                const guildIds = state.getAllRelevantGuilds();
+                const settings = Object.keys(FORMATTED_GUILD_SETTINGS);
+                const allSettings = await pgStorageClient.fetchAllGuildSettings();
+                for (const rawSetting of settings) {
+                    // TODO: We need a constant for all settings
+                    const setting = parseInt(rawSetting) as GuildSetting;
+                    if (!FORMATTED_GUILD_SETTINGS[setting]) {
+                        continue;
+                    }
+                    const values: Record<number, number> = {};
+                    const possibleValues: Set<number> = new Set();
+                    let totalValues = 0;
+                    for (const guildId of guildIds) {
+                        const value = (allSettings[guildId] ?? {})[setting] ?? DEFAULT_GUILD_SETTINGS[setting];
+                        values[value] = (values[value] ?? 0) + 1;
+                        possibleValues.add(value);
+                        totalValues++;
+                    }
+                    // Sort the possible values by quantity
+                    const sortedValues = Array.from(possibleValues).sort((x, y) => values[y] - values[x]);
+                    const booleanSetting = possibleValues.size === 2 && possibleValues.has(0) && possibleValues.has(1);
+                    // Construct the string
+                    const s = `**${FORMATTED_GUILD_SETTINGS[setting]}:** ` + naturalJoin(sortedValues.map(v => `${(values[v] * 100 / totalValues).toFixed(1)}% ${booleanSetting ? (v === 0 ? 'Disabled' : 'Enabled') : v}`));
+                    await msg.channel.send({
+                        content: s,
+                        flags: [MessageFlags.SuppressNotifications]
+                    });
+                }
             }
             // Get host uptime info
             const uptimeString = await new Promise<string>((resolve) => {
