@@ -1,11 +1,13 @@
 import { APIActionRowComponent, APIMessageActionRowComponent, ButtonStyle, ComponentType, InteractionUpdateOptions, MessageComponentInteraction, Snowflake } from 'discord.js';
 import { FORMATTED_GUILD_SETTINGS, RANKING_ICON_SETS } from './constants';
 import { GuildSetting } from './types';
-import { naturalJoin } from 'evanw555.js';
+import { MultiLoggerLevel, naturalJoin } from 'evanw555.js';
 import { getRankingIconUrl, getRootSettingsMenu } from './util';
+import CommandHandler from './command-handler';
 
 import state from './instances/state';
 import pgStorage from './instances/pg-storage-client';
+import logger from './instances/logger';
 
 class SettingsInteractionHandler {
     async onMessageComponentInteraction(interaction: MessageComponentInteraction) {
@@ -17,16 +19,23 @@ class SettingsInteractionHandler {
         const guildId = interaction.guildId;
         // TODO: Validate this in a better way
         if (!guildId) {
-            return;
-        }
-        // TODO: Temp logic to ensure this is only being used by maintainers
-        if (!state.isMaintainer(interaction.user.id)) {
             await interaction.reply({
-                content: 'You can\'t do that',
+                content: 'You must use this command in a guild',
                 ephemeral: true
             });
             return;
         }
+        // TODO: Can we refactor this elsewhere so we're not borrowing logic? Perhaps add common validation logic for both interaction handlers and the command handler
+        try {
+            CommandHandler.assertHasPrivilegedRole(interaction);
+        } catch (err) {
+            if (err instanceof Error) {
+                await CommandHandler.handleError(interaction, err);
+            }
+            return;
+        }
+        // TODO: Temp logging to see how this is working for now
+        void logger.log(`\`${interaction.user.username}\` settings interaction \`${interaction.customId}\``, MultiLoggerLevel.Warn);
         if (customId === 'settings:root') {
             // Show the root settings menu
             await interaction.update(getRootSettingsMenu());

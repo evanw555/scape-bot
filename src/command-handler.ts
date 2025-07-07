@@ -2,8 +2,10 @@ import {
     ApplicationCommandDataResolvable,
     ApplicationCommandOptionType,
     AutocompleteInteraction,
+    BaseInteraction,
     ChatInputCommandInteraction,
     Interaction,
+    MessageComponentInteraction,
     PermissionFlagsBits,
     SlashCommandBuilder
 } from 'discord.js';
@@ -43,7 +45,7 @@ class CommandHandler {
             || state.isMaintainer(interaction.user.id);
     }
 
-    static assertHasPrivilegedRole(interaction: Interaction) {
+    static assertHasPrivilegedRole(interaction: BaseInteraction) {
         if (!interaction.guild) {
             throw new Error(INVALID_TEXT_CHANNEL);
         }
@@ -77,7 +79,7 @@ class CommandHandler {
         return Array.isArray(command.options);
     }
 
-    static async handleError(interaction: ChatInputCommandInteraction, err: Error) {
+    static async handleError(interaction: ChatInputCommandInteraction | MessageComponentInteraction, err: Error) {
         if (err.message === INVALID_TEXT_CHANNEL) {
             await interaction.reply({
                 content: 'This command can only be used in a guild text channel!',
@@ -103,7 +105,8 @@ class CommandHandler {
                 ephemeral: true
             });
         } else {
-            await logger.log(`Uncaught error while trying to execute command '${interaction.commandName}': ${err.toString()}`, MultiLoggerLevel.Error);
+            // TODO: Change back to "interaction.commandName" after this has been refactored properly
+            await logger.log(`Uncaught error while trying to execute command '${interaction}': ${err.toString()}`, MultiLoggerLevel.Error);
         }  
     }
 
