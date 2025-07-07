@@ -1395,7 +1395,7 @@ export async function fetchDisplayName(rsn: string): Promise<string> {
         throw new Error('Display name queries on hold due to rate limiting');
     }
     try {
-        return await getRSNFormat(rsn, DEFAULT_AXIOS_CONFIG);
+        return await getRSNFormat(rsn, DEFAULT_AXIOS_CONFIG, AUTH.gameMode);
     } catch (err) {
         // HiScores not responding, so pause display name queries temporarily
         if ((err instanceof Error) && err.message === HISCORES_ERROR) {
