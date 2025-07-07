@@ -302,14 +302,24 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
             // If player was previously on the hiscores, take them off
             state.removePlayerFromHiScores(rsn);
             await pgStorageClient.writePlayerHiScoreStatus(rsn, false);
-            await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), `**${state.getDisplayName(rsn)}** has fallen off the overall hiscores`, 'unhappy', { color: RED_EMBED_COLOR });
+            // Send an update for each guild configured to show these updates
+            for (const guildId of state.getGuildsTrackingPlayer(rsn)) {
+                if (state.hasTrackingChannel(guildId) && state.isGuildSettingEnabled(guildId, GuildSetting.ShowOverallHiscoreUpdates)) {
+                    await sendUpdateMessage([state.getTrackingChannel(guildId)], `**${state.getDisplayName(rsn)}** has fallen off the overall hiscores`, 'unhappy', { color: RED_EMBED_COLOR });
+                }
+            }
             // TODO: Temp logging to see how often this is being triggered
             await logger.log(`**${state.getDisplayName(rsn)}** has fallen off the overall hiscores`, MultiLoggerLevel.Warn);
         } else if (data.onHiScores && !state.isPlayerOnHiScores(rsn)) {
             // Player was previously off the hiscores, so add them back on!
             state.addPlayerToHiScores(rsn);
             await pgStorageClient.writePlayerHiScoreStatus(rsn, true);
-            await sendUpdateMessage(state.getTrackingChannelsForPlayer(rsn), `**${state.getDisplayName(rsn)}** has made it onto the overall hiscores`, 'happy', { color: YELLOW_EMBED_COLOR });
+            // Send an update for each guild configured to show these updates
+            for (const guildId of state.getGuildsTrackingPlayer(rsn)) {
+                if (state.hasTrackingChannel(guildId) && state.isGuildSettingEnabled(guildId, GuildSetting.ShowOverallHiscoreUpdates)) {
+                    await sendUpdateMessage([state.getTrackingChannel(guildId)], `**${state.getDisplayName(rsn)}** has made it onto the overall hiscores`, 'happy', { color: YELLOW_EMBED_COLOR });
+                }
+            }
             // TODO: Temp logging to see how often this is being triggered
             await logger.log(`**${state.getDisplayName(rsn)}** has made it onto the overall hiscores`, MultiLoggerLevel.Warn);
         }

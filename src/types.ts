@@ -172,7 +172,8 @@ export enum GuildSetting {
     WeeklyRankingIconSet = 6,
     ReactOnSkill99 = 7,
     TagEveryoneOnSkill99 = 8,
-    ShowVirtualSkillUpdates = 9
+    ShowVirtualSkillUpdates = 9,
+    ShowOverallHiscoreUpdates = 10
 }
 
 export type GuildSettingsMap = Partial<Record<GuildSetting, number>>;

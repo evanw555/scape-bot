@@ -1,5 +1,5 @@
 import { APIActionRowComponent, APIMessageActionRowComponent, ButtonStyle, ComponentType, InteractionUpdateOptions, MessageComponentInteraction, Snowflake } from 'discord.js';
-import { FORMATTED_GUILD_SETTINGS, GUILD_SETTING_OPTIONS, RANKING_ICON_SETS } from './constants';
+import { FORMATTED_GUILD_SETTINGS, RANKING_ICON_SETS } from './constants';
 import { GuildSetting } from './types';
 import { naturalJoin } from 'evanw555.js';
 import { getRankingIconUrl, getRootSettingsMenu } from './util';
@@ -81,6 +81,7 @@ class SettingsInteractionHandler {
                 await interaction.reply({ ephemeral: true, content: 'Interaction didn\'t reply for some reason' });
             }
         } else if (customId === 'settings:selectSkillMiscFlags') {
+            // TODO: This logic is very similar to the other misc flags, can we refactor it?
             if (!interaction.isStringSelectMenu()) {
                 await interaction.reply({ ephemeral: true, content: 'Failed: is NOT string select menu' });
                 return;
@@ -176,67 +177,27 @@ class SettingsInteractionHandler {
             await pgStorage.writeGuildSetting(guildId, GuildSetting.MinigameBroadcastInterval, value);
             state.setGuildSetting(guildId, GuildSetting.MinigameBroadcastInterval, value);
             await interaction.update(this.getOtherSettingsPayload(guildId));
-        } else if (customId === 'settings:selectSetting') {
-            if (interaction.isStringSelectMenu()) {
-                const value = interaction.values[0];
-                const setting = parseInt(value) as GuildSetting;
-                if (setting in FORMATTED_GUILD_SETTINGS) {
-                    await interaction.update({
-                        content: `You are editing the **${FORMATTED_GUILD_SETTINGS[setting]}** setting`,
-                        components: [{
-                            type: ComponentType.ActionRow,
-                            components: [{
-                                type: ComponentType.Button,
-                                style: ButtonStyle.Secondary,
-                                label: 'Back',
-                                custom_id: 'settings:root'
-                            }]
-                        }, {
-                            type: ComponentType.ActionRow,
-                            components: [{
-                                type: ComponentType.StringSelect,
-                                custom_id: `settings:set:${setting}`,
-                                min_values: 1,
-                                max_values: 1,
-                                placeholder: 'Select setting value...',
-                                options: Object.entries(GUILD_SETTING_OPTIONS[setting]).map(([settingValue, description]) => ({ label: description, value: settingValue }))
-                            }]
-                        }]
-                    });
-                }
+        } else if (customId === 'settings:selectOtherMiscFlags') {
+            // TODO: This logic is very similar to the skill misc flags, can we refactor it?
+            if (!interaction.isStringSelectMenu()) {
+                await interaction.reply({ ephemeral: true, content: 'Failed: is NOT string select menu' });
+                return;
             }
-        } else if (customId.startsWith('settings:set:')) {
-            if (interaction.isStringSelectMenu()) {
-                // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                const [ _settings, _set, settingString ] = customId.split(':');
-                const value = interaction.values[0];
-                const setting = parseInt(settingString) as GuildSetting;
-                if (setting in FORMATTED_GUILD_SETTINGS) {
-                    // TODO: Actually update the setting in state/PG
-                    await interaction.update({
-                        content: `You set the **${FORMATTED_GUILD_SETTINGS[setting]}** setting to **${value}**`,
-                        components: [{
-                            type: ComponentType.ActionRow,
-                            components: [{
-                                type: ComponentType.Button,
-                                style: ButtonStyle.Secondary,
-                                label: 'Back',
-                                custom_id: 'settings:root'
-                            }]
-                        }, {
-                            type: ComponentType.ActionRow,
-                            components: [{
-                                type: ComponentType.StringSelect,
-                                custom_id: `settings:set:${setting}`,
-                                min_values: 1,
-                                max_values: 1,
-                                placeholder: 'Select setting value...',
-                                options: Object.entries(GUILD_SETTING_OPTIONS[setting]).map(([settingValue, description]) => ({ label: description, value: settingValue }))
-                            }]
-                        }]
-                    });
-                }
+            const values = interaction.values.map(v => parseInt(v));
+            if (values.some(v => isNaN(v))) {
+                await interaction.reply({ ephemeral: true, content: `Failed: selected values \`${interaction.values}\` contain NaN` });
+                return;
             }
+            // Determine which settings have actually changed to minimize PG calls
+            const relevantSettings = [GuildSetting.ShowOverallHiscoreUpdates];
+            const settingsChanged: GuildSetting[] = relevantSettings.filter(s => values.includes(s) !== (state.getGuildSettingWithDefault(guildId, s) === 1));
+            // For each changed setting, write to PG and state
+            for (const setting of settingsChanged) {
+                const value = values.includes(setting) ? 1 : 0;
+                await pgStorage.writeGuildSetting(guildId, setting, value);
+                state.setGuildSetting(guildId, setting, value);
+            }
+            await interaction.update(this.getOtherSettingsPayload(guildId));
         }
     }
 
@@ -290,7 +251,7 @@ class SettingsInteractionHandler {
                 custom_id: 'settings:selectSkillAllThreshold',
                 min_values: 1,
                 max_values: 1,
-                placeholder: 'Click to set 1-level threshold',
+                placeholder: 'Set 1-level threshold',
                 options: Object.entries(options).map(([value, text]) => ({ value: value, label: text, default: oneThreshold.toString() === value }))
             }]
         });
@@ -312,7 +273,7 @@ class SettingsInteractionHandler {
                     custom_id: 'settings:selectSkillFiveThreshold',
                     min_values: 1,
                     max_values: 1,
-                    placeholder: 'Click to set 5-level threshold',
+                    placeholder: 'Set 5-level threshold',
                     options: Object.entries(options5).map(([value, text]) => ({ value: value, label: text, default: fiveThreshold.toString() === value }))
                 }]
             });
@@ -327,7 +288,7 @@ class SettingsInteractionHandler {
                     custom_id: 'settings:selectSkillMiscFlags',
                     min_values: 0,
                     max_values: 3,
-                    placeholder: 'Click to toggle additional settings',
+                    placeholder: 'Toggle additional settings',
                     options: [{
                         label: 'React on 99',
                         description: FORMATTED_GUILD_SETTINGS[GuildSetting.ReactOnSkill99],
@@ -403,7 +364,7 @@ class SettingsInteractionHandler {
                     custom_id: 'settings:selectWeeklyRankingMaxCount',
                     min_values: 1,
                     max_values: 1,
-                    placeholder: 'Click to set weekly XP ranking count',
+                    placeholder: 'Set weekly XP ranking count',
                     options: Object.entries(weeklyRankingMaxCountOptions).map(([value, label]) => ({ value, label, default: value === weeklyRankingMaxCount.toString() ? true : false }))
                 }]
             },
@@ -415,7 +376,7 @@ class SettingsInteractionHandler {
                     custom_id: 'settings:selectWeeklyRankingIconSet',
                     min_values: 1,
                     max_values: 1,
-                    placeholder: 'Click to set weekly XP icons',
+                    placeholder: 'Set weekly XP icons',
                     options: Object.entries(RANKING_ICON_SETS).map(([value, data]) => ({ value, label: data.name, description: `Has ${data.cap} icons`, default: value === weeklyRankingIconSet.toString() ? true : false }))
                 }]
             }, {
@@ -440,7 +401,7 @@ class SettingsInteractionHandler {
             return intervals.map(x => ({
                 value: x.toString(),
                 label: x === 0 ? `Disabled (no ${_label} updates)` : (x === 1 ? `Show every ${_label}` : `Show every ${x} ${_label}s`),
-                default: x === _current ? true : false
+                default: (x === _current) ? true : false
             }));
         };
 
@@ -461,6 +422,7 @@ class SettingsInteractionHandler {
                 description: `**Boss Updates:** ${constructIntervalDescription(bossInterval)}`
                     + `\n**Clue Updates:** ${constructIntervalDescription(clueInterval)}`
                     + `\n**Minigame Updates:** ${constructIntervalDescription(minigameInterval)}`
+                    // TODO: Show text description for misc flags
             }],
             components: [{
                 type: ComponentType.ActionRow,
@@ -469,7 +431,7 @@ class SettingsInteractionHandler {
                     custom_id: 'settings:selectBossInterval',
                     min_values: 1,
                     max_values: 1,
-                    placeholder: 'Click to set boss KC threshold',
+                    placeholder: 'Set boss KC interval',
                     options: constructIntervalOptions('boss KC', bossInterval)
                 }]
             }, {
@@ -479,7 +441,7 @@ class SettingsInteractionHandler {
                     custom_id: 'settings:selectClueInterval',
                     min_values: 1,
                     max_values: 1,
-                    placeholder: 'Click to set clue threshold',
+                    placeholder: 'Set clue interval',
                     options: constructIntervalOptions('clue', clueInterval)
                 }]
             }, {
@@ -489,8 +451,23 @@ class SettingsInteractionHandler {
                     custom_id: 'settings:selectMinigameInterval',
                     min_values: 1,
                     max_values: 1,
-                    placeholder: 'Click to set minigame threshold',
+                    placeholder: 'Set minigame interval',
                     options: constructIntervalOptions('minigame', minigameInterval)
+                }]
+            }, {
+                type: ComponentType.ActionRow,
+                components: [{
+                    type: ComponentType.StringSelect,
+                    custom_id: 'settings:selectOtherMiscFlags',
+                    min_values: 0,
+                    max_values: 1,
+                    placeholder: 'Toggle misc. settings',
+                    options: [{
+                        label: 'Overall hiscore status',
+                        description: FORMATTED_GUILD_SETTINGS[GuildSetting.ShowOverallHiscoreUpdates],
+                        value: GuildSetting.ShowOverallHiscoreUpdates.toString(),
+                        default: state.isGuildSettingEnabled(guildId, GuildSetting.ShowOverallHiscoreUpdates)
+                    }]
                 }]
             }, {
                 type: ComponentType.ActionRow,

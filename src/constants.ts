@@ -101,7 +101,8 @@ export const FORMATTED_GUILD_SETTINGS: Record<GuildSetting, string> = {
     [GuildSetting.WeeklyRankingIconSet]: 'Weekly XP ranking icon set',
     [GuildSetting.ReactOnSkill99]: 'React GZ on reaching level 99',
     [GuildSetting.TagEveryoneOnSkill99]: 'Tag everyone on reaching level 99',
-    [GuildSetting.ShowVirtualSkillUpdates]: 'Show "virtual" levels beyond 99'
+    [GuildSetting.ShowVirtualSkillUpdates]: 'Show "virtual" levels beyond 99',
+    [GuildSetting.ShowOverallHiscoreUpdates]: 'Show when players become on/off the hiscores'
 } as const;
 
 export const DEFAULT_GUILD_SETTINGS: Record<GuildSetting, number> = {
@@ -114,77 +115,11 @@ export const DEFAULT_GUILD_SETTINGS: Record<GuildSetting, number> = {
     [GuildSetting.WeeklyRankingIconSet]: 0,
     [GuildSetting.ReactOnSkill99]: 1,
     [GuildSetting.TagEveryoneOnSkill99]: 0,
-    [GuildSetting.ShowVirtualSkillUpdates]: 0
+    [GuildSetting.ShowVirtualSkillUpdates]: 0,
+    [GuildSetting.ShowOverallHiscoreUpdates]: 1
 } as const;
 
-// TODO: How to cleanly cast the type?
-export const ALL_GUILD_SETTINGS: GuildSetting[] = Object.keys(FORMATTED_GUILD_SETTINGS).map(e => parseInt(e)) as GuildSetting[];
-
-export const GUILD_SETTING_OPTIONS: Record<GuildSetting, Record<number, string>> = {
-    [GuildSetting.SkillBroadcastOneThreshold]: {
-        0: 'Disabled (no skill updates)',
-        1: 'Always report every level',
-        10: 'After level 10',
-        20: 'After level 20',
-        30: 'After level 30',
-        40: 'After level 40',
-        50: 'After level 50',
-        60: 'After level 60',
-        70: 'After level 70',
-        80: 'After level 80',
-        90: 'After level 90',
-        99: 'Only on reaching 99'
-    },
-    [GuildSetting.SkillBroadcastFiveThreshold]: {
-        0: 'Disabled (no skill updates)',
-        1: 'Always report every 5 levels',
-        10: 'After level 10',
-        20: 'After level 20',
-        30: 'After level 30',
-        40: 'After level 40',
-        50: 'After level 50',
-        60: 'After level 60',
-        70: 'After level 70',
-        80: 'After level 80',
-        90: 'After level 90'
-    },
-    [GuildSetting.BossBroadcastInterval]: {
-        0: 'Disabled (no boss updates)',
-        1: 'Every kill',
-        2: 'Every 2 kills',
-        5: 'Every 5 kills',
-        10: 'Every 10 kills',
-        25: 'Every 25 kills'
-    },
-    [GuildSetting.ClueBroadcastInterval]: {
-        0: 'Disabled (no clue updates)',
-        1: 'Every clue',
-        2: 'Every 2 clues',
-        5: 'Every 5 clues',
-        10: 'Every 10 clues',
-        25: 'Every 25 clues'
-    },
-    [GuildSetting.MinigameBroadcastInterval]: {
-        0: 'Disabled (no minigame/activity updates)',
-        1: 'Every activity completion',
-        2: 'Every 2 completions',
-        5: 'Every 5 completions',
-        10: 'Every 10 completions',
-        25: 'Every 25 completions'
-    },
-    [GuildSetting.WeeklyRankingMaxCount]: {
-        0: 'Disabled (no weekly XP update)',
-        3: 'Top 3 players',
-        4: 'Top 4 players',
-        5: 'Top 5 players',
-        10: 'Top 10 players'
-    },
-    [GuildSetting.WeeklyRankingIconSet]: {},
-    [GuildSetting.ReactOnSkill99]: {},
-    [GuildSetting.TagEveryoneOnSkill99]: {},
-    [GuildSetting.ShowVirtualSkillUpdates]: {}
-};
-
+// TODO: Add a new "index" property so we can sort these options regardless of their numeric ID
 export const RANKING_ICON_SETS: Record<number, { id: string, name: string, cap: number }> = {
     0: {
         id: 'default',
