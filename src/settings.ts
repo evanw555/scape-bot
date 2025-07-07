@@ -27,7 +27,10 @@ class SettingsInteractionHandler {
         }
         // TODO: Can we refactor this elsewhere so we're not borrowing logic? Perhaps add common validation logic for both interaction handlers and the command handler
         try {
-            CommandHandler.assertHasPrivilegedRole(interaction);
+            // Only need to check role if user is not an admin or maintainer
+            if (!CommandHandler.isAdminOrMaintainer(interaction)) {
+                CommandHandler.assertHasPrivilegedRole(interaction);
+            }
         } catch (err) {
             if (err instanceof Error) {
                 await CommandHandler.handleError(interaction, err);

@@ -40,7 +40,7 @@ class CommandHandler {
         }
     }
 
-    static isAdminOrMaintainer(interaction: Interaction) {
+    static isAdminOrMaintainer(interaction: BaseInteraction) {
         return interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)
             || state.isMaintainer(interaction.user.id);
     }
