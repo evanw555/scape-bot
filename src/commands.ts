@@ -429,14 +429,6 @@ const slashCommands: SlashCommandsType = {
     },
     settings: {
         execute: async (interaction) => {
-            // TODO: Temp logic to make this inaccessible while in development
-            if (!state.isMaintainer(interaction.user.id)) {
-                await interaction.reply({
-                    content: 'This command is still under construction. Please check back later.',
-                    ephemeral: true
-                });
-                return false;
-            }
             // Show the root settings menu
             await interaction.reply({
                 ...getRootSettingsMenu(),
