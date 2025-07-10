@@ -7,7 +7,8 @@ import {
     Interaction,
     MessageComponentInteraction,
     PermissionFlagsBits,
-    SlashCommandBuilder
+    SlashCommandBuilder,
+    TextChannel
 } from 'discord.js';
 import { MultiLoggerLevel } from 'evanw555.js';
 import { INVALID_TEXT_CHANNEL, UNAUTHORIZED_USER, STATE_DISABLED, UNAUTHORIZED_ROLE } from './constants';
@@ -207,7 +208,7 @@ class CommandHandler {
             return;
         }
         const command = this.commands[interaction.commandName];
-        const debugString = `\`${interaction.user.tag}\` executed command \`${interaction.toString()}\` in _${interaction.guild?.name ?? '???'}_ \`#${interaction.channel ?? '???'}\``;
+        const debugString = `\`${interaction.user.tag}\` executed command \`${interaction.toString()}\` in _${interaction.guild?.name ?? '???'}_ \`#${((interaction.channel instanceof TextChannel) ? interaction.channel.name : undefined) ?? '???'}\``;
         try {
             if (command.failIfDisabled) {
                 CommandHandler.failIfDisabled();
