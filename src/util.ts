@@ -1092,8 +1092,6 @@ export async function updateVirtualLevels(rsn: string, newVirtualLevels: Partial
                 await sendUpdateMessageRaw([state.getTrackingChannel(guildId)], { embeds: constructSkillUpdateEmbeds(updates) });
             }
         }
-        // TODO: Temp logging to see how this is working
-        await logger.log(`**${rsn}** virtual update: \`${JSON.stringify(diff)}\``, MultiLoggerLevel.Warn);
         // Set in the state (not to PG... yet)
         state.setVirtualLevels(rsn, newVirtualLevels);
         // Write only updated virtual levels to PG

@@ -1,6 +1,6 @@
 import { exec } from 'child_process';
 import { Message, Snowflake, APIEmbed } from 'discord.js';
-import { randInt, randChoice, forEachMessage, MultiLoggerLevel, getPreciseDurationString, toFixed, getUnambiguousQuantitiesWithUnits } from 'evanw555.js';
+import { randInt, randChoice, forEachMessage, MultiLoggerLevel, getPreciseDurationString, toFixed, getUnambiguousQuantitiesWithUnits, getQuantityWithUnits } from 'evanw555.js';
 import { FORMATTED_BOSS_NAMES, BOSSES, Boss, INVALID_FORMAT_ERROR } from 'osrs-json-hiscores';
 import { OTHER_ACTIVITIES, SKILLS_NO_OVERALL, CLUES_NO_ALL, GRAY_EMBED_COLOR, CONSTANTS, FORMATTED_GUILD_SETTINGS, DEFAULT_GUILD_SETTINGS, RANKING_ICON_SETS, GUILD_SETTING_SHORT_NAMES } from './constants';
 import { fetchHiScores, isPlayerNotFoundError } from './hiscores';
@@ -183,7 +183,7 @@ export const hiddenCommands: HiddenCommandsType = {
                     const sortedValues = Array.from(possibleValues).sort((x, y) => values[y] - values[x]);
                     const booleanSetting = possibleValues.size === 2 && possibleValues.has(0) && possibleValues.has(1);
                     // Construct the string
-                    const s = `**${GUILD_SETTING_SHORT_NAMES[setting]}:** ` + sortedValues.map(v => `${(values[v] * 100 / totalValues).toFixed(1)}% **${setting === GuildSetting.WeeklyRankingIconSet ? (RANKING_ICON_SETS[v].name) : (booleanSetting ? (v === 0 ? 'Disabled' : 'Enabled') : v)}**`).join(',');
+                    const s = `__**${GUILD_SETTING_SHORT_NAMES[setting]}**__\n` + sortedValues.map(v => `- **${setting === GuildSetting.WeeklyRankingIconSet ? (RANKING_ICON_SETS[v].name) : (booleanSetting ? (v === 0 ? 'Disabled' : 'Enabled') : v)}:** ${getQuantityWithUnits(values[v] ?? 0)} (${(values[v] * 100 / totalValues).toFixed(1)}%)`).join('\n');
                     rows.push(s);
                 }
                 await msg.channel.send(rows.join('\n'));
