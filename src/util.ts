@@ -173,22 +173,17 @@ export function camelize(str: string) {
  * Returns a diff of two maps.
  *
  * @param before map of number values
- * @param after map of number values, must be a superset of before
- * @param baselineValue for any key missing from the before map, default to this value
+ * @param after map of number values
+ * @param baselineValue for any key missing from either map, default to this value
  * @returns A map containing the diff for entries where the value has increased
  */
 export function computeDiff<T extends string>(before: Partial<Record<T, number>>, after: Partial<Record<T, number>>, baselineValue: number): Partial<Record<T, number>> {
-    // Validate that before's keys are a subset of after's
-    if (!Object.keys(before).every(key => key in after)) {
-        throw new Error(`Cannot compute diff, before ${Object.keys(before).join(',')} is not a subset of after ${Object.keys(after).join(',')}`);
-    }
-
     // For each key, add the diff to the overall diff mapping
     const diff: Partial<Record<T, number>> = {};
-    const kinds: T[] = Object.keys(after) as T[];
+    const kinds: T[] = Array.from(new Set([...Object.keys(before), ...Object.keys(after)])) as T[];
     for (const kind of kinds) {
         const beforeValue: number = before[kind] ?? baselineValue;
-        const afterValue: number = after[kind] as number;
+        const afterValue: number = after[kind] ?? baselineValue;
         // Validate value types (e.g. strange subtraction behavior if a string is passed in)
         if (typeof beforeValue !== 'number' || typeof afterValue !== 'number') {
             throw new Error(`Invalid types for **${kind}** diff, before \`${beforeValue}\` is type ${typeof beforeValue} and after \`${typeof afterValue}\` is type ${typeof afterValue}`);
@@ -198,6 +193,7 @@ export function computeDiff<T extends string>(before: Partial<Record<T, number>>
             // TODO: the default isn't necessarily 0, it could be 1 for skills (but does that really matter?)
             const thisDiff = afterValue - beforeValue;
             // Fail silently if the negative diff is because the user has fallen off the hi scores
+            // TODO: This is a weird assumption, maybe we should check this separately before computing the diff?
             if (thisDiff < 0 && afterValue === 1) {
                 throw new Error('');
             }
@@ -425,7 +421,7 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
     }
 
     // If the player has enough negative diff strikes, run the rollback procedure on them
-    if (negativeDiffStrikes[rsn] >= 20) {
+    if (negativeDiffStrikes[rsn] >= 10) {
         await rollBackPlayerStats(rsn, data);
         delete negativeDiffStrikes[rsn];
     }
@@ -1099,8 +1095,6 @@ export async function updateVirtualLevels(rsn: string, newVirtualLevels: Partial
 
         return true;
     }
-
-    // TODO: Write to PG and handle the actual state stuff here
 
     return false;
 }

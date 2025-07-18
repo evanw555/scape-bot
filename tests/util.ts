@@ -1,7 +1,34 @@
 import { expect } from 'chai';
-import { computeLevelForXp, diffPassesMilestone } from '../src/util';
+import { computeDiff, computeLevelForXp, diffPassesMilestone } from '../src/util';
+import { NegativeDiffError } from '../src/types';
 
 describe('Util Tests', () => {
+    it('computes diffs correctly', () => {
+        // Standard cases
+        expect(JSON.stringify(computeDiff({ a: 1, b: 1 }, { a: 2, b: 3 }, 1))).equals('{"a":1,"b":2}')
+        expect(JSON.stringify(computeDiff({ a: 5, b: 6, c: 10, d: 15 }, { a: 5, b: 7, c: 30, d: 15 }, 1))).equals('{"b":1,"c":20}')
+
+        // Cases where the "before" value might be missing
+        expect(JSON.stringify(computeDiff({ }, { a: 2, b: 3 }, 1))).equals('{"a":1,"b":2}')
+        expect(JSON.stringify(computeDiff({ a: 5 }, { a: 5, b: 7 }, 1))).equals('{"b":6}')
+
+        // Cases with a negative diff
+        expect(() => computeDiff({ a: 10, b: 10 }, { a: 12, b: 9 }, 1)).throws(NegativeDiffError, 'Negative **b** diff: `9 - 10 = -1`');
+        expect(() => computeDiff({ a: 10, b: 10, c: 10 }, { a: 12, b: 9, c: 8 }, 1)).throws(NegativeDiffError, 'Negative **b** diff: `9 - 10 = -1`');
+
+        // Cases with a negative diff because the "after" is missing
+        expect(() => computeDiff({ a: 20, b: 20, c: 20 }, { a: 22, b: 20 }, 0)).throws(NegativeDiffError, 'Negative **c** diff: `0 - 20 = -20`');
+        expect(() => computeDiff({ a: 126, b: 101 }, { c: 130 }, 99)).throws(NegativeDiffError, 'Negative **a** diff: `99 - 126 = -27`');
+
+        // Cases with invalid values
+        expect(() => computeDiff({ a: 1 }, { a: NaN }, 1)).throws(Error, 'Invalid **a** diff, `NaN` minus `1` is `NaN`');
+
+        // Cases that fail silently because negative diffs to 1 indicate that the user has fallen off the hiscores
+        // TODO: Should this be patched out? It's weird
+        expect(() => computeDiff({ a: 10 }, { a: 1 }, 1)).throws(Error, '');
+        expect(() => computeDiff({ a: 10 }, { }, 1)).throws(Error, '');
+    });
+
     it('determines if an update diff passes an interval milestone', () => {
         // 1-interval
         expect(diffPassesMilestone(1, 2, 1), 'Update 1-to-2 passes 1-interval milestone').is.true;
