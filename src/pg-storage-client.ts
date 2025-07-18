@@ -265,6 +265,10 @@ export default class PGStorageClient {
         await this.client.query(format('INSERT INTO player_virtual_levels VALUES %L ON CONFLICT (rsn, skill) DO UPDATE SET level = EXCLUDED.level;', values));
     }
 
+    async deletePlayerVirtualLevel(rsn: string, skill: IndividualSkillName) {
+        await this.client.query('DELETE FROM player_virtual_levels WHERE rsn = $1 AND skill = $2;', [rsn, skill]);
+    }
+
     async fetchAllPlayerVirtualLevels(): Promise<Record<string, Partial<Record<IndividualSkillName, number>>>> {
         const result: Record<string, Partial<Record<IndividualSkillName, number>>> = {};
         const queryResult = await this.client.query<{rsn: string, skill: IndividualSkillName, level: number}>('SELECT * FROM player_virtual_levels;');

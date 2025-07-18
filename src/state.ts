@@ -664,6 +664,23 @@ export default class State {
         return this._virtualLevels[rsn][skill] as number;
     }
 
+    setVirtualLevel(rsn: string, skill: IndividualSkillName, virtualLevel: number): void {
+        if (!this.hasVirtualLevels(rsn)) {
+            throw new Error(`Trying to set ${skill} virtual level for ${rsn} without there being pre-existing virtual levels`);
+        }
+        if (virtualLevel <= 99) {
+            throw new Error(`Trying to set ${skill} virtual level for ${rsn} to ${virtualLevel} (must be above 99)`);
+        }
+        this._virtualLevels[rsn][skill] = virtualLevel;
+    }
+
+    clearVirtualLevel(rsn: string, skill: IndividualSkillName): void {
+        if (!this.hasVirtualLevels(rsn)) {
+            throw new Error(`Trying to clear ${skill} virtual level for ${rsn} without there being pre-existing virtual levels`);
+        }
+        delete this._virtualLevels[rsn][skill];
+    }
+
     getBotCounter(botId: Snowflake): number {
         return this._botCounters[botId];
     }

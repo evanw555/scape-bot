@@ -1146,6 +1146,22 @@ export async function rollBackPlayerStats(rsn: string, data: PlayerHiScores) {
                 logs.push(`**${skill}** ${before} → ${after}`);
             }
         }
+        // Roll back virtual levels too
+        if (state.hasVirtualLevel(rsn, skill)) {
+            const before = state.getVirtualLevel(rsn, skill);
+            const after = data.virtualLevels[skill];
+            // Virtual levels are unique because if it goes back to 99 or below, it needs to be wiped
+            // TODO: Will this cause confusion when logged? Not everyone has virtual levels enabled
+            if (after === undefined) {
+                state.clearVirtualLevel(rsn, skill);
+                await pgStorageClient.deletePlayerVirtualLevel(rsn, skill);
+                logs.push(`**${skill} (virtual)** ${before} → 99 or below`);
+            } else if (after - before < 0) {
+                state.setVirtualLevel(rsn, skill, after);
+                await pgStorageClient.writePlayerVirtualLevels(rsn, { [skill]: after });
+                logs.push(`**${skill} (virtual)** ${before} → ${after}`);
+            }
+        }
     }
     for (const boss of BOSSES) {
         if (state.hasBoss(rsn, boss)) {
