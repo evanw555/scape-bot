@@ -164,5 +164,15 @@ export const RANKING_ICON_SETS: Record<number, { id: string, name: string, cap: 
         id: 'surges',
         name: 'Surge Spells',
         cap: 4
+    },
+    6: {
+        id: 'coins10',
+        name: 'Coins (10)',
+        cap: 10
+    },
+    7: {
+        id: 'coins5',
+        name: 'Coins (5)',
+        cap: 5
     }
 };
