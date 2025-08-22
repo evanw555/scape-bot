@@ -157,9 +157,14 @@ export async function sendUpdateMessage(channels: TextBasedChannel[], text: stri
 
 export async function replyUpdateMessage(interaction: ChatInputCommandInteraction, text: string, name: string, options?: UpdateMessageOptions): Promise<void> {
     try {
-        await interaction.reply(buildUpdateMessage(text, name, options));
+        const payload = buildUpdateMessage(text, name, options);
+        if (interaction.deferred) {
+            await interaction.editReply(payload);
+        } else {
+            await interaction.reply(payload);
+        }
     } catch (err) {
-        await logger.log(`Unable to reply to interaction \`${interaction.id}\` with update message: \`${err}\``, MultiLoggerLevel.Warn);
+        await logger.log(`Unable to reply to interaction \`${interaction.commandName}\` with update message: \`${err}\``, MultiLoggerLevel.Warn);
     }
 }
 

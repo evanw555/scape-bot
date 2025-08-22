@@ -255,6 +255,7 @@ const slashCommands: SlashCommandsType = {
         execute: async (interaction) => {
             const rawRsn = interaction.options.getString('username', true);
             const rsn = sanitizeRSN(rawRsn);
+            await interaction.deferReply();
             try {
                 // Retrieve the player's hiscores data
                 const data = await fetchHiScores(rsn);
@@ -285,11 +286,11 @@ const slashCommands: SlashCommandsType = {
                 // Showing the sanitized RSN may lead them to believe that the error is related to sanitization (I think?)
                 if (isPlayerNotFoundError(err)) {
                     await logger.log(`\`${interaction.user.tag}\` checked player **${rsn}** but got a 404`, MultiLoggerLevel.Warn);
-                    await interaction.reply(`Couldn't find player **${rawRsn.trim()}** on the hiscores`);
+                    await interaction.editReply(`Couldn't find player **${rawRsn.trim()}** on the hiscores`);
                     // TODO: If this player has any data in the state, just use that along with a disclaimer
                 } else {
                     await logger.log(`Error while fetching hiscores (check) for player **${rsn}**: \`${err}\``, MultiLoggerLevel.Error);
-                    await interaction.reply(`Couldn't fetch hiscores for player **${rawRsn.trim()}** :pensive:\n\`${err}\``);
+                    await interaction.editReply(`Couldn't fetch hiscores for player **${rawRsn.trim()}** :pensive:\n\`${err}\``);
                 }
                 return false;
             }
@@ -317,6 +318,7 @@ const slashCommands: SlashCommandsType = {
             const rsn = sanitizeRSN(interaction.options.getString('username', true));
             // This must be a valid boss, since we define the valid choices
             const boss = interaction.options.getString('boss', true) as Boss;
+            await interaction.deferReply();
             try {
                 // Retrieve the player's hiscores data
                 const data: PlayerHiScores = await fetchHiScores(rsn);
@@ -334,10 +336,7 @@ const slashCommands: SlashCommandsType = {
             } catch (err) {
                 if (err instanceof Error) {
                     await logger.log(`Error while fetching hiscores (check) for player ${rsn}: ${err.toString()}`, MultiLoggerLevel.Error);
-                    await interaction.reply({
-                        content: `Couldn't fetch hiscores for player **${state.getDisplayName(rsn)}** :pensive:\n\`${err.toString()}\``,
-                        ephemeral: true
-                    });
+                    await interaction.editReply(`Couldn't fetch hiscores for player **${state.getDisplayName(rsn)}** :pensive:\n\`${err.toString()}\``);
                 }
                 return false;
             }
