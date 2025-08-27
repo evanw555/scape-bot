@@ -227,7 +227,7 @@ export function toSortedCluesNoAll(clues: string[]): IndividualClueType[] {
     return CLUES_NO_ALL.filter((clue: IndividualClueType) => clueSubSet.has(clue));
 }
 
-export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record<string, number>, primer?: boolean }): Promise<void> {
+export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record<string, number>, primer?: boolean }): Promise<{ activity: boolean, numUpdatesSent: number } | undefined> {
     // Retrieve the player's hiscores data
     let data: PlayerHiScores;
     try {
@@ -442,6 +442,7 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
     }
 
     // Prototype logic for processing pending player updates
+    let numUpdatesSent = 0;
     if (processPendingUpdates) {
         // Increment player updates counter
         timer.incrementPlayerUpdates();
@@ -471,6 +472,7 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
                 if (updatesToSend.length > 0) {
                     // Construct messages for the filtered updates and send them out
                     await sendPlayerUpdates(trackingChannel, updatesToSend);
+                    numUpdatesSent += updatesToSend.length;
                     // Delete all the updates
                     // TODO: Can we batch this?
                     // TODO: Can we only delete updates that are actually sent out?
@@ -482,6 +484,8 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
             }
         }
     }
+
+    return { activity, numUpdatesSent };
 }
 
 /**

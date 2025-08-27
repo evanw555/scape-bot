@@ -574,8 +574,24 @@ export const hiddenCommands: HiddenCommandsType = {
             const rsn = sanitizeRSN(rawRsn);
 
             try {
-                await updatePlayer(rsn);
-                await msg.reply(`Refreshed **${state.getDisplayName(rsn)}**!`);
+                // First, get pre-refresh timing information
+                const lastRefresh = state.getLastRefresh(rsn);
+                let timingInfoString = '';
+                if (lastRefresh) {
+                    const timeSinceLastRefresh: number = new Date().getTime() - lastRefresh.getTime();
+                    const timeSinceLastActive: number = state.getTimeSincePlayerLastActive(rsn);
+                    timingInfoString += `Before this, _${getPreciseDurationString(timeSinceLastRefresh)}_ since last refresh, `
+                        + `_${getPreciseDurationString(timeSinceLastActive)}_ since last active, `
+                        + `and in queue _${state.getContainingQueueLabel(rsn)}_`;
+                }
+
+                // Now, refresh the player
+                const result = await updatePlayer(rsn);
+
+                // Construct a response with lots of insightful debug info
+                const activity = result?.activity ?? false;
+                const numUpdatesSent = result?.numUpdatesSent ?? 0;
+                await msg.reply(`Refreshed **${state.getDisplayName(rsn)}**! ${activity ? 'Activity detected' : 'No activity'}, **${numUpdatesSent}** update${numUpdatesSent === 1 ? '' : 's'} sent. ${timingInfoString}`);
             } catch (err) {
                 await msg.reply(`Error while updating **${state.getDisplayName(rsn)}**: \`${err}\``);
             }
