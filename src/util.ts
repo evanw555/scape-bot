@@ -382,7 +382,9 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
     }
 
     // Check if virtual levels have changed and send notifications
-    if (state.hasVirtualLevels(rsn)) {
+    // TODO: It seems like the first time a player gets a virtual level, the update isn't sent out because the "else" path is taken.
+    // TODO: Testing here to see if using the primer flag makes more sense. Will this change be needed for bosses, clues, and minigames too?
+    if (!options?.primer || state.hasVirtualLevels(rsn)) {
         // TODO: Do we need to count this as "activity"? Total XP should already cover this
         await updateVirtualLevels(rsn, data.virtualLevels);
     } else {
@@ -1052,15 +1054,10 @@ export function constructActivitiesUpdateEmbeds(updates: PendingPlayerUpdate[]):
 }
 
 export async function updateVirtualLevels(rsn: string, newVirtualLevels: Partial<Record<IndividualSkillName, number>>): Promise<boolean> {
-    // We shouldn't be doing this if this player doesn't have any virtual levels in the state
-    if (!state.hasVirtualLevels(rsn)) {
-        return false;
-    }
-
     // Compute diff for each level
     let diff: Partial<Record<IndividualSkillName, number>>;
     try {
-        diff = computeDiff(state.getVirtualLevels(rsn), newVirtualLevels, 99);
+        diff = computeDiff(state.hasVirtualLevels(rsn) ? state.getVirtualLevels(rsn) : {}, newVirtualLevels, 99);
     } catch (err) {
         if (err instanceof NegativeDiffError) {
             negativeDiffStrikes[rsn] = (negativeDiffStrikes[rsn] ?? 0) + 1;
