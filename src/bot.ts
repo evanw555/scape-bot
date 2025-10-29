@@ -773,8 +773,8 @@ client.on('guildDelete', async (guild) => {
 });
 
 client.on('messageCreate', async (msg) => {
-    // Only process messages from other users mentions
-    if (msg.mentions.has(client.user as ClientUser) && msg.author.id !== client.user?.id) {
+    // Only process messages from other users' mentions (don't include replies or everyone tags)
+    if (msg.mentions.has(client.user as ClientUser) && msg.author.id !== client.user?.id && !msg.reference && !msg.mentions.everyone) {
         // If the message was sent by another bot, troll epic style 😈
         // TODO: Make this configurable
         const ENABLE_BOTTING_LEVEL = false;
