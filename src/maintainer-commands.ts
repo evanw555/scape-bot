@@ -573,6 +573,12 @@ export const hiddenCommands: HiddenCommandsType = {
             }
             const rsn = sanitizeRSN(rawRsn);
 
+            // Validate that the player is even tracked
+            if (!state.isPlayerTrackedInAnyGuilds(rsn)) {
+                await msg.reply(`I'm not tracking **${rsn}** anywhere`);
+                return;
+            }
+
             try {
                 // First, get pre-refresh timing information
                 const lastRefresh = state.getLastRefresh(rsn);
