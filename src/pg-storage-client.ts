@@ -202,6 +202,12 @@ export default class PGStorageClient {
         if (Object.keys(levels).length === 0) {
             return;
         }
+        // TODO: This is just temp logging to inspect a few things before sailing launches
+        if ('sailing' in levels) {
+            void logger.log(`WARNING! Trying to write a sailing row to PG for **${rsn}**: \`${JSON.stringify(levels)}\``, MultiLoggerLevel.Error);
+        } else if (Object.values(levels).includes(1)) {
+            void logger.log(`WARNING! Trying to write a level 1 row to PG for **${rsn}**: \`${JSON.stringify(levels)}\``, MultiLoggerLevel.Warn);
+        }
         const values = Object.keys(levels).map(skill => [rsn, skill, levels[skill]]);
         if (values.length === 0) {
             return;
