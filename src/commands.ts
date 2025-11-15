@@ -123,9 +123,10 @@ const slashCommands: SlashCommandsType = {
             // Note that because the unconfirmed name can't be overwritten, the first person to track this player determines its value.
             // TODO: If the inputted RSN differes from the existing unconfirmed display name, should we explain why to the user? This seems like an extreme corner case...
             if (!state.hasConfirmedDisplayName(rsn) && !state.hasUnconfirmedDisplayName(rsn) && rsn !== rawRsnInput) {
-                // TODO: Should this value be trimmed? Technically the spaces count as valid RSN characters, so maybe not...
-                await pgStorageClient.writePlayerDisplayName(rsn, rawRsnInput, false);
-                state.setUnconfirmedDisplayName(rsn, rawRsnInput);
+                // Validation of the RSN arg should catch values longer than 12 characters, but trim here just in case to avoid violating PG constraints
+                const unconfirmedDisplayName = rawRsnInput.length > 12 ? rawRsnInput.trim().slice(0, 12) : rawRsnInput;
+                await pgStorageClient.writePlayerDisplayName(rsn, unconfirmedDisplayName, false);
+                state.setUnconfirmedDisplayName(rsn, unconfirmedDisplayName);
             }
             // Edit the reply with an initial success message (and any guild warnings there may be)
             const replyText = `Now tracking player **${state.getDisplayName(rsn)}**!\nUse **/list** to see tracked players.`;
