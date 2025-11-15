@@ -279,12 +279,13 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
     }
 
     // Try to fetch a missing display name only if "priming" or if the player is on the hiscores (since that's when the name becomes accessible)
-    if ((options?.primer || data.onHiScores) && !state.hasDisplayName(rsn)) {
+    if ((options?.primer || data.onHiScores) && !state.hasConfirmedDisplayName(rsn)) {
         try {
             const displayName = await fetchDisplayName(rsn);
-            state.setDisplayName(rsn, displayName);
-            await pgStorageClient.writePlayerDisplayName(rsn, displayName);
-            await logger.log(`Fetched display name for **${rsn}** as **${displayName}** (**${state.getNumPlayerDisplayNames()}**/**${state.getNumGloballyTrackedPlayers()}** complete)`, MultiLoggerLevel.Debug);
+            state.setConfirmedDisplayName(rsn, displayName);
+            state.clearUnconfirmedDisplayName(rsn);
+            await pgStorageClient.writePlayerDisplayName(rsn, displayName, true);
+            await logger.log(`Fetched display name for **${rsn}** as **${displayName}** (**${state.getNumPlayerConfirmedDisplayNames()}**/**${state.getNumGloballyTrackedPlayers()}** complete)`, MultiLoggerLevel.Debug);
         } catch (err) {
             // TODO: Reduce this down to Info if this appears to be working as expected (no repeated failures)
             await logger.log(`Failed to fetch display name for **${rsn}**: \`${err}\``, MultiLoggerLevel.Warn);

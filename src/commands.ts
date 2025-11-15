@@ -119,15 +119,17 @@ const slashCommands: SlashCommandsType = {
                 // TODO: This should instead be its own separate method perhaps?
                 await updatePlayer(rsn, { primer: true });
             }
-            // If the display name could not be found and it's different than what the user input, warn them
-            const warningEmbeds = getGuildWarningEmbeds(guildId);
-            if (!state.hasDisplayName(rsn) && rsn !== rawRsnInput) {
-                // TODO: Display name can also be missing due to rate limiting, can we detect and communicate this?
-                warningEmbeds.push(createWarningEmbed('The correct formatting of this player\'s username could not be determined, '
-                    + `so they will be tracked as **${rsn}** (versus **${rawRsnInput.trim()}**) until they reach the overall hiscores.`));
+            // If the player's display name couldn't be confirmed, use the inputted name as the "unconfirmed" display name for now.
+            // Note that because the unconfirmed name can't be overwritten, the first person to track this player determines its value.
+            // TODO: If the inputted RSN differes from the existing unconfirmed display name, should we explain why to the user? This seems like an extreme corner case...
+            if (!state.hasConfirmedDisplayName(rsn) && !state.hasUnconfirmedDisplayName(rsn) && rsn !== rawRsnInput) {
+                // TODO: Should this value be trimmed? Technically the spaces count as valid RSN characters, so maybe not...
+                await pgStorageClient.writePlayerDisplayName(rsn, rawRsnInput, false);
+                state.setUnconfirmedDisplayName(rsn, rawRsnInput);
             }
             // Edit the reply with an initial success message (and any guild warnings there may be)
             const replyText = `Now tracking player **${state.getDisplayName(rsn)}**!\nUse **/list** to see tracked players.`;
+            const warningEmbeds = getGuildWarningEmbeds(guildId);
             await interaction.editReply({
                 content: replyText,
                 embeds: warningEmbeds

@@ -26,7 +26,7 @@ export default class PGStorageClient {
         'tracked_players': 'CREATE TABLE tracked_players (guild_id BIGINT, rsn VARCHAR(12), PRIMARY KEY (guild_id, rsn));',
         'tracking_channels': 'CREATE TABLE tracking_channels (guild_id BIGINT PRIMARY KEY, channel_id BIGINT);',
         'player_hiscore_status': 'CREATE TABLE player_hiscore_status (rsn VARCHAR(12) PRIMARY KEY, on_hiscores BOOLEAN);',
-        'player_display_names': 'CREATE TABLE player_display_names (rsn VARCHAR(12) PRIMARY KEY, display_name VARCHAR(12));',
+        'player_display_names': 'CREATE TABLE player_display_names (rsn VARCHAR(12) PRIMARY KEY, display_name VARCHAR(12), confirmed BOOLEAN);',
         'player_activity_timestamps': 'CREATE TABLE player_activity_timestamps (rsn VARCHAR(12) PRIMARY KEY, timestamp TIMESTAMPTZ);',
         'player_refresh_timestamps': 'CREATE TABLE player_refresh_timestamps (rsn VARCHAR(12) PRIMARY KEY, timestamp TIMESTAMPTZ);',
         'bot_counters': 'CREATE TABLE bot_counters (user_id BIGINT PRIMARY KEY, counter INTEGER);',
@@ -35,6 +35,16 @@ export default class PGStorageClient {
         'daily_analytics': 'CREATE TABLE daily_analytics (date DATE, label SMALLINT, value INTEGER, PRIMARY KEY (date, label));',
         'misc_properties': 'CREATE TABLE misc_properties (name VARCHAR(32) PRIMARY KEY, value VARCHAR(2048));'
     };
+
+    // List of table migrations that are run on startup. If the column "should_migrate" of the resulting row is true, run all statements.
+    private static readonly MIGRATIONS: { description: string, condition: string, statements: string[] }[] = [{
+        description: 'Add column "confirmed" to player_display_names',
+        condition: 'SELECT NOT EXISTS(SELECT * FROM information_schema.columns WHERE table_name = \'player_display_names\' AND column_name = \'confirmed\') AS should_migrate;',
+        statements: [
+            'ALTER TABLE player_display_names ADD COLUMN confirmed BOOLEAN;',
+            'UPDATE player_display_names SET confirmed = true;'
+        ]
+    }];
 
     // List of tables that should be purged if the player corresponding to a row is missing from tracked_players
     private static readonly PURGEABLE_PLAYER_TABLES: TableName[] = [
@@ -78,7 +88,7 @@ export default class PGStorageClient {
 
     async initializeTables(): Promise<void> {
         const results: string[] = [];
-        for (const [ tableName, tableSchema ] of Object.entries(PGStorageClient.TABLES)) {
+        for (const [ tableName, tableSchema ] of Object.entries(PGStorageClient.TABLES) as [TableName, string][]) {
             if (await this.doesTableExist(tableName)) {
                 results.push(`✅ Table \`${tableName}\` exists **(${getQuantityWithUnits(await this.getTableSize(tableName as TableName))})**`);
             } else {
@@ -86,10 +96,27 @@ export default class PGStorageClient {
                 results.push(`⚠️ Table \`${tableName}\` created`);
             }
         }
+        // Run all migrations that pass their respective condition
+        for (const { description, condition, statements } of PGStorageClient.MIGRATIONS) {
+            const shouldMigrate = (await this.client.query<{ should_migrate: boolean }>(condition)).rows[0].should_migrate;
+            if (shouldMigrate) {
+                try {
+                    await this.client.query('BEGIN;');
+                    for (const statement of statements) {
+                        await this.client.query(statement);
+                    }
+                    await this.client.query('COMMIT;');
+                    results.push(`⚠️ Performed migration: \`${description}\``);
+                } catch (err) {
+                    await this.client.query('ROLLBACK;');
+                    results.push(`⛔ Failed migration: \`${description}\` (\`${err}\`)`);
+                }
+            }
+        }
         await logger.log(results.join('\n'), MultiLoggerLevel.Warn);
     }
     
-    async doesTableExist(name: string): Promise<boolean> {
+    async doesTableExist(name: TableName): Promise<boolean> {
         return (await this.client.query<{ exists: boolean }>('SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = $1);', [name])).rows[0].exists;
     }
 
@@ -385,17 +412,20 @@ export default class PGStorageClient {
         await this.client.query('INSERT INTO player_hiscore_status VALUES ($1, $2) ON CONFLICT (rsn) DO UPDATE SET on_hiscores = EXCLUDED.on_hiscores;', [rsn, onHiScores]);
     }
 
-    async fetchAllPlayerDisplayNames(): Promise<Record<string, string>> {
-        const result: Record<string, string> = {};
-        const queryResult = await this.client.query<{rsn: string, display_name: string}>('SELECT * FROM player_display_names;');
+    async fetchAllPlayerDisplayNames(): Promise<Record<string, { displayName: string, confirmed: boolean }>> {
+        const result: Record<string, { displayName: string, confirmed: boolean }> = {};
+        const queryResult = await this.client.query<{rsn: string, display_name: string, confirmed: boolean}>('SELECT * FROM player_display_names;');
         for (const row of queryResult.rows) {
-            result[row.rsn] = row.display_name;
+            result[row.rsn] = {
+                displayName: row.display_name,
+                confirmed: row.confirmed
+            };
         }
         return result;
     }
 
-    async writePlayerDisplayName(rsn: string, displayName: string): Promise<void> {
-        await this.client.query('INSERT INTO player_display_names VALUES ($1, $2) ON CONFLICT (rsn) DO UPDATE SET display_name = EXCLUDED.display_name;', [rsn, displayName]);
+    async writePlayerDisplayName(rsn: string, displayName: string, confirmed: boolean): Promise<void> {
+        await this.client.query('INSERT INTO player_display_names VALUES ($1, $2, $3) ON CONFLICT (rsn) DO UPDATE SET display_name = EXCLUDED.display_name, confirmed = EXCLUDED.confirmed;', [rsn, displayName, confirmed]);
     }
 
     async fetchAllPlayerActivityTimestamps(): Promise<Record<string, Date>> {

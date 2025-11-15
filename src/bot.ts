@@ -188,8 +188,12 @@ const loadState = async (): Promise<void> => {
     }
 
     const playerDisplayNames = await pgStorageClient.fetchAllPlayerDisplayNames();
-    for (const [ rsn, displayName ] of Object.entries(playerDisplayNames)) {
-        state.setDisplayName(rsn, displayName);
+    for (const [ rsn, { displayName, confirmed } ] of Object.entries(playerDisplayNames)) {
+        if (confirmed) {
+            state.setConfirmedDisplayName(rsn, displayName);
+        } else {
+            state.setUnconfirmedDisplayName(rsn, displayName);
+        }
     }
 
     const trackingChannels = await pgStorageClient.fetchAllTrackingChannels();

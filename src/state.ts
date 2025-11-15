@@ -19,7 +19,8 @@ export default class State {
     private readonly _virtualLevels: Record<string, Partial<Record<IndividualSkillName, number>>>;
     private readonly _botCounters: Record<Snowflake, number>;
     private readonly _lastRefresh: Record<string, Date>;
-    private readonly _displayNames: Record<string, string>;
+    private readonly _confirmedDisplayNames: Record<string, string>;
+    private readonly _unconfirmedDisplayNames: Record<string, string>;
     private readonly _totalXp: Record<string, number>;
     private readonly _maintainerIds: Set<Snowflake>;
 
@@ -47,7 +48,8 @@ export default class State {
 
         this._botCounters = {};
         this._lastRefresh = {};
-        this._displayNames = {};
+        this._confirmedDisplayNames = {};
+        this._unconfirmedDisplayNames = {};
         this._totalXp = {};
         this._maintainerIds = new Set();
 
@@ -180,7 +182,8 @@ export default class State {
             delete this._clues[rsn];
             delete this._activities[rsn];
             delete this._lastRefresh[rsn];
-            delete this._displayNames[rsn];
+            delete this._confirmedDisplayNames[rsn];
+            delete this._unconfirmedDisplayNames[rsn];
             delete this._totalXp[rsn];
             this._playersOffHiScores.delete(rsn);
             void logger.log(`Removed player ${rsn} from the master queue`, MultiLoggerLevel.Debug);
@@ -396,25 +399,41 @@ export default class State {
         return now - (this.getLastRefresh(rsn)?.getTime() ?? 0);
     }
 
+    /**
+     * For a given player, get their effective "display name" by checking their confirmed display name,
+     * falling back onto their unconfirmed display name, then ultimately their raw RSN.
+     */
     getDisplayName(rsn: string): string {
-        return this._displayNames[rsn] ?? rsn;
-    }
-
-    hasDisplayName(rsn: string): boolean {
-        return rsn in this._displayNames;
-    }
-
-    setDisplayName(rsn: string, displayName: string): void {
-        this._displayNames[rsn] = displayName;
+        return this._confirmedDisplayNames[rsn] ?? this._unconfirmedDisplayNames[rsn] ?? rsn;
     }
 
     getDisplayNames(rsns: string[]): string[] {
         return rsns.map(rsn => this.getDisplayName(rsn));
     }
 
+    hasConfirmedDisplayName(rsn: string): boolean {
+        return rsn in this._confirmedDisplayNames;
+    }
+
+    setConfirmedDisplayName(rsn: string, displayName: string): void {
+        this._confirmedDisplayNames[rsn] = displayName;
+    }
+
     // TODO: Will this be needed after we're done populating names?
-    getNumPlayerDisplayNames(): number {
-        return Object.keys(this._displayNames).length;
+    getNumPlayerConfirmedDisplayNames(): number {
+        return Object.keys(this._confirmedDisplayNames).length;
+    }
+
+    hasUnconfirmedDisplayName(rsn: string): boolean {
+        return rsn in this._unconfirmedDisplayNames;
+    }
+
+    setUnconfirmedDisplayName(rsn: string, displayName: string) {
+        this._unconfirmedDisplayNames[rsn] = displayName;
+    }
+
+    clearUnconfirmedDisplayName(rsn: string) {
+        delete this._unconfirmedDisplayNames[rsn];
     }
 
     getTotalXp(rsn: string): number {
