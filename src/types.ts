@@ -38,7 +38,6 @@ export interface ScapeBotConfig {
 }
 
 export interface ScapeBotConstants {
-    skills: SkillName[],
     miscThumbnails: string[],
     baseThumbnailUrl: string,
     level99Path: string,

@@ -12,7 +12,7 @@ import pgStorageClient from './instances/pg-storage-client';
 import timeSlotInstance from './instances/timeslot';
 import timer from './instances/timer';
 
-const validSkills: Set<string> = new Set(CONSTANTS.skills);
+const validSkills: Set<string> = new Set(SKILLS_NO_OVERALL);
 const validClues: Set<string> = new Set(CLUES_NO_ALL);
 const validMiscThumbnails: Set<string> = new Set(CONSTANTS.miscThumbnails);
 

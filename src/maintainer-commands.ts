@@ -2,7 +2,7 @@ import { exec } from 'child_process';
 import { Message, Snowflake, APIEmbed } from 'discord.js';
 import { randInt, randChoice, forEachMessage, MultiLoggerLevel, getPreciseDurationString, toFixed, getUnambiguousQuantitiesWithUnits, getQuantityWithUnits } from 'evanw555.js';
 import { FORMATTED_BOSS_NAMES, BOSSES, Boss, INVALID_FORMAT_ERROR } from 'osrs-json-hiscores';
-import { OTHER_ACTIVITIES, SKILLS_NO_OVERALL, CLUES_NO_ALL, GRAY_EMBED_COLOR, CONSTANTS, FORMATTED_GUILD_SETTINGS, DEFAULT_GUILD_SETTINGS, RANKING_ICON_SETS, GUILD_SETTING_SHORT_NAMES } from './constants';
+import { OTHER_ACTIVITIES, SKILLS_NO_OVERALL, CLUES_NO_ALL, GRAY_EMBED_COLOR, FORMATTED_GUILD_SETTINGS, DEFAULT_GUILD_SETTINGS, RANKING_ICON_SETS, GUILD_SETTING_SHORT_NAMES } from './constants';
 import { fetchHiScores, isPlayerNotFoundError } from './hiscores';
 import { HiddenCommandsType, DailyAnalyticsLabel, PlayerHiScores, IndividualSkillName, IndividualClueType, IndividualActivityName, GuildSetting } from './types';
 import { sendUpdateMessage, isValidBoss, updatePlayer, sanitizeRSN, purgeUntrackedPlayers, fetchDisplayName, createWarningEmbed, getHelpText, getAnalyticsTrendsEmbeds, resolveHiScoresUrlTemplate } from './util';
@@ -14,8 +14,6 @@ import infoLog from './instances/info-log';
 import logger from './instances/logger';
 import loggerIndices from './instances/logger-indices';
 import pgStorageClient from './instances/pg-storage-client';
-
-const validSkills = new Set<string>(CONSTANTS.skills);
 
 // Storing rollback-related data as volatile in-memory variables because it doesn't need to be persistent
 let rollbackStaging: { rsn: string, category: 'skill' | 'boss' | 'clue' | 'activity', name: string, score: number }[] = [];
@@ -30,7 +28,7 @@ const hiScoresUrlTemplate = resolveHiScoresUrlTemplate();
 export const hiddenCommands: HiddenCommandsType = {
     thumbnail: {
         fn: (msg, rawArgs, name) => {
-            if (validSkills.has(name)) {
+            if (SKILLS_NO_OVERALL.includes(name as IndividualSkillName)) {
                 void sendUpdateMessage([msg.channel], 'Here is the thumbnail', name, {
                     title: name
                 });
@@ -46,7 +44,7 @@ export const hiddenCommands: HiddenCommandsType = {
     },
     thumbnail99: {
         fn: (msg, rawArgs, skill) => {
-            if (validSkills.has(skill)) {
+            if (SKILLS_NO_OVERALL.includes(skill as IndividualSkillName)) {
                 void sendUpdateMessage([msg.channel], 'Here is the level 99 thumbnail', skill, {
                     title: skill,
                     is99: true
