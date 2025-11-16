@@ -215,11 +215,15 @@ export const hiddenCommands: HiddenCommandsType = {
                             + `\n\`${timer.getIntervalsBetweenUpdatesString()}\``
                     }, {
                         title: 'Queue Info',
-                        description: playerQueue.getLabeledDurationStrings()
-                            .map((x, i) => `**${i + 1}.** _${x.label}_: `
-                                + `**${playerQueue.getQueueSize(i)}** players (${Math.floor(100 * playerQueue.getQueueSize(i) / playerQueue.size())}%), `
-                                + `**${playerQueue.getNumIterationsForQueue(i)}** iterations, `
-                                + `_${getPreciseDurationString(playerQueue.getQueueDuration(i))}_ est. duration`).join('\n')
+                        description: playerQueue.getQueueDurationInfo()
+                            .map((x, i) => {
+                                const numOverdue = playerQueue.getPlayersInQueue(i).filter(rsn => (state.getLastRefresh(rsn)?.getTime() ?? 0) < x.overdueTimestamp).length;
+                                return `**${i + 1}.** _${x.label}_: `
+                                    + `**${playerQueue.getQueueSize(i)}** players (${Math.floor(100 * playerQueue.getQueueSize(i) / playerQueue.size())}%), `
+                                    + `**${numOverdue}** overdue (${Math.floor(100 * numOverdue / playerQueue.size())}%), `
+                                    + `**${playerQueue.getNumIterationsForQueue(i)}** iterations, `
+                                    + `_${x.durationString}_ est. duration`;
+                            }).join('\n')
                     }, {
                         title: 'Largest Guilds',
                         description: state.getGuildsByPlayerCount()

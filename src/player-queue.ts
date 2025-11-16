@@ -210,6 +210,15 @@ export default class PlayerQueue {
     }
 
     /**
+     * For a given queue, returns the RSNs of all players in that queue.
+     * @param index Index of the queue we're checking
+     * @returns Sorted list of RSNs contained in this queue
+     */
+    getPlayersInQueue(index: number): string[] {
+        return this.queues[index].queue.toSortedArray();
+    }
+
+    /**
      * For a given queue, determine how many times we'll need to poll from the composite queue before this particular queue is fully traversed.
      * @param index Index of the queue we're checking for
      * @returns Number of iterations of the composite player queue
@@ -263,12 +272,16 @@ export default class PlayerQueue {
         }));
     }
 
-    getLabeledDurationStrings(): { label: string, thresholdLabel: string, duration: string }[] {
+    getQueueDurationInfo(): { label: string, thresholdLabel: string, duration: number, durationString: string, overdueTimestamp: number }[] {
+        const now = new Date().getTime();
         return this.queues.map((queue, index) => {
+            const duration = this.getQueueDuration(index);
             return {
                 label: queue.config.label,
                 thresholdLabel: queue.config.thresholdLabel,
-                duration: getPreciseDurationString(this.getQueueDuration(index))
+                duration,
+                durationString: getPreciseDurationString(duration),
+                overdueTimestamp: now - duration
             };
         });
     }
