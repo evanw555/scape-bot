@@ -1,6 +1,6 @@
 import { exec } from 'child_process';
 import { Message, Snowflake, APIEmbed } from 'discord.js';
-import { randInt, randChoice, forEachMessage, MultiLoggerLevel, getPreciseDurationString, toFixed, getUnambiguousQuantitiesWithUnits, getQuantityWithUnits } from 'evanw555.js';
+import { randInt, randChoice, forEachMessage, MultiLoggerLevel, getPreciseDurationString, toFixed, getUnambiguousQuantitiesWithUnits, getQuantityWithUnits, getMinKey } from 'evanw555.js';
 import { FORMATTED_BOSS_NAMES, BOSSES, Boss, INVALID_FORMAT_ERROR } from 'osrs-json-hiscores';
 import { OTHER_ACTIVITIES, SKILLS_NO_OVERALL, CLUES_NO_ALL, GRAY_EMBED_COLOR, FORMATTED_GUILD_SETTINGS, DEFAULT_GUILD_SETTINGS, RANKING_ICON_SETS, GUILD_SETTING_SHORT_NAMES } from './constants';
 import { fetchHiScores, isPlayerNotFoundError } from './hiscores';
@@ -202,6 +202,7 @@ export const hiddenCommands: HiddenCommandsType = {
                 const numGuilds = msg.client.guilds.cache.size;
                 const numCommunityGuilds = msg.client.guilds.cache.filter(g => g.features?.includes('COMMUNITY')).size;
                 const numNonEnUsGuilds = msg.client.guilds.cache.filter(g => g.preferredLocale !== 'en-US').size;
+                const mostOverduePlayer = getMinKey(state.getAllGloballyTrackedPlayers().filter(rsn => state.hasLastRefresh(rsn)), rsn => state.getLastRefresh(rsn)?.getTime() ?? 0);
                 const playerQueue = state.getPlayerQueue();
                 await msg.channel.send({
                     content: 'Admin Information:',
@@ -220,7 +221,7 @@ export const hiddenCommands: HiddenCommandsType = {
                                 const numOverdue = playerQueue.getPlayersInQueue(i).filter(rsn => (state.getLastRefresh(rsn)?.getTime() ?? 0) < x.overdueTimestamp).length;
                                 return `**${i + 1}.** _${x.label}_: `
                                     + `**${playerQueue.getQueueSize(i)}** players (${Math.floor(100 * playerQueue.getQueueSize(i) / playerQueue.size())}%), `
-                                    + `**${numOverdue}** overdue (${Math.floor(100 * numOverdue / playerQueue.size())}%), `
+                                    + `**${numOverdue}** overdue (${Math.floor(100 * numOverdue / playerQueue.getQueueSize(i))}%), `
                                     + `**${playerQueue.getNumIterationsForQueue(i)}** iterations, `
                                     + `_${x.durationString}_ est. duration`;
                             }).join('\n')
@@ -242,6 +243,7 @@ export const hiddenCommands: HiddenCommandsType = {
                             + `\n- **${state.getNumPlayersOffHiScores()}** players are off the hiscores (**${Math.floor(100 * state.getNumPlayersOffHiScores() / state.getNumGloballyTrackedPlayers())}%**)`
                             + `\n- **${numCommunityGuilds}** guilds (**${toFixed(100 * numCommunityGuilds / numGuilds)}%**) are community`
                             + `\n- **${numNonEnUsGuilds}** guilds aren't \`en-US\` (**${toFixed(100 * numNonEnUsGuilds / numGuilds)}%**)`
+                            + `\n- **${state.getDisplayName(mostOverduePlayer)}** (${playerQueue.getContainingQueueLabel(mostOverduePlayer)}) is the most overdue player, with _${getPreciseDurationString(state.getTimeSinceLastRefresh(mostOverduePlayer))}_ since last refresh`
                     },
                     // TODO: This maybe can be removed since we send these out weekly
                     ...await getAnalyticsTrendsEmbeds()]
