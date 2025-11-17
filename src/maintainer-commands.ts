@@ -601,7 +601,7 @@ export const hiddenCommands: HiddenCommandsType = {
                 // Construct a response with lots of insightful debug info
                 const activity = result?.activity ?? false;
                 const numUpdatesSent = result?.numUpdatesSent ?? 0;
-                await msg.reply(`Refreshed **${state.getDisplayName(rsn)}**! ${activity ? 'Activity detected' : 'No activity'}, **${numUpdatesSent}** update${numUpdatesSent === 1 ? '' : 's'} sent. ${timingInfoString}`);
+                await msg.reply(`Refreshed **${state.getDisplayName(rsn)}**! ${activity ? 'Activity detected' : 'No activity'}${result === undefined ? ' (failed)': ''}, **${numUpdatesSent}** update${numUpdatesSent === 1 ? '' : 's'} sent. ${timingInfoString}`);
             } catch (err) {
                 await msg.reply(`Error while updating **${state.getDisplayName(rsn)}**: \`${err}\``);
             }

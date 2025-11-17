@@ -253,6 +253,9 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
                 // TODO: Temp logging to see how this is playing out
                 await logger.log(`Silently removed **${state.getDisplayName(rsn)}** from the hiscores due to update 404`, MultiLoggerLevel.Debug);
             }
+            // Mark this player as refreshed because the error was only due to them being not on the hiscores
+            state.setLastRefresh(rsn, new Date());
+            await pgStorageClient.updatePlayerRefreshTimestamp(rsn, new Date());
             // If the player was active/inactive then suddenly sees a 404 (banned?), adjust their timestamp to bump them down to the archive queue
             // TODO: Re-enable this logic once osrs-json-hiscores returns a more nuanced error message?
             // if (options?.primer || state.getTimeSincePlayerLastActive(rsn) < INACTIVE_THRESHOLD_MILLIES) {
@@ -277,6 +280,10 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
         }
         return;
     }
+
+    // Successful hiscores fetch, so mark this player as having been refreshed
+    state.setLastRefresh(rsn, new Date());
+    await pgStorageClient.updatePlayerRefreshTimestamp(rsn, new Date());
 
     // Try to fetch a missing display name only if "priming" or if the player is on the hiscores (since that's when the name becomes accessible)
     if ((options?.primer || data.onHiScores) && !state.hasConfirmedDisplayName(rsn)) {
@@ -339,8 +346,6 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
         // If this player has no levels in the state, prime with initial data (NOT including assumed defaults)
         state.setLevels(rsn, data.levels);
         await pgStorageClient.writePlayerLevels(rsn, data.levels);
-        state.setLastRefresh(rsn, new Date());
-        await pgStorageClient.updatePlayerRefreshTimestamp(rsn, new Date());
     }
 
     // Check if bosses have changed and send notifications
@@ -352,8 +357,6 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
         // If this player has no bosses in the state, prime with initial data (NOT including assumed defaults)
         state.setBosses(rsn, data.bosses);
         await pgStorageClient.writePlayerBosses(rsn, data.bosses);
-        state.setLastRefresh(rsn, new Date());
-        await pgStorageClient.updatePlayerRefreshTimestamp(rsn, new Date());
     }
 
     // Check if clues have changed and send notifications
@@ -365,8 +368,6 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
         // If this player has no clues in the state, prime with initial data (NOT including assumed defaults)
         state.setClues(rsn, data.clues);
         await pgStorageClient.writePlayerClues(rsn, data.clues);
-        state.setLastRefresh(rsn, new Date());
-        await pgStorageClient.updatePlayerRefreshTimestamp(rsn, new Date());
     }
 
     // Check if other activities have changed and send notifications
@@ -378,8 +379,6 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
         // If this player has no activities in the state, prime with initial data (NOT including assumed defaults)
         state.setActivities(rsn, data.activities);
         await pgStorageClient.writePlayerActivities(rsn, data.activities);
-        state.setLastRefresh(rsn, new Date());
-        await pgStorageClient.updatePlayerRefreshTimestamp(rsn, new Date());
     }
 
     // Check if virtual levels have changed and send notifications
@@ -634,8 +633,6 @@ export async function updateLevels(rsn: string, newLevels: Record<IndividualSkil
         // Write only updated skills to PG
         await pgStorageClient.writePlayerLevels(rsn, filterMap(newLevels, { keyWhitelist: updatedSkills }));
         state.setLevels(rsn, newLevels);
-        state.setLastRefresh(rsn, new Date());
-        await pgStorageClient.updatePlayerRefreshTimestamp(rsn, new Date());
         if (updatedSkills.length > 0) {
             await logger.log(`**${rsn}** update: \`${JSON.stringify(diff)}\``, MultiLoggerLevel.Debug);
             return true;
@@ -747,8 +744,6 @@ export async function updateKillCounts(rsn: string, newScores: Record<Boss, numb
         // Write only updated bosses to PG
         await pgStorageClient.writePlayerBosses(rsn, filterMap(newScores, { keyWhitelist: updatedBosses }));
         state.setBosses(rsn, newScores);
-        state.setLastRefresh(rsn, new Date());
-        await pgStorageClient.updatePlayerRefreshTimestamp(rsn, new Date());
         if (updatedBosses.length > 0) {
             await logger.log(`**${rsn}** update: \`${JSON.stringify(diff)}\``, MultiLoggerLevel.Debug);
             return true;
@@ -863,8 +858,6 @@ export async function updateClues(rsn: string, newScores: Record<IndividualClueT
         // Write only updated clues to PG
         await pgStorageClient.writePlayerClues(rsn, filterMap(newScores, { keyWhitelist: updatedClues }));
         state.setClues(rsn, newScores);
-        state.setLastRefresh(rsn, new Date());
-        await pgStorageClient.updatePlayerRefreshTimestamp(rsn, new Date());
         if (updatedClues.length > 0) {
             await logger.log(`**${rsn}** update: \`${JSON.stringify(diff)}\``, MultiLoggerLevel.Debug);
             return true;
@@ -976,8 +969,6 @@ export async function updateActivities(rsn: string, newScores: Record<Individual
         // Write only updated activities to PG
         await pgStorageClient.writePlayerActivities(rsn, filterMap(newScores, { keyWhitelist: updatedActivities }));
         state.setActivities(rsn, newScores);
-        state.setLastRefresh(rsn, new Date());
-        await pgStorageClient.updatePlayerRefreshTimestamp(rsn, new Date());
         if (updatedActivities.length > 0) {
             await logger.log(`**${rsn}** update: \`${JSON.stringify(diff)}\``, MultiLoggerLevel.Debug);
             return true;
