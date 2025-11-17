@@ -185,6 +185,21 @@ export const hiddenCommands: HiddenCommandsType = {
                     rows.push(s);
                 }
                 await msg.channel.send(rows.join('\n'));
+            } else if (subcommand === 'refreshed') {
+                // Put all players into buckets based on how many weeks it's been since their last refresh
+                const rsns = state.getAllGloballyTrackedPlayers();
+                const buckets: Record<string, number> = {};
+                const WEEK_IN_MILLIS = 1000 * 60 * 60 * 24 * 7;
+                for (const rsn of rsns) {
+                    const timeSinceRefresh = state.getTimeSinceLastRefresh(rsn);
+                    const weeksSinceRefresh = Math.floor(timeSinceRefresh / WEEK_IN_MILLIS);
+                    const key = weeksSinceRefresh.toString();
+                    buckets[key] = (buckets[key] ?? 0) + 1;
+                }
+                const maxBucketSize = Math.max(...Object.values(buckets));
+                const keys = Object.keys(buckets).sort((x, y) => parseInt(x) - parseInt(y));
+                // Return that info as a chart
+                await msg.channel.send('**Weeks Since Refresh (Num Players):**\n' + keys.map(key => `${key}: ${'#'.repeat(Math.round(20 * buckets[key] / maxBucketSize)).padEnd(20, '.')} (${buckets[key]})`).join('\n'));
             } else {
                 // Get host uptime info
                 const uptimeString = await new Promise<string>((resolve) => {
