@@ -118,6 +118,11 @@ const slashCommands: SlashCommandsType = {
             if (globallyNewPlayer) {
                 // TODO: This should instead be its own separate method perhaps?
                 await updatePlayer(rsn, { primer: true });
+                // If this player is being tracked for the first time, ensure they get a default last-refresh timestamp
+                if (!state.hasLastRefresh(rsn)) {
+                    await pgStorageClient.updatePlayerRefreshTimestamp(rsn, new Date());
+                    state.setLastRefresh(rsn, new Date());
+                }
             }
             // If the player's display name couldn't be confirmed, use the inputted name as the "unconfirmed" display name for now.
             // Note that because the unconfirmed name can't be overwritten, the first person to track this player determines its value.

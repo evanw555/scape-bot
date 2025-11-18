@@ -197,9 +197,12 @@ export const hiddenCommands: HiddenCommandsType = {
                     buckets[key] = (buckets[key] ?? 0) + 1;
                 }
                 const maxBucketSize = Math.max(...Object.values(buckets));
+                const bucketSizePadding = maxBucketSize.toString().length;
                 const keys = Object.keys(buckets).sort((x, y) => parseInt(x) - parseInt(y));
                 // Return that info as a chart
-                await msg.channel.send('**Weeks Since Refresh (Num Players):**\n' + keys.map(key => `${key}: ${'#'.repeat(Math.round(20 * buckets[key] / maxBucketSize)).padEnd(20, '.')} (${buckets[key]})`).join('\n'));
+                await msg.channel.send('**Weeks Since Refresh (Num Players):**\n```\n'
+                    + keys.map(key => `${buckets[key].toString().padStart(bucketSizePadding)} | ${key}: ${'#'.repeat(Math.round(50 * buckets[key] / maxBucketSize))}`).join('\n')
+                    + '\n```');
             } else {
                 // Get host uptime info
                 const uptimeString = await new Promise<string>((resolve) => {
