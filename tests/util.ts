@@ -12,6 +12,9 @@ describe('Util Tests', () => {
         expect(JSON.stringify(computeDiff({ }, { a: 2, b: 3 }, 1))).equals('{"a":1,"b":2}')
         expect(JSON.stringify(computeDiff({ a: 5 }, { a: 5, b: 7 }, 1))).equals('{"b":6}')
 
+        // Case with specific key overrides
+        expect(JSON.stringify(computeDiff({ }, { a: 10, b: 10, c: 10 }, 1, { baselineOverrides: { b: 5, c: 10 } }))).equals('{"a":9,"b":5}')
+
         // Cases with a negative diff
         expect(() => computeDiff({ a: 10, b: 10 }, { a: 12, b: 9 }, 1)).throws(NegativeDiffError, 'Negative **b** diff: `9 - 10 = -1`');
         expect(() => computeDiff({ a: 10, b: 10, c: 10 }, { a: 12, b: 9, c: 8 }, 1)).throws(NegativeDiffError, 'Negative **b** diff: `9 - 10 = -1`');

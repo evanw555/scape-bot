@@ -4,7 +4,7 @@ import { APIEmbed, ActionRowData, BaseMessageOptions, ButtonStyle, ChatInputComm
 import { addReactsSync, DiscordTimestampFormat, filterMap, getPercentChangeString, getQuantityWithUnits, groupByProperty, MultiLoggerLevel, naturalJoin, randChoice, toDiscordTimestamp } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName, IndividualActivityName, PlayerHiScores, NegativeDiffError, CommandsType, SlashCommand, DailyAnalyticsLabel, PendingPlayerUpdate, PlayerUpdateType, PlayerUpdateKey, GuildSetting } from './types';
 import { fetchHiScores, isPlayerNotFoundError } from './hiscores';
-import { AUTH, CONSTANTS, BOSS_EMBED_COLOR, CLUES_NO_ALL, CLUE_EMBED_COLOR, COMPLETE_VERB_BOSSES, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, DOPE_COMPLETE_VERBS, DOPE_KILL_VERBS, GRAY_EMBED_COLOR, RED_EMBED_COLOR, SKILLS_NO_OVERALL, SKILL_EMBED_COLOR, YELLOW_EMBED_COLOR, REQUIRED_PERMISSIONS, REQUIRED_PERMISSION_NAMES, CONFIG, DEFAULT_AXIOS_CONFIG, OTHER_ACTIVITIES, DEFAULT_ACTIVITY_SCORE, ACTIVITY_EMBED_COLOR, OTHER_ACTIVITIES_MAP } from './constants';
+import { AUTH, CONSTANTS, BOSS_EMBED_COLOR, CLUES_NO_ALL, CLUE_EMBED_COLOR, COMPLETE_VERB_BOSSES, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, DOPE_COMPLETE_VERBS, DOPE_KILL_VERBS, GRAY_EMBED_COLOR, RED_EMBED_COLOR, SKILLS_NO_OVERALL, SKILL_EMBED_COLOR, YELLOW_EMBED_COLOR, REQUIRED_PERMISSIONS, REQUIRED_PERMISSION_NAMES, CONFIG, DEFAULT_AXIOS_CONFIG, OTHER_ACTIVITIES, DEFAULT_ACTIVITY_SCORE, ACTIVITY_EMBED_COLOR, OTHER_ACTIVITIES_MAP, DEFAULT_ACTIVITY_SCORE_OVERRIDES } from './constants';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -180,15 +180,17 @@ export function camelize(str: string) {
  * @param before map of number values
  * @param after map of number values
  * @param baselineValue for any key missing from either map, default to this value
+ * @param options.baselineOverrides used to override the baseline value for one particular key
  * @returns A map containing the diff for entries where the value has increased
  */
-export function computeDiff<T extends string>(before: Partial<Record<T, number>>, after: Partial<Record<T, number>>, baselineValue: number): Partial<Record<T, number>> {
+export function computeDiff<T extends string>(before: Partial<Record<T, number>>, after: Partial<Record<T, number>>, baselineValue: number, options?: { baselineOverrides: Partial<Record<T, number>> }): Partial<Record<T, number>> {
+    const baselineOverrides: Partial<Record<T, number>> = options?.baselineOverrides ?? {};
     // For each key, add the diff to the overall diff mapping
     const diff: Partial<Record<T, number>> = {};
     const kinds: T[] = Array.from(new Set([...Object.keys(before), ...Object.keys(after)])) as T[];
     for (const kind of kinds) {
-        const beforeValue: number = before[kind] ?? baselineValue;
-        const afterValue: number = after[kind] ?? baselineValue;
+        const beforeValue: number = before[kind] ?? baselineOverrides[kind] ?? baselineValue;
+        const afterValue: number = after[kind] ?? baselineOverrides[kind] ?? baselineValue;
         // Validate value types (e.g. strange subtraction behavior if a string is passed in)
         if (typeof beforeValue !== 'number' || typeof afterValue !== 'number') {
             throw new Error(`Invalid types for **${kind}** diff, before \`${beforeValue}\` is type ${typeof beforeValue} and after \`${typeof afterValue}\` is type ${typeof afterValue}`);
@@ -445,6 +447,7 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
 
     // Prototype logic for processing pending player updates
     let numUpdatesSent = 0;
+    let numGuildRecipients = 0;
     if (processPendingUpdates) {
         // Increment player updates counter
         timer.incrementPlayerUpdates();
@@ -475,15 +478,19 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
                     // Construct messages for the filtered updates and send them out
                     await sendPlayerUpdates(trackingChannel, updatesToSend);
                     numUpdatesSent += updatesToSend.length;
+                    numGuildRecipients++;
                     // Delete all the updates
                     // TODO: Can we batch this?
                     // TODO: Can we only delete updates that are actually sent out?
                     for (const update of updatesToSend) {
                         await pgStorageClient.deletePendingPlayerUpdate(update);
                     }
-                    await logger.log(`Sent **${updatesToSend.length}** update(s) for **${state.getDisplayName(rsn)}** (**${updates.length}** in PG)`, MultiLoggerLevel.Debug);
                 }
             }
+        }
+        if (numUpdatesSent > 0 && numGuildRecipients > 0) {
+            await logger.log(`Sent **${numUpdatesSent}** update${numUpdatesSent === 1 ? '' : 's'} for **${state.getDisplayName(rsn)}**`
+                + (numGuildRecipients > 1 ? ` (across **${numGuildRecipients}** guilds)` : ''), MultiLoggerLevel.Debug);
         }
     }
 
@@ -930,7 +937,7 @@ export async function updateActivities(rsn: string, newScores: Record<Individual
                 }
             }
         } else {
-            diff = computeDiff(state.getActivities(rsn), newScores, DEFAULT_ACTIVITY_SCORE);
+            diff = computeDiff(state.getActivities(rsn), newScores, DEFAULT_ACTIVITY_SCORE, { baselineOverrides: DEFAULT_ACTIVITY_SCORE_OVERRIDES });
         }
     } catch (err) {
         if (err instanceof NegativeDiffError) {
@@ -954,7 +961,7 @@ export async function updateActivities(rsn: string, newScores: Record<Individual
                 rsn,
                 type: PlayerUpdateType.Activity,
                 key: activity,
-                baseValue: state.hasActivity(rsn, activity) ? state.getActivity(rsn, activity) : DEFAULT_ACTIVITY_SCORE,
+                baseValue: state.hasActivity(rsn, activity) ? state.getActivity(rsn, activity) : (DEFAULT_ACTIVITY_SCORE_OVERRIDES[activity] ?? DEFAULT_ACTIVITY_SCORE),
                 newValue: newScores[activity]
             }));
 

@@ -1,5 +1,5 @@
 import hiscores, { Activity, Boss, BOSSES, PLAYER_NOT_FOUND_ERROR, Skill, Stats } from 'osrs-json-hiscores';
-import { AUTH, CLUES_NO_ALL, DEFAULT_ACTIVITY_SCORE, DEFAULT_AXIOS_CONFIG, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, OTHER_ACTIVITIES, SKILLS_NO_OVERALL } from './constants';
+import { AUTH, CLUES_NO_ALL, DEFAULT_ACTIVITY_SCORE, DEFAULT_ACTIVITY_SCORE_OVERRIDES, DEFAULT_AXIOS_CONFIG, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, OTHER_ACTIVITIES, SKILLS_NO_OVERALL } from './constants';
 import { IndividualActivityName, IndividualClueType, IndividualSkillName, PlayerHiScores } from './types';
 import { computeLevelForXp } from './util';
 
@@ -114,7 +114,7 @@ export async function fetchHiScores(rsn: string): Promise<PlayerHiScores> {
                     activitiesWithDefaults[activity] = state.getActivity(rsn, activity);
                 } else {
                     // Can't fill in with existing data, so default to zero score and mark as missing
-                    activitiesWithDefaults[activity] = DEFAULT_ACTIVITY_SCORE;
+                    activitiesWithDefaults[activity] = DEFAULT_ACTIVITY_SCORE_OVERRIDES[activity] ?? DEFAULT_ACTIVITY_SCORE;
                 }
             } else {
                 // Otherwise, parse the number as normal...
