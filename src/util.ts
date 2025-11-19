@@ -22,6 +22,9 @@ const negativeDiffStrikes: Record<string, number> = {};
 // Volatile structure for pausing display name queries to avoid getting stuck in a rate-limiting loop
 let pauseDisplayNameQueries = false;
 
+// TODO: Temp volatile structure to track how many sailing updates have been sent since reboot
+let sailingUpdatesSentSinceReboot = 0;
+
 export function getBossName(boss: Boss): string {
     return FORMATTED_BOSS_NAMES[boss] ?? 'Unknown';
 }
@@ -482,6 +485,20 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
                         await pgStorageClient.deletePendingPlayerUpdate(update);
                     }
                     await logger.log(`Sent **${updatesToSend.length}** update(s) for **${state.getDisplayName(rsn)}** (**${updates.length}** in PG)`, MultiLoggerLevel.Debug);
+                    // TODO: Temp logging for sailing
+                    const numSailingUpdatesSent = updatesToSend.filter(u => u.key === 'sailing').length;
+                    if (numSailingUpdatesSent > 0) {
+                        const oldSailingCount = sailingUpdatesSentSinceReboot;
+                        sailingUpdatesSentSinceReboot += numSailingUpdatesSent;
+                        if (oldSailingCount === 0) {
+                            await logger.log(`Sent first **${numSailingUpdatesSent}** sailing skill update(s)!`, MultiLoggerLevel.Error);
+                        } else {
+                            // Else, only log if reaching some new threshold
+                            if (oldSailingCount.toString().length !== sailingUpdatesSentSinceReboot.toString().length) {
+                                await logger.log(`**${sailingUpdatesSentSinceReboot}** sailing skill updates have been sent since reboot. Wow!`, MultiLoggerLevel.Error);
+                            }
+                        }
+                    }
                 }
             }
         }
