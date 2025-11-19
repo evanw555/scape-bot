@@ -779,7 +779,7 @@ export function constructBossUpdateEmbeds(updates: PendingPlayerUpdate[]): APIEm
         const bossName = getBossName(boss as Boss);
         // Note that this will be funky if the KC is 1, but currently the hiscores don't report KCs until >1
         const text = newValue === scoreIncrease
-            ? `**${state.getDisplayName(rsn)}** ${verb} **${bossName}** for the first **${scoreIncrease}** times!`
+            ? `**${state.getDisplayName(rsn)}** ${verb} **${bossName}** for the first ${scoreIncrease === 1 ? 'time' : `**${scoreIncrease}** times`}!`
             : `**${state.getDisplayName(rsn)}** ${verb} **${bossName}** `
                     + (scoreIncrease === 1 ? 'again' : `**${scoreIncrease}** more times`)
                     + ` for a total of **${newValue}**`;
@@ -793,7 +793,7 @@ export function constructBossUpdateEmbeds(updates: PendingPlayerUpdate[]): APIEm
             const bossName = getBossName(boss as Boss);
             // Note that this will be funky if the KC is 1, but currently the hiscores don't report KCs until >1
             return newValue === scoreIncrease
-                ? `**${bossName}** for the first **${scoreIncrease}** times!`
+                ? `**${bossName}** for the first ${scoreIncrease === 1 ? 'time' : `**${scoreIncrease}** times`}!`
                 : `**${bossName}** ${scoreIncrease === 1 ? 'again' : `**${scoreIncrease}** more times`} for a total of **${newValue}**`;
         }).join('\n');
         const { rsn, key: firstBoss } = updates[0];
