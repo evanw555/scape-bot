@@ -30,9 +30,12 @@ export const DEFAULT_ACTIVITY_SCORE = 0;
 
 // These activities give everyone a "default" score other than 0/1, so they must be special-cased
 export const DEFAULT_ACTIVITY_SCORE_OVERRIDES: Partial<Record<IndividualActivityName, number>> = {
-    'pvpArena': 2500,
-    'lastManStanding': 500
+    'lastManStanding': 500,
+    'pvpArena': 2500
 };
+
+// These activities can report a negative diff normally without treating it as a rollback
+export const NEGATIVE_DIFF_ACTIVITIES: Set<IndividualActivityName> = new Set(['lastManStanding', 'pvpArena']);
 
 export const SKILL_EMBED_COLOR = 6316287; // Lavender/blue-ish
 export const BOSS_EMBED_COLOR = 10363483; // Magenta-ish

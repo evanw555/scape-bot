@@ -4,7 +4,7 @@ import { APIEmbed, ActionRowData, BaseMessageOptions, ButtonStyle, ChatInputComm
 import { addReactsSync, DiscordTimestampFormat, filterMap, getPercentChangeString, getQuantityWithUnits, groupByProperty, MultiLoggerLevel, naturalJoin, randChoice, toDiscordTimestamp } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName, IndividualActivityName, PlayerHiScores, NegativeDiffError, CommandsType, SlashCommand, DailyAnalyticsLabel, PendingPlayerUpdate, PlayerUpdateType, PlayerUpdateKey, GuildSetting } from './types';
 import { fetchHiScores, isPlayerNotFoundError } from './hiscores';
-import { AUTH, CONSTANTS, BOSS_EMBED_COLOR, CLUES_NO_ALL, CLUE_EMBED_COLOR, COMPLETE_VERB_BOSSES, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, DOPE_COMPLETE_VERBS, DOPE_KILL_VERBS, GRAY_EMBED_COLOR, RED_EMBED_COLOR, SKILLS_NO_OVERALL, SKILL_EMBED_COLOR, YELLOW_EMBED_COLOR, REQUIRED_PERMISSIONS, REQUIRED_PERMISSION_NAMES, CONFIG, DEFAULT_AXIOS_CONFIG, OTHER_ACTIVITIES, DEFAULT_ACTIVITY_SCORE, ACTIVITY_EMBED_COLOR, OTHER_ACTIVITIES_MAP, DEFAULT_ACTIVITY_SCORE_OVERRIDES } from './constants';
+import { AUTH, CONSTANTS, BOSS_EMBED_COLOR, CLUES_NO_ALL, CLUE_EMBED_COLOR, COMPLETE_VERB_BOSSES, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, DOPE_COMPLETE_VERBS, DOPE_KILL_VERBS, GRAY_EMBED_COLOR, RED_EMBED_COLOR, SKILLS_NO_OVERALL, SKILL_EMBED_COLOR, YELLOW_EMBED_COLOR, REQUIRED_PERMISSIONS, REQUIRED_PERMISSION_NAMES, CONFIG, DEFAULT_AXIOS_CONFIG, OTHER_ACTIVITIES, DEFAULT_ACTIVITY_SCORE, ACTIVITY_EMBED_COLOR, OTHER_ACTIVITIES_MAP, DEFAULT_ACTIVITY_SCORE_OVERRIDES, NEGATIVE_DIFF_ACTIVITIES } from './constants';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -183,8 +183,9 @@ export function camelize(str: string) {
  * @param options.baselineOverrides used to override the baseline value for one particular key
  * @returns A map containing the diff for entries where the value has increased
  */
-export function computeDiff<T extends string>(before: Partial<Record<T, number>>, after: Partial<Record<T, number>>, baselineValue: number, options?: { baselineOverrides: Partial<Record<T, number>> }): Partial<Record<T, number>> {
+export function computeDiff<T extends string>(before: Partial<Record<T, number>>, after: Partial<Record<T, number>>, baselineValue: number, options?: { baselineOverrides: Partial<Record<T, number>>, negativeDiffWhitelist?: Set<T> }): Partial<Record<T, number>> {
     const baselineOverrides: Partial<Record<T, number>> = options?.baselineOverrides ?? {};
+    const negativeDiffWhitelist: Set<T> = options?.negativeDiffWhitelist ?? new Set();
     // For each key, add the diff to the overall diff mapping
     const diff: Partial<Record<T, number>> = {};
     const kinds: T[] = Array.from(new Set([...Object.keys(before), ...Object.keys(after)])) as T[];
@@ -205,11 +206,11 @@ export function computeDiff<T extends string>(before: Partial<Record<T, number>>
                 throw new Error('');
             }
             // If there's an otherwise negative diff, throw a special error (that should result in a rollback)
-            if (thisDiff < 0) {
+            if (thisDiff < 0 && !negativeDiffWhitelist.has(kind)) {
                 throw new NegativeDiffError(`Negative **${kind}** diff: \`${afterValue} - ${beforeValue} = ${thisDiff}\``);
             }
             // For bizarre cases, fail loudly
-            if (typeof thisDiff !== 'number' || isNaN(thisDiff) || thisDiff < 0) {
+            if (typeof thisDiff !== 'number' || isNaN(thisDiff)) {
                 throw new Error(`Invalid **${kind}** diff, \`${afterValue}\` minus \`${beforeValue}\` is \`${thisDiff}\``);
             }
             diff[kind] = thisDiff;
@@ -565,6 +566,7 @@ export function filterUpdatesForGuild(updates: PendingPlayerUpdate[]): PendingPl
 /**
  * Given some update's "before" score and "after" score, determine if the diff passes a milestone.
  * This is the generic filtering function used to determine is one particular update should be sent out.
+ * Negative diffs are allowed, but return true only if the "after" score dips BELOW a milestone (rather than reaching one)
  * @param a The "before" score
  * @param b The "after" score
  * @param interval The score diff threshold
@@ -574,6 +576,10 @@ export function diffPassesMilestone(a: number, b: number, interval: number): boo
     // If the interval is zero, it should never pass
     if (interval === 0) {
         return false;
+    }
+    // If the diff is negative, just use the same logic with values swapped
+    if (b < a) {
+        return diffPassesMilestone(b, a, interval);
     }
     // If the diff is at least the interval, it MUST pass a milestone
     if (b - a >= interval) {
@@ -940,7 +946,7 @@ export async function updateActivities(rsn: string, newScores: Record<Individual
                 }
             }
         } else {
-            diff = computeDiff(state.getActivities(rsn), newScores, DEFAULT_ACTIVITY_SCORE, { baselineOverrides: DEFAULT_ACTIVITY_SCORE_OVERRIDES });
+            diff = computeDiff(state.getActivities(rsn), newScores, DEFAULT_ACTIVITY_SCORE, { baselineOverrides: DEFAULT_ACTIVITY_SCORE_OVERRIDES, negativeDiffWhitelist: NEGATIVE_DIFF_ACTIVITIES });
         }
     } catch (err) {
         if (err instanceof NegativeDiffError) {
@@ -1006,13 +1012,14 @@ export function constructActivitiesUpdateEmbeds(updates: PendingPlayerUpdate[]):
         return quantityText + ` ${_activity} for a total of **${_newScore}**`;
     };
     const getActivityPhrase = (_activity: string, _scoreGained: number, _newScore: number): string => {
+        const _absDiff = Math.abs(_scoreGained);
         switch (_activity) {
         case 'leaguePoints':
             return `has earned ${getActivityCompletionPhrase(`**${getActivityName(_activity)}**`, _scoreGained, _newScore)}`;
         case 'lastManStanding':
-            return `has a score of **${_newScore}** in **Last Man Standing**`;
+            return `has ${_scoreGained > 0 ? 'climbed' : 'fallen'} **${_absDiff}** rank${_absDiff === 1 ? '' : 's'} to a score of **${_newScore}** in **Last Man Standing**`;
         case 'pvpArena':
-            return `has a score of **${_newScore}** in the **PvP Arena**`;
+            return `has ${_scoreGained > 0 ? 'climbed' : 'fallen'} **${_absDiff}** rank${_absDiff === 1 ? '' : 's'} to a score of **${_newScore}** in the **PvP Arena**`;
         case 'soulWarsZeal':
             return `has earned ${getActivityCompletionPhrase(`**${getActivityName(_activity)}**`, _scoreGained, _newScore)}`;
         case 'riftsClosed':

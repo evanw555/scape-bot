@@ -329,6 +329,8 @@ export default class PGStorageClient {
         // EX1: write "fishing 10->12", write "fishing 12->13", result is "fishing 10->13" (typical case)
         // EX2: write "fishing 10->12", write "fishing 8->9", result is "fishing 8->9" (aggressive rollback)
         // EX3: write "fishing 20->27", write "fishing 22->23", result is "fishing 20->23" (partial rollback)
+        // If the diff is negative (possible for some activities), it will be coalesced correctly for the most part.
+        // TODO: Negative diffs may sometimes report a baseline that is lower than the previous update (but how much does it matter?)
         await this.client.query(format('INSERT INTO pending_player_updates VALUES %L ON CONFLICT (guild_id, rsn, type, key) DO UPDATE SET new_value = EXCLUDED.new_value, base_value = LEAST(pending_player_updates.base_value, excluded.base_value);', values));
     }
 
