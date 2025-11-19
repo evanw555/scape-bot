@@ -876,17 +876,20 @@ export async function updateClues(rsn: string, newScores: Record<IndividualClueT
 export function constructClueUpdateEmbeds(updates: PendingPlayerUpdate[]): APIEmbed[] {
     // Send a message showing the updated clues
     const getClueCompletionPhrase = (_clue: PlayerUpdateKey, _scoreGained: number, _newScore: number): string => {
-        let quantityText = '';
+        // If it's their first update, showing the total is redundant
         if (_scoreGained === 1 && _newScore === 1) {
-            quantityText = 'their first';
+            return `their first **${_clue}** clue`;
         } else if (_scoreGained === _newScore) {
-            quantityText = `**${_scoreGained}**`;
-        } else if (_scoreGained === 1) {
+            return `their first **${_scoreGained}** **${_clue}** clues`;
+        }
+        // Otherwise, show the total
+        let quantityText = '';
+        if (_scoreGained === 1) {
             quantityText = 'another';
         } else {
             quantityText = `**${_scoreGained}** more`;
         }
-        return quantityText + ` **${_clue}** ${_scoreGained === 1 ? 'clue' : 'clues'} for a total of **${_newScore}**`;
+        return quantityText + ` **${_clue}** clue${_scoreGained === 1 ? '' : 's'} for a total of **${_newScore}**`;
     };
     switch (updates.length) {
     case 0: {
@@ -987,12 +990,15 @@ export async function updateActivities(rsn: string, newScores: Record<Individual
 export function constructActivitiesUpdateEmbeds(updates: PendingPlayerUpdate[]): APIEmbed[] {
     // Send a message showing the updated activities
     const getActivityCompletionPhrase = (_activity: string, _scoreGained: number, _newScore: number): string => {
-        let quantityText = '';
+        // If it's their first update, showing the total is redundant
         if (_scoreGained === 1 && _newScore === 1) {
-            quantityText = 'their first';
+            return `their first ${_activity}`;
         } else if (_scoreGained === _newScore) {
-            quantityText = `**${_scoreGained}**`;
-        } else if (_scoreGained === 1) {
+            return `their first **${_scoreGained}** ${_activity}`;
+        }
+        // Otherwise, show the total
+        let quantityText = '';
+        if (_scoreGained === 1) {
             quantityText = 'another';
         } else {
             quantityText = `**${_scoreGained}** more`;
@@ -1010,7 +1016,7 @@ export function constructActivitiesUpdateEmbeds(updates: PendingPlayerUpdate[]):
         case 'soulWarsZeal':
             return `has earned ${getActivityCompletionPhrase(`**${getActivityName(_activity)}**`, _scoreGained, _newScore)}`;
         case 'riftsClosed':
-            return `closed another ${_scoreGained === 1 ? '' : `**${_scoreGained}** `}**${_scoreGained === 1 ? 'rift' : 'rifts'}** for a total of **${_newScore}**`;
+            return `has closed ${getActivityCompletionPhrase(`**rift${_scoreGained === 1 ? '' : 's'}**`, _scoreGained, _newScore)}`;
         case 'colosseumGlory':
             return `has earned ${getActivityCompletionPhrase(`**${getActivityName(_activity)}**`, _scoreGained, _newScore)}`;
         case 'collectionsLogged':
