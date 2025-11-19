@@ -553,7 +553,7 @@ export function filterUpdatesForGuild(updates: PendingPlayerUpdate[]): PendingPl
             return diffPassesMilestone(u.baseValue, u.newValue, CLUE_INTERVAL);
         }
         case PlayerUpdateType.Activity: {
-            if (BOSS_INTERVAL === 0) {
+            if (ACTIVITY_INTERVAL === 0) {
                 return false;
             }
             return diffPassesMilestone(u.baseValue, u.newValue, ACTIVITY_INTERVAL);
