@@ -50,7 +50,8 @@ export async function fetchHiScores(rsn: string): Promise<PlayerHiScores> {
     for (const boss of BOSSES) {
         if (boss in stats.bosses) {
             const bossPayload: Activity = stats.bosses[boss];
-            if (bossPayload.rank === -1 || bossPayload.score === -1) {
+            // As of now, it's possible for the hiscores to return an unranked (-1) KC with a valid score, so only validate that the score is positive
+            if (bossPayload.score < 1) {
                 // If this boss is for some reason omitted for the payload, then fill it in with existing data if possible
                 if (state.hasBoss(rsn, boss)) {
                     bosses[boss] = state.getBoss(rsn, boss);
@@ -78,7 +79,8 @@ export async function fetchHiScores(rsn: string): Promise<PlayerHiScores> {
     for (const clue of CLUES_NO_ALL) {
         if (clue in stats.clues) {
             const cluePayload: Activity = stats.clues[clue];
-            if (cluePayload.rank === -1 || cluePayload.score === -1) {
+            // As of now, it's possible for the hiscores to return an unranked (-1) clue with a valid score, so only validate that the score is positive
+            if (cluePayload.score < 1) {
                 // If this clue is for some reason omitted for the payload, then fill it in with existing data if possible
                 if (state.hasClue(rsn, clue)) {
                     clues[clue] = state.getClue(rsn, clue);
@@ -104,7 +106,8 @@ export async function fetchHiScores(rsn: string): Promise<PlayerHiScores> {
     for (const activity of OTHER_ACTIVITIES) {
         if (activity in stats) {
             const activityPayload: Activity = stats[activity];
-            if (activityPayload.rank === -1 || activityPayload.score === -1) {
+            // As of now, it's possible for the hiscores to return an unranked (-1) activity with a valid score, so only validate that the score is positive
+            if (activityPayload.score < 1) {
                 // If this activity is for some reason omitted for the payload, then fill it in with existing data if possible
                 if (state.hasActivity(rsn, activity)) {
                     activities[activity] = state.getActivity(rsn, activity);
