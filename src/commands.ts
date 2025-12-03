@@ -1,8 +1,8 @@
 import { ApplicationCommandOptionType, AttachmentBuilder, ChatInputCommandInteraction, Guild, PermissionFlagsBits, TextChannel } from 'discord.js';
-import { Boss, BOSSES } from 'osrs-json-hiscores';
+import { Boss, BOSSES, validateRSN } from 'osrs-json-hiscores';
 import { MultiLoggerLevel, naturalJoin } from 'evanw555.js';
 import { PlayerHiScores, SlashCommandsType } from './types';
-import { replyUpdateMessage, updatePlayer, getBossName, generateDetailsContentString, sanitizeRSN, botHasRequiredPermissionsInChannel, validateRSN, getMissingRequiredChannelPermissionNames, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers, getHelpComponents, getHelpText, resolveHiScoresUrlTemplate, getRootSettingsMenu } from './util';
+import { replyUpdateMessage, updatePlayer, getBossName, generateDetailsContentString, sanitizeRSN, botHasRequiredPermissionsInChannel, getMissingRequiredChannelPermissionNames, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers, getHelpComponents, getHelpText, resolveHiScoresUrlTemplate, getRootSettingsMenu } from './util';
 import { fetchHiScores, isPlayerNotFoundError } from './hiscores';
 import CommandHandler from './command-handler';
 import { AUTH, CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, BOSS_CHOICES, INVALID_TEXT_CHANNEL, SKILL_EMBED_COLOR, OTHER_ACTIVITIES, OTHER_ACTIVITIES_MAP } from './constants';

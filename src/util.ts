@@ -1,4 +1,4 @@
-import { Boss, BOSSES, INVALID_FORMAT_ERROR, FORMATTED_BOSS_NAMES, getRSNFormat, HISCORES_ERROR } from 'osrs-json-hiscores';
+import { Boss, BOSSES, INVALID_FORMAT_ERROR, FORMATTED_BOSS_NAMES, getRSNFormat, HISCORES_ERROR, validateRSN } from 'osrs-json-hiscores';
 import fs from 'fs';
 import { APIEmbed, ActionRowData, BaseMessageOptions, ButtonStyle, ChatInputCommandInteraction, ComponentType, MessageActionRowComponentData, MessageCreateOptions, PermissionFlagsBits, PermissionsBitField, Snowflake, TextBasedChannel, TextChannel } from 'discord.js';
 import { addReactsSync, DiscordTimestampFormat, filterMap, getPercentChangeString, getQuantityWithUnits, groupByProperty, MultiLoggerLevel, naturalJoin, randChoice, toDiscordTimestamp } from 'evanw555.js';
@@ -1304,21 +1304,6 @@ export function sanitizeRSN(rsn: string): string {
     return rsn.replace(/[ _-]/g, '_').toLowerCase();
 }
 
-/**
- * TODO: This is copied from osrs-json-hiscores, should we open a PR to add this method there?
- * @param rsn username to validate
- * @throws error if the RSN fails validation
- */
-export function validateRSN(rsn: string): void {
-    if (typeof rsn !== 'string') {
-        throw new Error('RSN must be a string');
-    } else if (!/^[a-zA-Z0-9 _-]+$/.test(rsn)) {
-        throw new Error('RSN contains invalid character');
-    } else if (rsn.length > 12 || rsn.length < 1) {
-        throw new Error('RSN must be between 1 and 12 characters');
-    }
-}
-
 export function getBotPermissionsInChannel(channel: TextChannel): PermissionsBitField {
     const guild = channel.guild;
     const botMember = guild.members.me;
@@ -1421,7 +1406,10 @@ export async function fetchDisplayName(rsn: string): Promise<string> {
         throw new Error('Display name queries on hold due to rate limiting');
     }
     try {
-        return await getRSNFormat(rsn, DEFAULT_AXIOS_CONFIG, AUTH.gameMode);
+        const displayName = await getRSNFormat(rsn, DEFAULT_AXIOS_CONFIG, AUTH.gameMode);
+        // Validate the display name, since the scraping could be faulty (see: https://github.com/maxswa/osrs-json-hiscores/issues/115)
+        validateRSN(displayName);
+        return displayName;
     } catch (err) {
         // HiScores not responding, so pause display name queries temporarily
         if ((err instanceof Error) && err.message === HISCORES_ERROR) {
