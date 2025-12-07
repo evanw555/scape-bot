@@ -1,4 +1,4 @@
-import { Boss, BOSSES, INVALID_FORMAT_ERROR, FORMATTED_BOSS_NAMES, getRSNFormat, HISCORES_ERROR, validateRSN } from 'osrs-json-hiscores';
+import { Boss, BOSSES, INVALID_FORMAT_ERROR, FORMATTED_BOSS_NAMES, getRSNFormat, HISCORES_ERROR, validateRSN, SKILLS } from 'osrs-json-hiscores';
 import fs from 'fs';
 import { APIEmbed, ActionRowData, BaseMessageOptions, ButtonStyle, ChatInputCommandInteraction, ComponentType, MessageActionRowComponentData, MessageCreateOptions, PermissionFlagsBits, PermissionsBitField, Snowflake, TextBasedChannel, TextChannel } from 'discord.js';
 import { addReactsSync, DiscordTimestampFormat, filterMap, getPercentChangeString, getQuantityWithUnits, groupByProperty, MultiLoggerLevel, naturalJoin, randChoice, toDiscordTimestamp } from 'evanw555.js';
@@ -12,8 +12,9 @@ import pgStorageClient from './instances/pg-storage-client';
 import timeSlotInstance from './instances/timeslot';
 import timer from './instances/timer';
 
-const validSkills: Set<string> = new Set(SKILLS_NO_OVERALL);
-const validClues: Set<string> = new Set(CLUES_NO_ALL);
+// Note that this includes "overall" (for updates with multiple skills)
+const validSkillThumbnails: Set<string> = new Set(SKILLS);
+const validClueThumbnails: Set<string> = new Set(CLUES_NO_ALL);
 const validMiscThumbnails: Set<string> = new Set(CONSTANTS.miscThumbnails);
 
 // Volatile structure to track negative diff strikes
@@ -39,13 +40,13 @@ export function isValidActivity(activity: string): activity is IndividualActivit
 }
 
 export function getThumbnail(name: string, options?: { is99?: boolean }) {
-    if (validSkills.has(name)) {
+    if (validSkillThumbnails.has(name)) {
         const skill = name;
         return {
             url: `${CONSTANTS.baseThumbnailUrl}${options?.is99 ? CONSTANTS.level99Path : ''}${skill}${CONSTANTS.imageFileExtension}`
         };
     }
-    if (validClues.has(name)) {
+    if (validClueThumbnails.has(name)) {
         const clue = name;
         return {
             url: `${CONSTANTS.baseThumbnailUrl}${CONSTANTS.clueThumbnailPath}${clue}${CONSTANTS.imageFileExtension}`
