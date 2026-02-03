@@ -1,5 +1,5 @@
 import { ApplicationCommandOptionType, AttachmentBuilder, ChatInputCommandInteraction, Guild, PermissionFlagsBits, TextChannel } from 'discord.js';
-import { Boss, BOSSES, validateRSN } from 'osrs-json-hiscores';
+import { Boss, BOSSES, InvalidRSNError, validateRSN } from 'osrs-json-hiscores';
 import { MultiLoggerLevel, naturalJoin } from 'evanw555.js';
 import { PlayerHiScores, SlashCommandsType } from './types';
 import { replyUpdateMessage, updatePlayer, getBossName, generateDetailsContentString, sanitizeRSN, botHasRequiredPermissionsInChannel, getMissingRequiredChannelPermissionNames, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers, getHelpComponents, getHelpText, resolveHiScoresUrlTemplate, getRootSettingsMenu } from './util';
@@ -297,7 +297,7 @@ const slashCommands: SlashCommandsType = {
                     await interaction.editReply(`Couldn't find player **${rawRsn.trim()}** on the hiscores`);
                     // TODO: If this player has any data in the state, just use that along with a disclaimer
                 } else {
-                    await logger.log(`Error while fetching hiscores (check) for player **${rsn}**: \`${err}\``, MultiLoggerLevel.Error);
+                    await logger.log(`Error while fetching hiscores (check) for player **${rsn}**: \`${err}\``, (err instanceof InvalidRSNError) ? MultiLoggerLevel.Warn : MultiLoggerLevel.Error);
                     await interaction.editReply(`Couldn't fetch hiscores for player **${rawRsn.trim()}** :pensive:\n\`${err}\``);
                 }
                 return false;
@@ -323,7 +323,8 @@ const slashCommands: SlashCommandsType = {
             }
         ],
         execute: async (interaction) => {
-            const rsn = sanitizeRSN(interaction.options.getString('username', true));
+            const rawRsn = interaction.options.getString('username', true);
+            const rsn = sanitizeRSN(rawRsn);
             // This must be a valid boss, since we define the valid choices
             const boss = interaction.options.getString('boss', true) as Boss;
             await interaction.deferReply();
@@ -342,9 +343,15 @@ const slashCommands: SlashCommandsType = {
                 });
                 return true;
             } catch (err) {
-                if (err instanceof Error) {
-                    await logger.log(`Error while fetching hiscores (check) for player ${rsn}: ${err.toString()}`, MultiLoggerLevel.Error);
-                    await interaction.editReply(`Couldn't fetch hiscores for player **${state.getDisplayName(rsn)}** :pensive:\n\`${err.toString()}\``);
+                // For error messages, we want the user to see the raw RSN they entered.
+                // Showing the sanitized RSN may lead them to believe that the error is related to sanitization (I think?)
+                if (isPlayerNotFoundError(err)) {
+                    await logger.log(`\`${interaction.user.tag}\` checked KC for player **${rsn}** but got a 404`, MultiLoggerLevel.Warn);
+                    await interaction.editReply(`Couldn't find player **${rawRsn.trim()}** on the hiscores`);
+                    // TODO: If this player has any data in the state, just use that along with a disclaimer
+                } else {
+                    await logger.log(`Error while fetching hiscores (kc) for player **${rsn}**: \`${err}\``, (err instanceof InvalidRSNError) ? MultiLoggerLevel.Warn : MultiLoggerLevel.Error);
+                    await interaction.editReply(`Couldn't check KC for player **${rawRsn.trim()}** :pensive:\n\`${err}\``);
                 }
                 return false;
             }

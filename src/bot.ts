@@ -25,13 +25,15 @@ const commandHandler: CommandHandler = new CommandHandler(commands);
 const settingsInteractionHandler: SettingsInteractionHandler = new SettingsInteractionHandler();
 
 export async function sendRestartMessage(downtimeMillis: number): Promise<void> {
-    let text = `ScapeBot online after **${getDurationString(downtimeMillis)}** of downtime. `
-        + `In **${client.guilds.cache.size}** guild(s) tracking **${state.getNumGloballyTrackedPlayers()}** player(s). `
+    const numGuilds = client.guilds.cache.size;
+    const numPlayers = state.getNumGloballyTrackedPlayers();
+    const text = `ScapeBot online after **${getDurationString(downtimeMillis)}** of downtime. `
+        + `In **${numGuilds}** guild${numGuilds === 1 ? '' : 's'} tracking **${numPlayers}** player${numPlayers === 1 ? '' : 's'}. `
         + `Using Node **${process.version}**`;
     // Add timeout manager info
-    if (timeoutManager.toStrings().length > 0) {
-        text += '\nℹ️ **Timeouts scheduled:**\n' + timeoutManager.toStrings().join('\n');
-    }
+    // if (timeoutManager.toStrings().length > 0) {
+    //     text += '\nℹ️ **Timeouts scheduled:**\n' + timeoutManager.toStrings().join('\n');
+    // }
     await logger.log(text, MultiLoggerLevel.Fatal);
     // TODO: Use this if you need to troubleshoot...
     // await logger.log(state.toDebugString());
@@ -145,8 +147,11 @@ const timeoutCallbacks = {
     },
     [TimeoutType.WeeklyXpUpdate]: async (): Promise<void> => {
         await timeoutManager.registerTimeout(TimeoutType.WeeklyXpUpdate, getNextFridayEvening(), { pastStrategy: PastTimeoutStrategy.Invoke });
-        // Send weekly analytics to admins
-        await logger.log(await getAnalyticsTrendsString(), MultiLoggerLevel.Error);
+        // Send weekly analytics to admins (if any change detected)
+        const trendsString = await getAnalyticsTrendsString();
+        if (trendsString) {
+            await logger.log(trendsString, MultiLoggerLevel.Error);
+        }
         // Send out weekly total XP update to all guilds
         await weeklyTotalXpUpdate();
     }
@@ -330,14 +335,14 @@ const auditGuilds = async () => {
 
     // Log the findings
     if (logStatements.length > 0) {
-        await logger.log('**Audited guilds:**\n' + logStatements.map((x, i) => `**${i + 1}.** ${x}`).join('\n'), MultiLoggerLevel.Error);
+        await logger.log('**Audited guilds:**\n' + logStatements.map((x, i) => `**${i + 1}.** ${x}`).join('\n'), MultiLoggerLevel.Warn);
     }
 
     // Write the updated counters back to PG
     if (Object.keys(newAuditCounters).length > 0) {
         await pgStorageClient.writeMiscProperty('auditCounters', JSON.stringify(newAuditCounters));
         // TODO: Temp logging to see how this works
-        await logger.log(`Dumped audit counters as \`${JSON.stringify(newAuditCounters).slice(0, 1600)}\``, MultiLoggerLevel.Warn);
+        await logger.log(`Dumped audit counters as \`${JSON.stringify(newAuditCounters).slice(0, 1600)}\``, MultiLoggerLevel.Info);
     }
 };
 
@@ -365,7 +370,7 @@ const auditProblematicTrackingChannels = async () => {
 
     // Log the findings
     if (logStatements.length > 0) {
-        await logger.log(`**Cleared ${logStatements.length}/${problematicChannels.length} problematic tracking channels:**\n` + logStatements.map((x, i) => `**${i + 1}.** ${x}`).join('\n'), MultiLoggerLevel.Error);
+        await logger.log(`**Cleared ${logStatements.length}/${problematicChannels.length} problematic tracking channels:**\n` + logStatements.map((x, i) => `**${i + 1}.** ${x}`).join('\n'), MultiLoggerLevel.Warn);
     }
 };
 
@@ -388,7 +393,7 @@ const purgeVeryInactivePlayers = async () => {
         // Purge all related player data from PG
         await purgeUntrackedPlayers(veryInactivePlayers, 'inactivitypurge');
         // TODO: Probably wanna reduce this to Warn after we see it working a few times
-        await logger.log(`Globally removed **${veryInactivePlayers.length}** player(s) who haven't been active for over **${numMonths}** months`, MultiLoggerLevel.Error);
+        await logger.log(`Globally removed **${veryInactivePlayers.length}** player(s) who haven't been active for over **${numMonths}** months`, MultiLoggerLevel.Warn);
     }
 };
 

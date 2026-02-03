@@ -1511,16 +1511,20 @@ export async function getAnalyticsTrendsEmbeds(): Promise<APIEmbed[]> {
 }
 
 // TODO: Delete this and use the function above when we figure out how to send directly to a test channel and not rely on text loggers
-export async function getAnalyticsTrendsString(): Promise<string> {
+export async function getAnalyticsTrendsString(): Promise<string | undefined> {
     const trends = await getAnalyticsTrends();
+    // If no changes detected, return nothing
+    if (trends.players.weeklyDiff === 0 && trends.players.monthlyDiff === 0 && trends.guilds.weeklyDiff === 0 && trends.guilds.monthlyDiff === 0) {
+        return undefined;
+    }
     return '__Num Players__\n'
-        + `Today: **${trends.players.today}**\n`
-        + `Last Week: **${trends.players.lastWeek}** (${trends.players.weeklyChange})\n`
         + `Last Month: **${trends.players.lastMonth}** (${trends.players.monthlyChange})\n`
+        + `Last Week: **${trends.players.lastWeek}** (${trends.players.weeklyChange})\n`
+        + `Today: **${trends.players.today}**\n`
         + '__Num Guilds__\n'
-        + `Today: **${trends.guilds.today}**\n`
+        + `Last Month: **${trends.guilds.lastMonth}** (${trends.guilds.monthlyChange})\n`
         + `Last Week: **${trends.guilds.lastWeek}** (${trends.guilds.weeklyChange})\n`
-        + `Last Month: **${trends.guilds.lastMonth}** (${trends.guilds.monthlyChange})`;
+        + `Today: **${trends.guilds.today}**`;
 }
 
 export function resolveHiScoresUrlTemplate(): string {
