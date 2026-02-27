@@ -20,7 +20,7 @@
         "chai": "^4.3.6",
         "discord.js": "14.10.2",
         "evanw555.js": "evanw555/evanw555.js",
-        "osrs-json-hiscores": "^2.24.0",
+        "osrs-json-hiscores": "^2.25.0",
         "pg": "^8.8.0",
         "pg-format": "^1.0.4"
     },
