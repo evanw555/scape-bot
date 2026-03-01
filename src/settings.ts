@@ -1,5 +1,5 @@
 import { APIActionRowComponent, APIMessageActionRowComponent, ButtonStyle, ComponentType, InteractionUpdateOptions, MessageComponentInteraction, Snowflake } from 'discord.js';
-import { FORMATTED_GUILD_SETTINGS, RANKING_ICON_SETS } from './constants';
+import { FORMATTED_GUILD_SETTINGS, GUILD_SETTING_SHORT_NAMES, RANKING_ICON_SETS } from './constants';
 import { GuildSetting } from './types';
 import { MultiLoggerLevel, naturalJoin } from 'evanw555.js';
 import { getRankingIconUrl, getRootSettingsMenu } from './util';
@@ -203,7 +203,7 @@ class SettingsInteractionHandler {
                 return;
             }
             // Determine which settings have actually changed to minimize PG calls
-            const relevantSettings = [GuildSetting.ShowOverallHiscoreUpdates];
+            const relevantSettings = [GuildSetting.ShowOverallHiscoreUpdates, GuildSetting.SuppressNotifications];
             const settingsChanged: GuildSetting[] = relevantSettings.filter(s => values.includes(s) !== (state.getGuildSettingWithDefault(guildId, s) === 1));
             // For each changed setting, write to PG and state
             for (const setting of settingsChanged) {
@@ -219,8 +219,6 @@ class SettingsInteractionHandler {
         const oneThreshold = state.getGuildSettingWithDefault(guildId, GuildSetting.SkillBroadcastOneThreshold);
         const fiveThreshold = state.getGuildSettingWithDefault(guildId, GuildSetting.SkillBroadcastFiveThreshold);
 
-        const reactOn99 = state.getGuildSettingWithDefault(guildId, GuildSetting.ReactOnSkill99);
-        const tagOn99 = state.getGuildSettingWithDefault(guildId, GuildSetting.TagEveryoneOnSkill99);
         const showVirtualLevels = state.getGuildSettingWithDefault(guildId, GuildSetting.ShowVirtualSkillUpdates);
 
         // Construct the overall description in the embed
@@ -295,6 +293,7 @@ class SettingsInteractionHandler {
 
         // Unless everything is disabled, show the misc menu
         if (oneThreshold !== 0) {
+            const miscSkillFlags = [GuildSetting.ReactOnSkill99, GuildSetting.TagEveryoneOnSkill99, GuildSetting.ShowVirtualSkillUpdates];
             menus.push({
                 type: ComponentType.ActionRow,
                 components: [{
@@ -303,22 +302,12 @@ class SettingsInteractionHandler {
                     min_values: 0,
                     max_values: 3,
                     placeholder: 'Toggle additional settings',
-                    options: [{
-                        label: 'React on 99',
-                        description: FORMATTED_GUILD_SETTINGS[GuildSetting.ReactOnSkill99],
-                        value: GuildSetting.ReactOnSkill99.toString(),
-                        default: reactOn99 === 1 ? true : false
-                    }, {
-                        label: 'Tag on 99',
-                        description: FORMATTED_GUILD_SETTINGS[GuildSetting.TagEveryoneOnSkill99],
-                        value: GuildSetting.TagEveryoneOnSkill99.toString(),
-                        default: tagOn99 === 1 ? true : false
-                    }, {
-                        label: 'Show virtual levels',
-                        description: FORMATTED_GUILD_SETTINGS[GuildSetting.ShowVirtualSkillUpdates],
-                        value: GuildSetting.ShowVirtualSkillUpdates.toString(),
-                        default: showVirtualLevels === 1 ? true : false
-                    }]
+                    options: miscSkillFlags.map(s => ({
+                        label: GUILD_SETTING_SHORT_NAMES[s],
+                        description: FORMATTED_GUILD_SETTINGS[s],
+                        value: s.toString(),
+                        default: state.isGuildSettingEnabled(guildId, s)
+                    }))
                 }]
             });
         }
@@ -429,6 +418,8 @@ class SettingsInteractionHandler {
             return `Enabled yet only showing every **${_value}**`;
         };
 
+        const miscFlags = [GuildSetting.ShowOverallHiscoreUpdates, GuildSetting.SuppressNotifications];
+
         return {
             content: '',
             embeds: [{
@@ -476,12 +467,12 @@ class SettingsInteractionHandler {
                     min_values: 0,
                     max_values: 1,
                     placeholder: 'Toggle misc. settings',
-                    options: [{
-                        label: 'Overall hiscore status',
-                        description: FORMATTED_GUILD_SETTINGS[GuildSetting.ShowOverallHiscoreUpdates],
-                        value: GuildSetting.ShowOverallHiscoreUpdates.toString(),
-                        default: state.isGuildSettingEnabled(guildId, GuildSetting.ShowOverallHiscoreUpdates)
-                    }]
+                    options: miscFlags.map(s => ({
+                        label: GUILD_SETTING_SHORT_NAMES[s],
+                        description: FORMATTED_GUILD_SETTINGS[s],
+                        value: s.toString(),
+                        default: state.isGuildSettingEnabled(guildId, s)
+                    }))
                 }]
             }, {
                 type: ComponentType.ActionRow,

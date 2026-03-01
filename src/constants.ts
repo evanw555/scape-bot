@@ -111,7 +111,8 @@ export const FORMATTED_GUILD_SETTINGS: Record<GuildSetting, string> = {
     [GuildSetting.ReactOnSkill99]: 'React GZ on reaching level 99',
     [GuildSetting.TagEveryoneOnSkill99]: 'Tag everyone on reaching level 99',
     [GuildSetting.ShowVirtualSkillUpdates]: 'Show "virtual" levels beyond 99',
-    [GuildSetting.ShowOverallHiscoreUpdates]: 'Show when players become on/off the hiscores'
+    [GuildSetting.ShowOverallHiscoreUpdates]: 'Show when players become on/off the hiscores',
+    [GuildSetting.SuppressNotifications]: 'Send update messages silently'
 } as const;
 
 export const GUILD_SETTING_SHORT_NAMES: Record<GuildSetting, string> = {
@@ -122,10 +123,11 @@ export const GUILD_SETTING_SHORT_NAMES: Record<GuildSetting, string> = {
     [GuildSetting.MinigameBroadcastInterval]: 'Minigame interval',
     [GuildSetting.WeeklyRankingMaxCount]: 'Weekly XP ranking count',
     [GuildSetting.WeeklyRankingIconSet]: 'Weekly XP ranking icons',
-    [GuildSetting.ReactOnSkill99]: 'React GZ on 99',
-    [GuildSetting.TagEveryoneOnSkill99]: 'Tag everyone on 99',
-    [GuildSetting.ShowVirtualSkillUpdates]: 'Show "virtual" levels',
-    [GuildSetting.ShowOverallHiscoreUpdates]: 'Show overall hiscore updates'
+    [GuildSetting.ReactOnSkill99]: 'React on 99',
+    [GuildSetting.TagEveryoneOnSkill99]: 'Tag on 99',
+    [GuildSetting.ShowVirtualSkillUpdates]: 'Show virtual levels',
+    [GuildSetting.ShowOverallHiscoreUpdates]: 'Overall hiscore status',
+    [GuildSetting.SuppressNotifications]: 'Suppress notifications'
 } as const;
 
 export const DEFAULT_GUILD_SETTINGS: Record<GuildSetting, number> = {
@@ -139,7 +141,8 @@ export const DEFAULT_GUILD_SETTINGS: Record<GuildSetting, number> = {
     [GuildSetting.ReactOnSkill99]: 1,
     [GuildSetting.TagEveryoneOnSkill99]: 0,
     [GuildSetting.ShowVirtualSkillUpdates]: 0,
-    [GuildSetting.ShowOverallHiscoreUpdates]: 1
+    [GuildSetting.ShowOverallHiscoreUpdates]: 1,
+    [GuildSetting.SuppressNotifications]: 0
 } as const;
 
 // TODO: Add a new "index" property so we can sort these options regardless of their numeric ID

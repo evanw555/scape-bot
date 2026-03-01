@@ -1,6 +1,6 @@
 import { Boss, BOSSES, INVALID_FORMAT_ERROR, FORMATTED_BOSS_NAMES, getRSNFormat, HISCORES_ERROR, validateRSN, SKILLS } from 'osrs-json-hiscores';
 import fs from 'fs';
-import { APIEmbed, ActionRowData, BaseMessageOptions, ButtonStyle, ChatInputCommandInteraction, ComponentType, MessageActionRowComponentData, MessageCreateOptions, PermissionFlagsBits, PermissionsBitField, Snowflake, TextBasedChannel, TextChannel } from 'discord.js';
+import { APIEmbed, ActionRowData, BaseMessageOptions, ButtonStyle, ChatInputCommandInteraction, ComponentType, MessageActionRowComponentData, MessageCreateOptions, MessageFlags, PermissionFlagsBits, PermissionsBitField, Snowflake, TextBasedChannel, TextChannel } from 'discord.js';
 import { addReactsSync, DiscordTimestampFormat, filterMap, getPercentChangeString, getQuantityWithUnits, groupByProperty, MultiLoggerLevel, naturalJoin, randChoice, toDiscordTimestamp } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName, IndividualActivityName, PlayerHiScores, NegativeDiffError, CommandsType, SlashCommand, DailyAnalyticsLabel, PendingPlayerUpdate, PlayerUpdateType, PlayerUpdateKey, GuildSetting } from './types';
 import { fetchHiScores, isPlayerNotFoundError } from './hiscores';
@@ -318,7 +318,11 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
             // Send an update for each guild configured to show these updates
             for (const guildId of state.getGuildsTrackingPlayer(rsn)) {
                 if (state.hasTrackingChannel(guildId) && state.isGuildSettingEnabled(guildId, GuildSetting.ShowOverallHiscoreUpdates)) {
-                    await sendUpdateMessage([state.getTrackingChannel(guildId)], `**${state.getDisplayName(rsn)}** has fallen off the overall hiscores`, 'unhappy', { color: RED_EMBED_COLOR });
+                    const payload: MessageCreateOptions = buildUpdateMessage(`**${state.getDisplayName(rsn)}** has fallen off the overall hiscores`, 'unhappy', { color: RED_EMBED_COLOR });
+                    if (state.isGuildSettingEnabled(guildId, GuildSetting.SuppressNotifications)) {
+                        payload.flags = MessageFlags.SuppressNotifications;
+                    }
+                    await sendUpdateMessageRaw([state.getTrackingChannel(guildId)], payload);
                 }
             }
             // TODO: Temp logging to see how often this is being triggered
@@ -330,7 +334,11 @@ export async function updatePlayer(rsn: string, options?: { spoofedDiff?: Record
             // Send an update for each guild configured to show these updates
             for (const guildId of state.getGuildsTrackingPlayer(rsn)) {
                 if (state.hasTrackingChannel(guildId) && state.isGuildSettingEnabled(guildId, GuildSetting.ShowOverallHiscoreUpdates)) {
-                    await sendUpdateMessage([state.getTrackingChannel(guildId)], `**${state.getDisplayName(rsn)}** has made it onto the overall hiscores`, 'happy', { color: YELLOW_EMBED_COLOR });
+                    const payload: MessageCreateOptions = buildUpdateMessage(`**${state.getDisplayName(rsn)}** has made it onto the overall hiscores`, 'happy', { color: YELLOW_EMBED_COLOR });
+                    if (state.isGuildSettingEnabled(guildId, GuildSetting.SuppressNotifications)) {
+                        payload.flags = MessageFlags.SuppressNotifications;
+                    }
+                    await sendUpdateMessageRaw([state.getTrackingChannel(guildId)], payload);
                 }
             }
             // TODO: Temp logging to see how often this is being triggered
@@ -1126,12 +1134,16 @@ export async function sendPlayerUpdates(channel: TextChannel, updates: PendingPl
     if (updates.some(u => u.guildId !== updates[0].guildId || u.rsn !== updates[0].rsn)) {
         throw new Error('Tried to send out updates with mixed guilds/RSNs');
     }
+    const guildId = updates[0].guildId;
     // Construct and send skill updates
     const skillUpdates99 = updates.filter(u => u.type === PlayerUpdateType.Skill && u.newValue === 99);
     for (const u of skillUpdates99) {
         const payload99 = constructSkill99UpdateMessage(u);
+        if (state.isGuildSettingEnabled(guildId, GuildSetting.SuppressNotifications)) {
+            payload99.flags = MessageFlags.SuppressNotifications;
+        }
         // Only add reacts if the guild is configured to do so
-        const reacts = state.isGuildSettingEnabled(u.guildId, GuildSetting.ReactOnSkill99) ? ['🇬', '🇿'] : undefined;
+        const reacts = state.isGuildSettingEnabled(guildId, GuildSetting.ReactOnSkill99) ? ['🇬', '🇿'] : undefined;
         await sendUpdateMessageRaw([channel], payload99, { reacts });
     }
     // Construct update embeds
@@ -1142,7 +1154,11 @@ export async function sendPlayerUpdates(channel: TextChannel, updates: PendingPl
     embeds.push(...constructActivitiesUpdateEmbeds(updates.filter(u => u.type === PlayerUpdateType.Activity)));
     // If there are any embeds, send the payload
     if (embeds.length > 0) {
-        await sendUpdateMessageRaw([channel], { embeds });
+        const payload: MessageCreateOptions = {
+            embeds,
+            flags: state.isGuildSettingEnabled(guildId, GuildSetting.SuppressNotifications) ? MessageFlags.SuppressNotifications : undefined
+        };
+        await sendUpdateMessageRaw([channel], payload);
     }
 }
 
