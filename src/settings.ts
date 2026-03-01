@@ -300,7 +300,7 @@ class SettingsInteractionHandler {
                     type: ComponentType.StringSelect,
                     custom_id: 'settings:selectSkillMiscFlags',
                     min_values: 0,
-                    max_values: 3,
+                    max_values: miscSkillFlags.length,
                     placeholder: 'Toggle additional settings',
                     options: miscSkillFlags.map(s => ({
                         label: GUILD_SETTING_SHORT_NAMES[s],
@@ -465,7 +465,7 @@ class SettingsInteractionHandler {
                     type: ComponentType.StringSelect,
                     custom_id: 'settings:selectOtherMiscFlags',
                     min_values: 0,
-                    max_values: 1,
+                    max_values: miscFlags.length,
                     placeholder: 'Toggle misc. settings',
                     options: miscFlags.map(s => ({
                         label: GUILD_SETTING_SHORT_NAMES[s],
