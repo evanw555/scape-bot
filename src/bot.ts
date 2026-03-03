@@ -2,11 +2,12 @@ import { BOSSES, CLUES } from 'osrs-json-hiscores';
 import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel, ActivityType, Snowflake, PermissionFlagsBits, MessageCreateOptions, GuildResolvable } from 'discord.js';
 import { DailyAnalyticsLabel, GuildSetting, TimeoutType } from './types';
 import { sendUpdateMessage, getNextFridayEvening, updatePlayer, getNextEvening, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers, getHelpComponents, readDir, getAnalyticsTrendsString, getRankingIconUrl } from './util';
-import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel, naturalJoin, getPreciseDurationString, toDiscordTimestamp, DiscordTimestampFormat, getQuantityWithUnits, getUnambiguousQuantitiesWithUnits } from 'evanw555.js';
+import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel, naturalJoin, getPreciseDurationString, toDiscordTimestamp, DiscordTimestampFormat, getQuantityWithUnits, getUnambiguousQuantitiesWithUnits, getEvenlyShortened } from 'evanw555.js';
 import CommandReader from './command-reader';
 import CommandHandler from './command-handler';
 import commands from './commands';
 import TimeoutStorage from './timeout-storage';
+import SettingsInteractionHandler from './settings';
 
 import { AUTH, CONFIG, INACTIVE_THRESHOLD_MILLIES, OTHER_ACTIVITIES, RANKING_ICON_SETS, RED_EMBED_COLOR, SKILLS_NO_OVERALL, TIMEOUTS_PROPERTY } from './constants';
 
@@ -16,7 +17,6 @@ import loggerIndices from './instances/logger-indices';
 import pgStorageClient from './instances/pg-storage-client';
 import timeSlotInstance from './instances/timeslot';
 import timer from './instances/timer';
-import SettingsInteractionHandler from './settings';
 
 // TODO: Deprecate CommandReader in favor of CommandHandler
 const commandReader: CommandReader = new CommandReader();
@@ -461,16 +461,26 @@ const weeklyTotalXpUpdate = async () => {
                     // Format all the XP quantities first to ensure they're mutually unambiguous
                     const formattedValues = getUnambiguousQuantitiesWithUnits(winners.map(rsn => totalXpDiffs[rsn]));
                     // Send the message to the tracking channel
-                    const iconSet = RANKING_ICON_SETS[state.getGuildSettingWithDefault(guildId, GuildSetting.WeeklyRankingIconSet)] ?? RANKING_ICON_SETS[0];
+                    const iconSet = RANKING_ICON_SETS[state.getGuildSettingWithDefault(guildId, GuildSetting.WeeklyRankingIconSet)];
+                    // Determine the icon index for each rank
+                    let iconIndices: number[];
+                    if (iconSet.scales) {
+                        // If this icon set scales, assign icons evenly such that the top player gets the first icon and bottom gets last
+                        const allIndices = Array.from({ length: iconSet.cap }, (v, i) => i);
+                        iconIndices = getEvenlyShortened(allIndices, winners.length);
+                    } else {
+                        // Otherwise, just show the top N icons (and repeat the last icon if there aren't enough)
+                        // TODO: Should we use some other icon for the overflow?
+                        iconIndices = Array.from({ length: winners.length }, (v, i) => Math.min(i, iconSet.cap - 1));
+                    }
+                    // Construct and send the update message
                     await state.getTrackingChannel(guildId).send({
                         content: '**Biggest XP earners over the last week:**',
                         embeds: winners.map((rsn, i) => {
                             return {
                                 description: `**${state.getDisplayName(rsn)}** with **${formattedValues[i]} XP**`,
                                 thumbnail: {
-                                    // If there are aren't enough icons in the set, default to the last one
-                                    // TODO: Should we use some other icon for the overflow?
-                                    url: getRankingIconUrl(iconSet.id, Math.min(i, iconSet.cap - 1))
+                                    url: getRankingIconUrl(iconSet.id, iconIndices[i] ?? iconIndices[iconIndices.length - 1])
                                 }
                             };
                         })

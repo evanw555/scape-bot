@@ -146,7 +146,7 @@ export const DEFAULT_GUILD_SETTINGS: Record<GuildSetting, number> = {
 } as const;
 
 // TODO: Add a new "index" property so we can sort these options regardless of their numeric ID
-export const RANKING_ICON_SETS: Record<number, { id: string, name: string, cap: number }> = {
+export const RANKING_ICON_SETS: Record<number, { id: string, name: string, cap: number, scales?: true, description?: string, deprecated?: true }> = {
     0: {
         id: 'default',
         name: 'Gold/Silver/Bronze Bars',
@@ -179,12 +179,17 @@ export const RANKING_ICON_SETS: Record<number, { id: string, name: string, cap: 
     },
     6: {
         id: 'coins10',
-        name: 'Coins (10)',
-        cap: 10
+        name: 'Coins',
+        cap: 10,
+        scales: true,
+        description: 'Always scales from max stack to one coin'
     },
     7: {
-        id: 'coins5',
-        name: 'Coins (5)',
-        cap: 5
+        id: 'coins10',
+        name: 'Coins',
+        cap: 10,
+        scales: true,
+        // Deprecated, as the coins10 icon set is configured to scale to whatever number of entries there are (thus 2 different sets are not needed)
+        deprecated: true
     }
 };

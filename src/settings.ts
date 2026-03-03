@@ -380,7 +380,14 @@ class SettingsInteractionHandler {
                     min_values: 1,
                     max_values: 1,
                     placeholder: 'Set weekly XP icons',
-                    options: Object.entries(RANKING_ICON_SETS).map(([value, data]) => ({ value, label: data.name, description: `Has ${data.cap} icons`, default: value === weeklyRankingIconSet.toString() ? true : false }))
+                    options: Object.entries(RANKING_ICON_SETS)
+                        .filter(([value, data]) => !data.deprecated)
+                        .map(([value, data]) => ({
+                            value,
+                            label: data.name,
+                            description: data.description ?? `Has ${data.cap} icons`,
+                            default: value === weeklyRankingIconSet.toString() ? true : false
+                        }))
                 }]
             }, {
                 type: ComponentType.ActionRow,
