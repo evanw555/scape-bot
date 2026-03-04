@@ -1,11 +1,11 @@
 import { exec } from 'child_process';
 import { Message, Snowflake, APIEmbed } from 'discord.js';
-import { randInt, randChoice, forEachMessage, MultiLoggerLevel, getPreciseDurationString, toFixed, getUnambiguousQuantitiesWithUnits, getQuantityWithUnits, getMinKey } from 'evanw555.js';
+import { randInt, randChoice, forEachMessage, MultiLoggerLevel, getPreciseDurationString, toFixed, getUnambiguousQuantitiesWithUnits, getQuantityWithUnits, getMinKey, getEvenlyShortened } from 'evanw555.js';
 import { FORMATTED_BOSS_NAMES, BOSSES, Boss, INVALID_FORMAT_ERROR } from 'osrs-json-hiscores';
 import { OTHER_ACTIVITIES, SKILLS_NO_OVERALL, CLUES_NO_ALL, GRAY_EMBED_COLOR, FORMATTED_GUILD_SETTINGS, DEFAULT_GUILD_SETTINGS, RANKING_ICON_SETS, GUILD_SETTING_SHORT_NAMES } from './constants';
 import { fetchHiScores, isPlayerNotFoundError } from './hiscores';
 import { HiddenCommandsType, DailyAnalyticsLabel, PlayerHiScores, IndividualSkillName, IndividualClueType, IndividualActivityName, GuildSetting } from './types';
-import { sendUpdateMessage, isValidBoss, updatePlayer, sanitizeRSN, purgeUntrackedPlayers, fetchDisplayName, createWarningEmbed, getHelpText, getAnalyticsTrendsEmbeds, resolveHiScoresUrlTemplate } from './util';
+import { sendUpdateMessage, isValidBoss, updatePlayer, sanitizeRSN, purgeUntrackedPlayers, fetchDisplayName, createWarningEmbed, getHelpText, getAnalyticsTrendsEmbeds, resolveHiScoresUrlTemplate, getRankingIconUrl } from './util';
 
 import state from './instances/state';
 import timer from './instances/timer';
@@ -145,6 +145,12 @@ export const hiddenCommands: HiddenCommandsType = {
                     await msg.reply('Send this from a valid guild!');
                     return;
                 }
+                // Try to parse other parts of the command
+                const [rawMax, rawIconSetId] = rawArgs.replace('admin', '').replace('weekly_xp', '').trim().split(' ');
+                const parsedMax = parseInt(rawMax);
+                const maxPlayers = !isNaN(parsedMax) ? parsedMax : 10;
+                const iconSet = Object.values(RANKING_ICON_SETS).filter(s => s.id === rawIconSetId)[0] ?? RANKING_ICON_SETS[DEFAULT_GUILD_SETTINGS[GuildSetting.WeeklyRankingIconSet]];
+                // Now, compute the winners
                 const players = state.getAllTrackedPlayers(guildId);
                 const previousTotalXp = await pgStorageClient.fetchWeeklyXpSnapshots();
                 const diffs: Record<string, number> = {};
@@ -152,9 +158,33 @@ export const hiddenCommands: HiddenCommandsType = {
                     diffs[rsn] = state.getTotalXp(rsn) - (previousTotalXp[rsn] ?? 0);
                 }
                 players.sort((x, y) => diffs[y] - diffs[x]);
+                const winners = players.slice(0, maxPlayers);
                 // Format all the XP quantities first to ensure they're mutually unambiguous
-                const formattedValues = getUnambiguousQuantitiesWithUnits(players.map(rsn => diffs[rsn] ?? 0));
-                await msg.reply('__Current weekly XP standings__:\n' + players.filter(rsn => diffs[rsn]).map((rsn, i) => `${i + 1}. **${state.getDisplayName(rsn)}** _${formattedValues[i]}_`).join('\n'));
+                const formattedValues = getUnambiguousQuantitiesWithUnits(winners.map(rsn => diffs[rsn] ?? 0));
+                // Determine the icon index for each rank
+                // TODO: This is duplicate logic, redefine somewhere?
+                let iconIndices: number[];
+                if (iconSet.scales) {
+                    // If this icon set scales, assign icons evenly such that the top player gets the first icon and bottom gets last
+                    const allIndices = Array.from({ length: iconSet.cap }, (v, i) => i);
+                    iconIndices = getEvenlyShortened(allIndices, winners.length);
+                } else {
+                    // Otherwise, just show the top N icons (and repeat the last icon if there aren't enough)
+                    // TODO: Should we use some other icon for the overflow?
+                    iconIndices = Array.from({ length: winners.length }, (v, i) => Math.min(i, iconSet.cap - 1));
+                }
+                // Construct and send the update message
+                await msg.reply({
+                    content: `**Current Weekly XP Standings:** (max=${maxPlayers},icons=${iconSet.id})`,
+                    embeds: winners.map((rsn, i) => {
+                        return {
+                            description: `**${state.getDisplayName(rsn)}** with **${formattedValues[i]} XP**`,
+                            thumbnail: {
+                                url: getRankingIconUrl(iconSet.id, iconIndices[i] ?? iconIndices[iconIndices.length - 1])
+                            }
+                        };
+                    })
+                });
                 return;
             } else if (subcommand === 'settings') {
                 // Compile all settings (including defaults) for all guilds
