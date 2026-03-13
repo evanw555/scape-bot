@@ -1,4 +1,4 @@
-import { BOSSES, CLUES } from 'osrs-json-hiscores';
+import { BOSSES } from 'osrs-json-hiscores';
 import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel, ActivityType, Snowflake, PermissionFlagsBits, MessageCreateOptions, GuildResolvable } from 'discord.js';
 import { DailyAnalyticsLabel, GuildSetting, TimeoutType } from './types';
 import { sendUpdateMessage, getNextFridayEvening, updatePlayer, getNextEvening, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers, getHelpComponents, readDir, getAnalyticsTrendsString, getRankingIconUrl } from './util';
@@ -9,7 +9,7 @@ import commands from './commands';
 import TimeoutStorage from './timeout-storage';
 import SettingsInteractionHandler from './settings';
 
-import { AUTH, CONFIG, INACTIVE_THRESHOLD_MILLIES, OTHER_ACTIVITIES, RANKING_ICON_SETS, RED_EMBED_COLOR, SKILLS_NO_OVERALL, TIMEOUTS_PROPERTY } from './constants';
+import { AUTH, CLUES_NO_ALL, CONFIG, INACTIVE_THRESHOLD_MILLIES, OTHER_ACTIVITIES, RANKING_ICON_SETS, RED_EMBED_COLOR, SKILLS_NO_OVERALL, TIMEOUTS_PROPERTY } from './constants';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -604,9 +604,9 @@ client.on('ready', async () => {
         // Audit activity thumbnails
         const existingThumbnails = readDir('./static/thumbnails').concat(readDir('./static/thumbnails/clues'));
         const activitiesMissingThumbnail: string[] = [];
-        const allActivities = [...OTHER_ACTIVITIES, ...BOSSES, ...SKILLS_NO_OVERALL, ...CLUES];
+        const allActivities = [...OTHER_ACTIVITIES, ...BOSSES, ...SKILLS_NO_OVERALL, ...CLUES_NO_ALL];
         allActivities.forEach((activity) => {
-            const iconHit = existingThumbnails.find(fileName => fileName.toLowerCase().endsWith(`/${activity.toLowerCase()}.png`));
+            const iconHit = existingThumbnails.find(fileName => fileName === `${activity}.png`);
             if (!iconHit) {
                 activitiesMissingThumbnail.push(activity);
             }
