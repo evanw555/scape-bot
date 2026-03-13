@@ -606,7 +606,7 @@ client.on('ready', async () => {
         const activitiesMissingThumbnail: string[] = [];
         const allActivities = [...OTHER_ACTIVITIES, ...BOSSES, ...SKILLS_NO_OVERALL, ...CLUES];
         allActivities.forEach((activity) => {
-            const iconHit = existingThumbnails.find(fileName => fileName.toLowerCase().includes(activity.toLowerCase()));
+            const iconHit = existingThumbnails.find(fileName => fileName.toLowerCase().endsWith(`/${activity.toLowerCase()}.png`));
             if (!iconHit) {
                 activitiesMissingThumbnail.push(activity);
             }
