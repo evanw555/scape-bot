@@ -78,8 +78,8 @@ export const DOPE_COMPLETE_VERBS: string[] = [
     'has completed'
 ];
 
+/** Set of bosses that should use the "has completed" verbiage (rather than "has killed"). */
 export const COMPLETE_VERB_BOSSES: Set<Boss> = new Set<Boss>([
-    'barrows',
     'chambersOfXeric',
     'chambersOfXericChallengeMode',
     'gauntlet',
@@ -88,8 +88,19 @@ export const COMPLETE_VERB_BOSSES: Set<Boss> = new Set<Boss>([
     'theatreOfBloodHardMode',
     'tombsOfAmascut',
     'tombsOfAmascutExpertMode',
+]);
+
+/**
+ * Set of bosses that should use "has opened" verbiage, as they're chests.
+ * This should only be used in single boss updates, whereas for batched updates the "complete" verbiage can be used.
+ * */
+export const CHEST_VERB_BOSSES: Set<Boss> = new Set<Boss>([
+    'barrows',
     'lunarChests'
 ]);
+
+/** Shortcut for determining bosses that can't use the "has killed" verbiage. */
+export const NON_KILL_VERB_BOSSES: Set<Boss> = new Set<Boss>([...COMPLETE_VERB_BOSSES, ...CHEST_VERB_BOSSES]);
 
 export const INVALID_TEXT_CHANNEL = 'err/invalid-text-channel';
 export const UNAUTHORIZED_USER = 'err/unauthorized-user';
