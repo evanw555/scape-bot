@@ -157,50 +157,71 @@ export const DEFAULT_GUILD_SETTINGS: Record<GuildSetting, number> = {
 } as const;
 
 // TODO: Add a new "index" property so we can sort these options regardless of their numeric ID
-export const RANKING_ICON_SETS: Record<number, { id: string, name: string, cap: number, scales?: true, description?: string, deprecated?: true }> = {
+export const RANKING_ICON_SETS: Record<number, { id: string, name: string, cap: number, index: number, scales?: true, description?: string, deprecated?: true }> = {
     0: {
         id: 'default',
         name: 'Gold/Silver/Bronze Bars',
-        cap: 3
+        cap: 3,
+        index: 0,
     },
     1: {
         id: 'pickaxes',
         name: 'Pickaxes',
-        cap: 8
+        cap: 8,
+        index: 5
     },
     2: {
         id: 'scimitars',
         name: 'Scimitars',
-        cap: 8
+        cap: 8,
+        index: 3,
     },
     3: {
         id: 'defenders',
         name: 'Defenders',
-        cap: 8
+        cap: 8,
+        index: 4
     },
     4: {
         id: 'ancients',
         name: 'Ancient Magicks',
-        cap: 10
+        cap: 10,
+        index: 99
     },
     5: {
         id: 'surges',
         name: 'Surge Spells',
-        cap: 4
+        cap: 4,
+        index: 99
     },
     6: {
         id: 'coins10',
         name: 'Coins',
         cap: 10,
+        index: 2,
         scales: true,
         description: 'Always scales from max stack to one coin'
     },
     7: {
+        // This used to be "coins5", but users of this icon set should automatically be using coins10 now
         id: 'coins10',
-        name: 'Coins',
+        name: 'Coins (Deprecated)',
         cap: 10,
         scales: true,
         // Deprecated, as the coins10 icon set is configured to scale to whatever number of entries there are (thus 2 different sets are not needed)
-        deprecated: true
+        deprecated: true,
+        index: 99
+    },
+    8: {
+        id: 'numbers',
+        name: 'Numbers',
+        cap: 10,
+        index: 1
+    },
+    9: {
+        id: 'lootkeys',
+        name: 'Loot Keys',
+        cap: 6,
+        index: 6
     }
 };

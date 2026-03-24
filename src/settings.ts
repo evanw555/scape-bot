@@ -381,7 +381,8 @@ class SettingsInteractionHandler {
                     max_values: 1,
                     placeholder: 'Set weekly XP icons',
                     options: Object.entries(RANKING_ICON_SETS)
-                        .filter(([value, data]) => !data.deprecated)
+                        .filter(e => !e[1].deprecated)
+                        .sort((x, y) => x[1].index - y[1].index)
                         .map(([value, data]) => ({
                             value,
                             label: data.name,
