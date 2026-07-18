@@ -5,7 +5,7 @@ import { PlayerHiScores, SlashCommandsType } from './types';
 import { replyUpdateMessage, updatePlayer, getBossName, generateDetailsContentString, sanitizeRSN, botHasRequiredPermissionsInChannel, getMissingRequiredChannelPermissionNames, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers, getHelpComponents, getHelpText, resolveHiScoresUrlTemplate, getRootSettingsMenu } from './util';
 import { fetchHiScores, isPlayerNotFoundError } from './hiscores';
 import CommandHandler from './command-handler';
-import { AUTH, CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, BOSS_CHOICES, INVALID_TEXT_CHANNEL, SKILL_EMBED_COLOR, OTHER_ACTIVITIES, OTHER_ACTIVITIES_MAP } from './constants';
+import { AUTH, CLUES_NO_ALL, SKILLS_NO_OVERALL, CONSTANTS, BOSS_CHOICES, INVALID_TEXT_CHANNEL, SKILL_EMBED_COLOR, OTHER_ACTIVITIES, OTHER_ACTIVITIES_MAP, ACTIVE_THRESHOLD_MILLIS } from './constants';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -122,6 +122,13 @@ const slashCommands: SlashCommandsType = {
                 if (!state.hasLastRefresh(rsn)) {
                     await pgStorageClient.updatePlayerRefreshTimestamp(rsn, new Date());
                     state.setLastRefresh(rsn, new Date());
+                }
+                // If missing activity timestamp after update (usually due to 404), populate with active threshold.
+                // This puts them in the inactive queue, giving them a few weeks to get on the hiscores and avoid archive hell.
+                if (!state.hasPlayerActivityTimestamp(rsn)) {
+                    const inactiveTimestamp = new Date(new Date().getTime() - ACTIVE_THRESHOLD_MILLIS);
+                    await pgStorageClient.updatePlayerActivityTimestamp(rsn, inactiveTimestamp);
+                    state.markPlayerAsActive(rsn, inactiveTimestamp);
                 }
             }
             // If the player's display name couldn't be confirmed, use the inputted name as the "unconfirmed" display name for now.
