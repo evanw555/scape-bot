@@ -221,8 +221,7 @@ const loadState = async (): Promise<void> => {
     }
     const playersOffHiScores: string[] = await pgStorageClient.fetchAllPlayersWithHiScoreStatus(false);
     const privilegedRoles = await pgStorageClient.fetchAllPrivilegedRoles();
-    let rolesMissingFromCache = 0;
-    let numEveryone = 0;
+    const guildsMissingRoleInCache: Snowflake[] = [];
     for (const [ guildId, roleId ] of Object.entries(privilegedRoles)) {
         try {
             // Initial guild fetch happens in 'ready' event handler before loadState is invoked
@@ -235,10 +234,7 @@ const loadState = async (): Promise<void> => {
             if (privilegedRole) {
                 state.setPrivilegedRole(guildId, privilegedRole);
             } else {
-                rolesMissingFromCache++;
-                if (roleId === guildId) {
-                    numEveryone++;
-                }
+                guildsMissingRoleInCache.push(guildId);
             }
         } catch (err) {
             if (err instanceof Error) {
@@ -249,8 +245,8 @@ const loadState = async (): Promise<void> => {
             }
         }
     }
-    if (rolesMissingFromCache > 0) {
-        await logger.log(`**${rolesMissingFromCache}** roles missing from cache, **${numEveryone}** were everyone roles`, MultiLoggerLevel.Error);
+    if (guildsMissingRoleInCache.length > 0) {
+        await logger.log(`Guilds missing role in cache: ${guildsMissingRoleInCache.map(id => `_${client.guilds.cache.find(g => g.id === id)?.name}_` + (id === privilegedRoles[id] ? ' (everyone)' : '')).join(', ')}`, MultiLoggerLevel.Error);
     }
     const guildSettings = await pgStorageClient.fetchAllGuildSettings();
     for (const [ guildId, settings ] of Object.entries(guildSettings)) {
