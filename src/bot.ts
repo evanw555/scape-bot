@@ -228,7 +228,7 @@ const loadState = async (): Promise<void> => {
             const guild = client.guilds.cache.find(g => g.id === guildId);
             if (!guild) {
                 await logger.log(`Bot is not connected to guildId \`${guildId}\` for privileged role \`${roleId}\``);
-                break;
+                continue;
             }
             const privilegedRole = guild.roles.cache.find(r => r.id === roleId);
             if (privilegedRole) {
