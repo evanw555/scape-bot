@@ -2,7 +2,7 @@ import { BOSSES } from 'osrs-json-hiscores';
 import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel, ActivityType, Snowflake, PermissionFlagsBits, MessageCreateOptions, GuildResolvable } from 'discord.js';
 import { DailyAnalyticsLabel, GuildSetting, TimeoutType } from './types';
 import { sendUpdateMessage, getNextFridayEvening, updatePlayer, getNextEvening, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers, getHelpComponents, readDir, getAnalyticsTrendsString, getRankingIconUrl } from './util';
-import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel, naturalJoin, getPreciseDurationString, toDiscordTimestamp, DiscordTimestampFormat, getQuantityWithUnits, getUnambiguousQuantitiesWithUnits, getEvenlyShortened, getObjectSize } from 'evanw555.js';
+import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel, naturalJoin, getPreciseDurationString, toDiscordTimestamp, DiscordTimestampFormat, getQuantityWithUnits, getUnambiguousQuantitiesWithUnits, getEvenlyShortened } from 'evanw555.js';
 import CommandReader from './command-reader';
 import CommandHandler from './command-handler';
 import commands from './commands';
@@ -234,11 +234,11 @@ const loadState = async (): Promise<void> => {
                 state.setPrivilegedRole(guildId, privilegedRole);
             } else {
                 // Role couldn't be fetched, so delete it from PG
-                // await pgStorageClient.deletePrivilegedRole(guildId);
+                await pgStorageClient.deletePrivilegedRole(guildId);
                 // Notify the guild and instruct them to set a new role
+                // TODO: Do we actually need to notify the guild about a missing role? It's not nearly as important as missing a tracking channel
                 // const warningDestination = await sendGuildNotification(guildId, 'It looks like the role you set for this guild doesn\'t exist anymore. You can set a new one with **/role**');
-                const warningDestination = 'N/A';
-                await logger.log(`(DUMMY) Deleted missing role for guild \`${guildId}\` (sent warning to ${warningDestination})`, MultiLoggerLevel.Error);
+                await logger.log(`Deleted missing role for guild \`${guildId}\``, MultiLoggerLevel.Error); // (sent warning to ${warningDestination})`, MultiLoggerLevel.Error);
             }
         } catch (err) {
             if (err instanceof Error) {
