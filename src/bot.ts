@@ -2,7 +2,7 @@ import { BOSSES } from 'osrs-json-hiscores';
 import { Client, ClientUser, Guild, GatewayIntentBits, Options, TextBasedChannel, User, TextChannel, ActivityType, Snowflake, PermissionFlagsBits, MessageCreateOptions, GuildResolvable } from 'discord.js';
 import { DailyAnalyticsLabel, GuildSetting, TimeoutType } from './types';
 import { sendUpdateMessage, getNextFridayEvening, updatePlayer, getNextEvening, getGuildWarningEmbeds, createWarningEmbed, purgeUntrackedPlayers, getHelpComponents, readDir, getAnalyticsTrendsString, getRankingIconUrl } from './util';
-import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel, naturalJoin, getPreciseDurationString, toDiscordTimestamp, DiscordTimestampFormat, getQuantityWithUnits, getUnambiguousQuantitiesWithUnits, getEvenlyShortened } from 'evanw555.js';
+import { TimeoutManager, PastTimeoutStrategy, randInt, getDurationString, sleep, MultiLoggerLevel, naturalJoin, getPreciseDurationString, toDiscordTimestamp, DiscordTimestampFormat, getQuantityWithUnits, getUnambiguousQuantitiesWithUnits, getEvenlyShortened, getObjectSize } from 'evanw555.js';
 import CommandReader from './command-reader';
 import CommandHandler from './command-handler';
 import commands from './commands';
@@ -222,12 +222,15 @@ const loadState = async (): Promise<void> => {
     const playersOffHiScores: string[] = await pgStorageClient.fetchAllPlayersWithHiScoreStatus(false);
     const privilegedRoles = await pgStorageClient.fetchAllPrivilegedRoles();
     const guildsMissingRoleInCache: Snowflake[] = [];
+    // TODO: Temp logging to see how many roles were affected by the now-resolved bug
+    let roleIndex = 0;
     for (const [ guildId, roleId ] of Object.entries(privilegedRoles)) {
+        roleIndex++;
         try {
             // Initial guild fetch happens in 'ready' event handler before loadState is invoked
             const guild = client.guilds.cache.find(g => g.id === guildId);
             if (!guild) {
-                await logger.log(`Bot is not connected to guildId \`${guildId}\` for privileged role \`${roleId}\``);
+                await logger.log(`Bot is not connected to guildId \`${guildId}\` for privileged role \`${roleId}\` (role ${roleIndex} of ${getObjectSize(privilegedRoles)})`);
                 continue;
             }
             const privilegedRole = guild.roles.cache.find(r => r.id === roleId);
@@ -235,6 +238,12 @@ const loadState = async (): Promise<void> => {
                 state.setPrivilegedRole(guildId, privilegedRole);
             } else {
                 guildsMissingRoleInCache.push(guildId);
+                // TODO: Temp logging to see if these roles really cannot be fetched
+                try {
+                    await guild.roles.fetch(roleId);
+                } catch (err) {
+                    await logger.log(`Failed to fetch role \`${roleId}\` for guild _${client.guilds.cache.find(g => g.id === guildId)?.name}_`, MultiLoggerLevel.Warn);
+                }
             }
         } catch (err) {
             if (err instanceof Error) {
