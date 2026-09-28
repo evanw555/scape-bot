@@ -221,17 +221,24 @@ const loadState = async (): Promise<void> => {
     }
     const playersOffHiScores: string[] = await pgStorageClient.fetchAllPlayersWithHiScoreStatus(false);
     const privilegedRoles = await pgStorageClient.fetchAllPrivilegedRoles();
+    let rolesMissingFromCache = 0;
+    let numEveryone = 0;
     for (const [ guildId, roleId ] of Object.entries(privilegedRoles)) {
         try {
             // Initial guild fetch happens in 'ready' event handler before loadState is invoked
             const guild = client.guilds.cache.find(g => g.id === guildId);
             if (!guild) {
-                await logger.log(`Bot is not connected to guildId '${guildId} for privileged role '${roleId}'`);
+                await logger.log(`Bot is not connected to guildId \`${guildId}\` for privileged role \`${roleId}\``);
                 break;
             }
             const privilegedRole = guild.roles.cache.find(r => r.id === roleId);
             if (privilegedRole) {
                 state.setPrivilegedRole(guildId, privilegedRole);
+            } else {
+                rolesMissingFromCache++;
+                if (roleId === guildId) {
+                    numEveryone++;
+                }
             }
         } catch (err) {
             if (err instanceof Error) {
@@ -241,6 +248,9 @@ const loadState = async (): Promise<void> => {
                 await logger.log(`Failed to set privileged role for guild ${guildId} due to: ${err.toString()}`, MultiLoggerLevel.Error);
             }
         }
+    }
+    if (rolesMissingFromCache > 0) {
+        await logger.log(`**${rolesMissingFromCache}** roles missing from cache, **${numEveryone}** were everyone roles`);
     }
     const guildSettings = await pgStorageClient.fetchAllGuildSettings();
     for (const [ guildId, settings ] of Object.entries(guildSettings)) {
