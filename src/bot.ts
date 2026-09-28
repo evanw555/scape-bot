@@ -250,7 +250,7 @@ const loadState = async (): Promise<void> => {
         }
     }
     if (rolesMissingFromCache > 0) {
-        await logger.log(`**${rolesMissingFromCache}** roles missing from cache, **${numEveryone}** were everyone roles`);
+        await logger.log(`**${rolesMissingFromCache}** roles missing from cache, **${numEveryone}** were everyone roles`, MultiLoggerLevel.Error);
     }
     const guildSettings = await pgStorageClient.fetchAllGuildSettings();
     for (const [ guildId, settings ] of Object.entries(guildSettings)) {
