@@ -280,6 +280,14 @@ describe('PGStorageClient Tests', () => {
         const results3 = await pgStorageClient.fetchAllPrivilegedRoles();
         expect('12345' in results3).true;
         expect(results3['12345']).equals(roleId2);
+
+        // Delete the row
+        await pgStorageClient.deletePrivilegedRole('12345');
+        // Add a different row to make sure this one doesn't get deleted too
+        await pgStorageClient.writePrivilegedRole('67890', roleId2);
+        const results4 = await pgStorageClient.fetchAllPrivilegedRoles();
+        expect(results4).does.not.have.key('12345');
+        expect(results4).has.key('67890');
     });
 
     it('can read and write misc properties', async () => {

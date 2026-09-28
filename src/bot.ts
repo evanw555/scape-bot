@@ -221,34 +221,24 @@ const loadState = async (): Promise<void> => {
     }
     const playersOffHiScores: string[] = await pgStorageClient.fetchAllPlayersWithHiScoreStatus(false);
     const privilegedRoles = await pgStorageClient.fetchAllPrivilegedRoles();
-    const guildsMissingRoleInCache: Snowflake[] = [];
-    // TODO: Temp logging to see how many roles were affected by the now-resolved bug
-    let roleIndex = 0;
     for (const [ guildId, roleId ] of Object.entries(privilegedRoles)) {
-        roleIndex++;
         try {
             // Initial guild fetch happens in 'ready' event handler before loadState is invoked
             const guild = client.guilds.cache.find(g => g.id === guildId);
             if (!guild) {
-                await logger.log(`Bot is not connected to guildId \`${guildId}\` for privileged role \`${roleId}\` (role ${roleIndex} of ${getObjectSize(privilegedRoles)})`);
+                await logger.log(`Bot is not connected to guildId \`${guildId}\` for privileged role \`${roleId}\``);
                 continue;
             }
-            const privilegedRole = guild.roles.cache.find(r => r.id === roleId);
+            const privilegedRole = await guild.roles.fetch(roleId);
             if (privilegedRole) {
                 state.setPrivilegedRole(guildId, privilegedRole);
             } else {
-                guildsMissingRoleInCache.push(guildId);
-                // TODO: Temp logging to see if these roles really cannot be fetched
-                try {
-                    const role = await guild.roles.fetch(roleId);
-                    if (role) {
-                        await logger.log(`Role **${role.name}** for guild _${client.guilds.cache.find(g => g.id === guildId)?.name}_ fetched yet missing from cache`, MultiLoggerLevel.Warn);
-                    } else {
-                        await logger.log(`Fetched role \`${roleId}\` for guild _${client.guilds.cache.find(g => g.id === guildId)?.name}_ and found null`, MultiLoggerLevel.Warn);
-                    }
-                } catch (err) {
-                    await logger.log(`Failed to fetch role \`${roleId}\` for guild _${client.guilds.cache.find(g => g.id === guildId)?.name}_`, MultiLoggerLevel.Warn);
-                }
+                // Role couldn't be fetched, so delete it from PG
+                // await pgStorageClient.deletePrivilegedRole(guildId);
+                // Notify the guild and instruct them to set a new role
+                // const warningDestination = await sendGuildNotification(guildId, 'It looks like the role you set for this guild doesn\'t exist anymore. You can set a new one with **/role**');
+                const warningDestination = 'N/A';
+                await logger.log(`(DUMMY) Deleted missing role for guild \`${guildId}\` (sent warning to ${warningDestination})`, MultiLoggerLevel.Error);
             }
         } catch (err) {
             if (err instanceof Error) {
@@ -259,9 +249,7 @@ const loadState = async (): Promise<void> => {
             }
         }
     }
-    if (guildsMissingRoleInCache.length > 0) {
-        await logger.log(`Guilds missing role in cache: ${guildsMissingRoleInCache.map(id => `_${client.guilds.cache.find(g => g.id === id)?.name}_` + (id === privilegedRoles[id] ? ' (everyone)' : '')).join(', ')}`, MultiLoggerLevel.Error);
-    }
+
     const guildSettings = await pgStorageClient.fetchAllGuildSettings();
     for (const [ guildId, settings ] of Object.entries(guildSettings)) {
         try {

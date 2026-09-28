@@ -516,6 +516,10 @@ export default class PGStorageClient {
         await this.client.query('INSERT INTO privileged_roles VALUES ($1, $2) ON CONFLICT (guild_id) DO UPDATE SET role_id = EXCLUDED.role_id;', [guildId, roleId]);
     }
 
+    async deletePrivilegedRole(guildId: Snowflake): Promise<void> {
+        await this.client.query('DELETE FROM privileged_roles WHERE guild_id = $1;', [guildId]);
+    }
+
     async fetchAllGuildSettings(): Promise<Record<string, GuildSettingsMap>> {
         const result: Record<string, GuildSettingsMap> = {};
         const queryResult = await this.client.query<{guild_id: string, setting: GuildSetting, value: number}>('SELECT * FROM guild_settings');
