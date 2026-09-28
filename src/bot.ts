@@ -240,7 +240,12 @@ const loadState = async (): Promise<void> => {
                 guildsMissingRoleInCache.push(guildId);
                 // TODO: Temp logging to see if these roles really cannot be fetched
                 try {
-                    await guild.roles.fetch(roleId);
+                    const role = await guild.roles.fetch(roleId);
+                    if (role) {
+                        await logger.log(`Role **${role.name}** for guild _${client.guilds.cache.find(g => g.id === guildId)?.name}_ fetched yet missing from cache`, MultiLoggerLevel.Warn);
+                    } else {
+                        await logger.log(`Fetched role \`${roleId}\` for guild _${client.guilds.cache.find(g => g.id === guildId)?.name}_ and found null`, MultiLoggerLevel.Warn);
+                    }
                 } catch (err) {
                     await logger.log(`Failed to fetch role \`${roleId}\` for guild _${client.guilds.cache.find(g => g.id === guildId)?.name}_`, MultiLoggerLevel.Warn);
                 }
