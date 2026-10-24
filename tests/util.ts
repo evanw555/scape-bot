@@ -1,6 +1,9 @@
 import { expect } from 'chai';
-import { computeDiff, computeLevelForXp, diffPassesMilestone } from '../src/util';
+import fs from 'fs';
+import { computeDiff, computeLevelForXp, diffPassesMilestone, getThumbnail } from '../src/util';
 import { NegativeDiffError } from '../src/types';
+import { BOSSES, CLUES, SKILLS } from 'osrs-json-hiscores';
+import { CLUES_NO_ALL, SKILLS_NO_OVERALL } from '../src/constants';
 
 describe('Util Tests', () => {
     it('computes diffs correctly', () => {
@@ -120,7 +123,7 @@ describe('Util Tests', () => {
         expect(diffPassesMilestone(25, 13, 13), 'Update 25-to-13 does NOT pass 13-interval milestone').is.false;
     });
 
-    it ('computes virtual levels correctly', () => {
+    it('computes virtual levels correctly', () => {
         expect(computeLevelForXp(0)).equals(1);
         expect(computeLevelForXp(82)).equals(1);
         expect(computeLevelForXp(83)).equals(2);
@@ -138,5 +141,31 @@ describe('Util Tests', () => {
         expect(computeLevelForXp(150_000_000)).equals(123);
         expect(computeLevelForXp(200_000_000)).equals(126);
         expect(computeLevelForXp(2_000_000_000)).equals(126);
+    });
+
+    // TODO: This isn't really testing anything in util.ts, move or make a util function?
+    it('has thumbnails for all skills', () => {
+        for (const skill of SKILLS_NO_OVERALL) {
+            const exists = fs.existsSync(`static/thumbnails/${skill}.png`);
+            expect(exists, `Missing thumbnail for skill "${skill}"`).is.true;
+            const exists99 = fs.existsSync(`static/thumbnails/99/${skill}.png`);
+            expect(exists99, `Missing 99 thumbnail for skill "${skill}"`).is.true;
+        }
+    });
+
+    // TODO: This isn't really testing anything in util.ts, move or make a util function?
+    it('has thumbnails for all bosses', () => {
+        for (const boss of BOSSES) {
+            const exists = fs.existsSync(`static/thumbnails/${boss}.png`);
+            expect(exists, `Missing thumbnail for boss "${boss}"`).is.true;
+        }
+    });
+
+    // TODO: This isn't really testing anything in util.ts, move or make a util function?
+    it('has thumbnails for all clues', () => {
+        for (const clue of CLUES_NO_ALL) {
+            const exists = fs.existsSync(`static/thumbnails/clues/${clue}.png`);
+            expect(exists, `Missing thumbnail for clue "${clue}"`).is.true;
+        }
     });
 });

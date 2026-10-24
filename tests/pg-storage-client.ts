@@ -2,6 +2,7 @@ import { expect } from 'chai';
 import { randInt } from 'evanw555.js';
 import PGStorageClient from '../src/pg-storage-client';
 import { GuildSetting, MiscPropertyName } from '../src/types';
+import { Suite } from 'mocha';
 
 describe('PGStorageClient Tests', () => {
     /*
@@ -19,7 +20,12 @@ describe('PGStorageClient Tests', () => {
         password: 'tester'
     });
 
-    before(async () => {
+    before(async function(this: Mocha.Context) {
+        // If running in the GitHub CI environment, skip this entire test suite
+        if (process.env.CI === 'true') {
+            this.skip();
+        }
+
         // Before the entire test suite, connect the PG storage client
         try {
             await pgStorageClient.connect();
