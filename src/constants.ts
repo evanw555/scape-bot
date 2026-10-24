@@ -103,6 +103,39 @@ export const CHEST_VERB_BOSSES: Set<Boss> = new Set<Boss>([
 /** Shortcut for determining bosses that can't use the "has killed" verbiage. */
 export const NON_KILL_VERB_BOSSES: Set<Boss> = new Set<Boss>([...COMPLETE_VERB_BOSSES, ...CHEST_VERB_BOSSES]);
 
+/**
+ * Set of bosses that need their name prefixed with "the" in update messages.
+ * Note that some bosses already have "The" in their formatted names.
+ * This set should not include those.
+ * */
+export const THE_PREFIX_BOSSES: Set<Boss> = new Set<Boss>([
+    'abyssalSire',
+    'alchemicalHydra',
+    'chambersOfXeric',
+    'chambersOfXericChallengeMode',
+    'chaosElemental',
+    'chaosFanatic',
+    'corporealBeast',
+    'crazyArchaeologist',
+    'derangedArchaeologist',
+    'doomOfMokhaiotl',
+    'giantMole',
+    'grotesqueGuardians',
+    'kalphiteQueen',
+    'kingBlackDragon',
+    'kraken',
+    'madAngel',
+    'maggotKing',
+    'mimic',
+    'nightmare',
+    'shellbaneGryphon',
+    'theatreOfBlood',
+    'theatreOfBloodHardMode',
+    'thermonuclearSmokeDevil',
+    'tombsOfAmascut',
+    'tombsOfAmascutExpertMode'
+]);
+
 export const INVALID_TEXT_CHANNEL = 'err/invalid-text-channel';
 export const UNAUTHORIZED_USER = 'err/unauthorized-user';
 export const STATE_DISABLED = 'err/state-disabled';

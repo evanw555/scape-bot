@@ -4,7 +4,7 @@ import { APIEmbed, ActionRowData, BaseMessageOptions, ButtonStyle, ChatInputComm
 import { addReactsSync, DiscordTimestampFormat, filterMap, getPercentChangeString, getQuantityWithUnits, groupByProperty, MultiLoggerLevel, naturalJoin, randChoice, toDiscordTimestamp } from 'evanw555.js';
 import { IndividualClueType, IndividualSkillName, IndividualActivityName, PlayerHiScores, NegativeDiffError, CommandsType, SlashCommand, DailyAnalyticsLabel, PendingPlayerUpdate, PlayerUpdateType, PlayerUpdateKey, GuildSetting } from './types';
 import { fetchHiScores, isPlayerNotFoundError } from './hiscores';
-import { AUTH, CONSTANTS, BOSS_EMBED_COLOR, CLUES_NO_ALL, CLUE_EMBED_COLOR, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, DOPE_COMPLETE_VERBS, DOPE_KILL_VERBS, GRAY_EMBED_COLOR, RED_EMBED_COLOR, SKILLS_NO_OVERALL, SKILL_EMBED_COLOR, YELLOW_EMBED_COLOR, REQUIRED_PERMISSIONS, REQUIRED_PERMISSION_NAMES, CONFIG, DEFAULT_AXIOS_CONFIG, OTHER_ACTIVITIES, DEFAULT_ACTIVITY_SCORE, ACTIVITY_EMBED_COLOR, OTHER_ACTIVITIES_MAP, DEFAULT_ACTIVITY_SCORE_OVERRIDES, NEGATIVE_DIFF_ACTIVITIES, CHEST_VERB_BOSSES, NON_KILL_VERB_BOSSES } from './constants';
+import { AUTH, CONSTANTS, BOSS_EMBED_COLOR, CLUES_NO_ALL, CLUE_EMBED_COLOR, DEFAULT_BOSS_SCORE, DEFAULT_CLUE_SCORE, DEFAULT_SKILL_LEVEL, DOPE_COMPLETE_VERBS, DOPE_KILL_VERBS, GRAY_EMBED_COLOR, RED_EMBED_COLOR, SKILLS_NO_OVERALL, SKILL_EMBED_COLOR, YELLOW_EMBED_COLOR, REQUIRED_PERMISSIONS, REQUIRED_PERMISSION_NAMES, CONFIG, DEFAULT_AXIOS_CONFIG, OTHER_ACTIVITIES, DEFAULT_ACTIVITY_SCORE, ACTIVITY_EMBED_COLOR, OTHER_ACTIVITIES_MAP, DEFAULT_ACTIVITY_SCORE_OVERRIDES, NEGATIVE_DIFF_ACTIVITIES, CHEST_VERB_BOSSES, NON_KILL_VERB_BOSSES, THE_PREFIX_BOSSES } from './constants';
 
 import state from './instances/state';
 import logger from './instances/logger';
@@ -799,8 +799,8 @@ export function constructBossUpdateEmbeds(updates: PendingPlayerUpdate[]): APIEm
         }
         // Otherwise, use standard language
         const text = newValue === scoreIncrease
-            ? `**${state.getDisplayName(rsn)}** ${verb} **${bossName}** for the first ${scoreIncrease === 1 ? 'time' : `**${scoreIncrease}** times`}!`
-            : `**${state.getDisplayName(rsn)}** ${verb} **${bossName}** `
+            ? `**${state.getDisplayName(rsn)}** ${verb} ${THE_PREFIX_BOSSES.has(boss as Boss) ? 'the ' : ''}**${bossName}** for the first ${scoreIncrease === 1 ? 'time' : `**${scoreIncrease}** times`}!`
+            : `**${state.getDisplayName(rsn)}** ${verb} ${THE_PREFIX_BOSSES.has(boss as Boss) ? 'the ' : ''}**${bossName}** `
                     + (scoreIncrease === 1 ? 'again' : `**${scoreIncrease}** more times`)
                     + ` for a total of **${newValue}**`;
         return [buildUpdateEmbed(text, boss, { color: BOSS_EMBED_COLOR })];
@@ -812,6 +812,7 @@ export function constructBossUpdateEmbeds(updates: PendingPlayerUpdate[]): APIEm
             const scoreIncrease = newValue - baseValue;
             const bossName = getBossName(boss as Boss);
             // Note that this will be funky if the KC is 1, but currently the hiscores don't report KCs until >1
+            // TODO: Should this part use "The" prefixing too? Might be weird...
             return newValue === scoreIncrease
                 ? `**${bossName}** for the first ${scoreIncrease === 1 ? 'time' : `**${scoreIncrease}** times`}!`
                 : `**${bossName}** ${scoreIncrease === 1 ? 'again' : `**${scoreIncrease}** more times`} for a total of **${newValue}**`;
