@@ -82,6 +82,7 @@ export const DOPE_COMPLETE_VERBS: string[] = [
 export const COMPLETE_VERB_BOSSES: Set<Boss> = new Set<Boss>([
     'chambersOfXeric',
     'chambersOfXericChallengeMode',
+    'fracturedArchive',
     'gauntlet',
     'corruptedGauntlet',
     'theatreOfBlood',
