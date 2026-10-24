@@ -28,4 +28,6 @@ jobs:
         cache: 'npm'
     - run: npm ci
     - run: npm run-script build
+    # Create dummy auth file to keep test script from failing
+    - run: echo '{}' > config/auth.json
     - run: npm run-script test
